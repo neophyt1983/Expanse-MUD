@@ -1,0 +1,126 @@
+#tab-game.active:has(.dock-workspace){display:flex;flex-direction:column;overflow:hidden;gap:0}
+#society-panels{display:flex;flex-flow:row wrap;align-items:center;gap:4px;padding:3px 10px;overflow:visible;max-height:none;background:#141e25}
+#society-panels button,#quest-compass-open,.quick-actions button{font:inherit;font-size:13px;color:#d8e3e0;background:#1c2a33;border:1px solid #435661;border-radius:4px;padding:4px 8px}
+#society-panels button[hidden],#quest-compass-open[hidden]{display:none}
+#tab-game .dock-workspace{flex:1 1 auto;min-height:0}
+.dock-content .play-map-pane{display:flex!important;flex-flow:column nowrap!important;align-items:stretch;gap:0;height:100%;overflow:auto!important}
+#player-map-panel.play-map-pane>#player-visual-map{flex:1 1 0%;min-height:200px;height:auto}
+#player-visual-map .atlas-viewport{height:auto;min-height:90px;flex:1 1 auto}
+#player-visual-map .atlas-position-header{padding:4px 9px;gap:4px}
+#player-visual-map .atlas-tools{padding:4px 8px;gap:4px}
+#player-visual-map .atlas-current-room{font-size:14px}
+#player-visual-map .atlas-more{padding:3px 10px;flex:none;max-height:34%;overflow:auto}
+#player-visual-map .atlas-more>summary{display:list-item!important;cursor:pointer}
+#player-visual-map #map-move{flex:none;padding:2px 6px;grid-template-columns:repeat(5,minmax(0,max-content))}
+#map-move .ed-btn{padding:2px 5px;font:12px/1.25 system-ui}
+#tab-game #character-strip{padding:4px 12px;column-gap:12px;row-gap:3px;font-size:13px}
+#tab-game .quick-actions{padding:4px 8px;gap:4px}
+#tab-game .conversation #log,.location-description{font-size:14px;line-height:1.5}
+#tab-game .workspace-hint{padding:3px 8px}
+#tab-game .dock-toolbar{padding:3px 8px;gap:5px}
+#tab-game .dock-canvas{min-height:120px}
+.play-tool-window{width:min(660px,calc(100vw - 32px));max-height:80vh;box-sizing:border-box;overflow:auto;color:#dbe6df;background:#17252e;border:1px solid #617681;border-radius:6px;padding:12px}
+.play-tool-window::backdrop{background:#07131a99}
+.play-tool-window h2{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.play-tool-window .society-panel{display:block;max-height:none;padding:8px;overflow:visible}
+.play-tool-window .society-panel[hidden],.play-tool-window .society-panel>summary{display:none!important}
+.play-tool-window input,.play-tool-window select,.play-tool-window button{font-size:14px}
+@media(max-height:800px){
+ #tab-game .workspace-hint,#player-controls>small:not(#movement-status),#tab-game .dock-hint,#player-visual-map .atlas-help{display:none}
+ #tab-game .dock-toolbar,#tab-game .dock-titlebar{padding-top:2px;padding-bottom:2px}
+ #player-controls{padding:3px 6px}
+}
+
+.map-view-buttons{display:flex;flex:none;flex-wrap:wrap;gap:3px;padding:3px 7px}.map-view-buttons button{font-size:13px}
+
+#tab-game .dock-titlebar .quick-actions{padding:0;background:transparent}
+.conversation-menu{position:fixed;inset:auto;margin:0;box-sizing:border-box;width:max-content;max-width:calc(100vw - 12px);max-height:min(64vh,420px);overflow:auto;background:#16252c;color:#dce8e0;border:1px solid #536873;border-radius:5px;padding:5px;box-shadow:0 6px 20px #0008}
+.conversation-menu:popover-open{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px}
+#tab-game .conversation-menu button{font:14px/1.35 system-ui;text-align:left;padding:6px 10px;color:inherit;background:transparent;border:0}
+#tab-game .conversation-menu button:focus-visible,#tab-game .conversation-menu button:hover{background:#29413e}
+
+#society-panels[popover]{display:none;position:fixed;inset:auto;margin:0;width:max-content;max-width:calc(100vw - 8px);max-height:65vh;overflow:auto;padding:5px;border:1px solid #536873;border-radius:5px;box-shadow:0 6px 20px #0008}
+#society-panels:popover-open{display:grid;gap:2px}
+#society-panels:popover-open button{text-align:left;font:14px/1.4 system-ui;padding:6px 10px}
+@media(max-height:740px){
+ #player-map-panel.play-map-pane>#player-visual-map{min-height:148px}
+ #player-visual-map .atlas-viewport{min-height:66px}
+ #session-actions{padding:4px 8px!important}
+}
+@media(max-height:800px){
+ #player-visual-map .atlas-position-header{display:grid;grid-template-columns:minmax(0,1fr) auto;padding:3px 8px;gap:1px 6px}
+ #player-visual-map .atlas-current-room,#player-visual-map .atlas-sight-badge,#player-visual-map .atlas-arrival{padding:0;line-height:1.3}
+ #player-visual-map .atlas-sight-badge{align-self:center}
+ #player-visual-map .atlas-arrival{grid-column:1/-1}
+ #player-visual-map #map-weather-controls{padding:0}
+ #player-sundial:not([hidden]){padding:1px 4px}
+ #player-sundial .sundial-face{width:26px;height:26px}
+}
+.dock-tabs[hidden]{display:none}
+.dock-tabs{display:flex;flex-wrap:wrap;gap:3px;padding:3px 8px;background:#101920}
+.dock-tabs button[aria-pressed=true]{border-color:#7fd1a4;color:#a9e6c4}
+.dock-workspace[data-arrangement=tabs]{min-height:0;flex:1 1 auto}
+.dock-workspace[data-arrangement=tabs] .dock-panel:not([hidden]){position:static!important;width:100%!important;height:100%!important;min-width:0;box-shadow:none}
+.dock-workspace[data-arrangement=tabs] .dock-panel[hidden],.dock-workspace[data-arrangement=tabs] .dock-control,.dock-workspace[data-arrangement=tabs] .dock-targets{display:none}
+#player-visual-map{container-type:inline-size}
+#player-visual-map #map-move{display:grid;align-items:center;grid-template-columns:minmax(0,1fr) minmax(0,13em) minmax(0,1fr);gap:5px;padding:4px 6px;border-top:1px solid #374951;background:#101a21}
+#map-move:empty{display:none!important}
+.exit-compass{grid-column:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(20px,auto));gap:2px}
+.exit-compass::after{content:'';grid-area:2/2;width:6px;height:6px;place-self:center;border:1px solid #7d9e94;border-radius:50%}
+.exit-passages{display:flex;align-items:center;flex-wrap:wrap;gap:3px;grid-column:3;min-width:0;padding-left:6px;border-left:1px solid #43555d}
+.exit-passages:only-child{grid-column:1/-1;justify-content:center;border:0}
+.exit-group-label{width:100%;font:12px system-ui;color:#c0cdd2}
+#map-move .ed-btn{min-height:21px;padding:2px 3px;text-transform:capitalize}
+@container(max-width:395px){#player-visual-map #map-move{grid-template-columns:minmax(0,13em) minmax(58px,max-content);justify-content:center}.exit-compass{grid-column:1}.exit-passages{grid-column:2}}
+@media(max-width:850px),(max-height:530px){
+ #tab-game .dock-toolbar{padding:2px 6px}
+ #tab-game #character-strip{max-height:16vh;overflow:auto;padding-block:2px}
+ #tab-game.active:has(.dock-workspace){min-height:0;overflow:auto}
+ .dock-workspace[data-arrangement=tabs] .dock-content .play-map-pane{overflow:auto!important}
+ #tab-editor.active,#ed-grid.dock-managed{min-width:0}
+}
+
+/* A phone-sized game page scrolls as a page, including when the keyboard opens. */
+@media (max-width: 850px), (max-height: 530px) {
+  #character-creation {
+    top: 0; right: 0; bottom: 0; left: 0;
+    padding: 8px;
+    box-sizing: border-box;
+  }
+  #character-creation .cc-panel {
+    max-height: calc(100vh - 16px);
+    max-height: calc(100dvh - 16px);
+    min-width: 0;
+    overflow: auto;
+  }
+  #character-creation textarea { box-sizing: border-box; }
+  #tab-game.active, #tab-game.active:has(.dock-workspace) {
+    display: flex; flex-flow: column nowrap; overflow: auto; min-height: 0;
+  }
+  #tab-game > * { flex-shrink: 0; }
+  #tab-game .dock-workspace[data-arrangement=tabs],
+  #tab-game .dock-workspace[data-arrangement=tabs] .dock-canvas,
+  #tab-game .dock-workspace[data-arrangement=tabs] .dock-rail,
+  #tab-game .dock-workspace[data-arrangement=tabs] .dock-panel:not([hidden]),
+  #tab-game .dock-workspace[data-arrangement=tabs] .dock-content {
+    flex: none; width: 100%; height: auto !important; overflow: visible;
+    min-width: 0; box-sizing: border-box;
+  }
+  #tab-game .dock-workspace[data-arrangement=tabs] .dock-content > * {
+    flex: none; width: 100%; box-sizing: border-box;
+  }
+  #tab-game .dock-workspace[data-arrangement=tabs] .conversation { height: 65vh; min-height: 240px; }
+  #tab-game .dock-workspace[data-arrangement=tabs] #player-map-panel {
+    height: auto; overflow: visible !important;
+  }
+  #tab-game .dock-workspace[data-arrangement=tabs] #player-visual-map {
+    flex: none; height: auto; overflow: visible;
+  }
+  #tab-game .dock-workspace[data-arrangement=tabs] #player-visual-map .atlas-viewport {
+    order: -1; flex: none; height: 55vh; height: 55dvh; min-height: 175px;
+  }
+  .dock-tabs button, .expanse-window-bar .expanse-window-button {
+    min-width: 40px; min-height: 40px;
+  }
+  #save-browser .expanse-window-bar { flex-wrap: wrap; }
+}

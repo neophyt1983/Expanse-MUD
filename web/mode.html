@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Expanse — Choose Mode</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/title-screen.css">
+<link rel="stylesheet" href="/saves.css">
+</head>
+<body>
+<main id="app">
+  <section class="title-menu" aria-labelledby="game-title">
+    <h1 id="game-title">Expanse</h1>
+    <nav id="modes" aria-label="Play">
+      <button id="start-continue" hidden>Continue</button>
+      <button class="mode primary-option" data-mode="single" id="open-adventures">New game</button>
+      <button id="open-save-browser">Load game</button>
+      <button id="open-world-import">Import world</button>
+      <details id="multiplayer"><summary>Multiplayer</summary><div>
+        <button class="mode" data-mode="host">Host a game</button>
+        <button class="mode" data-mode="join">Join a game</button>
+      </div></details>
+    </nav>
+    <section id="join-panel" style="display:none;" aria-labelledby="join-heading">
+      <h2 id="join-heading">Join a game</h2><label for="join-host">Host address</label>
+      <input id="join-host" placeholder="192.168.1.5:8000" autocomplete="off">
+      <div class="actions"><button id="join-cancel">Back</button><button id="join-go">Join</button></div>
+    </section>
+    <nav id="start-utilities" aria-label="Application"><button class="mode" data-mode="edit">World editor</button><button id="start-quit">Quit</button></nav>
+    <p id="status" role="status" aria-live="polite"></p>
+  </section>
+  <div class="landscape" aria-hidden="true"></div>
+</main>
+<script>
+  const statusEl = document.getElementById('status');
+  function setStatus(text, kind = '') {
+    statusEl.textContent = text;
+    statusEl.className = kind;
+  }
+
+  let modePending = false;
+  async function chooseMode(mode, host) {
+    if (modePending) return;
+    modePending = true;
+    const buttons = [...document.querySelectorAll('.mode'), document.getElementById('join-go'), document.getElementById('join-cancel')];
+    buttons.forEach(button => button.disabled = true);
+    const local = mode === 'single' || mode === 'edit';
+    setStatus(local ? 'Loading your local world… No internet connection is needed.' : 'Starting…');
+    const controller = new AbortController();
+    let timeout;
+    const body = { mode };
+    if (host) body.host = host;
+    try {
+      for(;;){
+      timeout=setTimeout(()=>controller.abort(),65000);
+      const r = await fetch('/api/mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      const data = await r.json();
+      clearTimeout(timeout);
+      if(r.status===202&&data.starting){await new Promise(done=>setTimeout(done,750));continue;}
+      if (data.error) { setStatus(data.error, 'error'); return; }
+      if (!r.ok) throw new Error('Launcher returned HTTP ' + r.status);
+      if (!data.redirect) throw new Error('Launcher did not return a game destination.');
+      if (data.redirect) {
+        setStatus('Redirecting…', 'ok');
+        window.location.href = data.redirect;
+      }
+      break;
+      }
+    } catch (e) {
+      const detail = e.name === 'AbortError' ? 'The launcher has not finished responding. Wait a moment and try again.' : e.message;
+      setStatus((local ? 'Could not reach Expanse’s local launcher. This does not require internet access. ' : 'Failed to reach the launcher: ') + detail, 'error');
+    } finally {
+      clearTimeout(timeout);
+      modePending = false;
+      buttons.forEach(button => button.disabled = false);
+    }
+  }
+
+  document.querySelectorAll('.mode').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const mode = btn.dataset.mode;
+      if (mode === 'join') {
+        document.getElementById('modes').style.display = 'none';
+        document.getElementById('join-panel').style.display = 'block';
+        document.getElementById('join-host').focus();
+        setStatus('');
+        return;
+      }
+      if (mode === 'single' || mode === 'host') {
+        window.openAdventureMenu(mode);
+        return;
+      }
+      chooseMode(mode);
+    });
+  });
+  document.getElementById('join-cancel').addEventListener('click', () => {
+    document.getElementById('join-panel').style.display = 'none';
+    document.getElementById('modes').style.display = 'grid';
+    setStatus('');
+  });
+  document.getElementById('join-go').addEventListener('click', () => {
+    const host = document.getElementById('join-host').value.trim();
+    if (!host) { setStatus('Enter a host address.', 'error'); return; }
+    chooseMode('join', host);
+  });
+  document.getElementById('join-host').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('join-go').click();
+  });
+</script>
+<script src="/application-controls.js"></script>
+<link rel="stylesheet" href="/world-import.css">
+<script src="/world-import.js"></script>
+<script src="/save-browser.js"></script>
+<script src="/adventures.js"></script>
+<link rel="stylesheet" href="/game-settings.css">
+<script src="/display-settings.js"></script>
+<link rel="stylesheet" href="/player-controls.css">
+<script src="/player-controls.js?v=daba78de1cc9"></script>
+<script src="/game-settings.js"></script>
+<script src="/soundscape.js"></script>
+</body>
+</html>

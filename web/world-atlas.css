@@ -1,0 +1,46 @@
+/* A separate view, not a change to the saved dock layout. */
+#world-atlas[hidden]{display:none!important}
+#world-atlas{position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;background:#101c23;color:#e4ede8;font:14px/1.45 system-ui,sans-serif;isolation:isolate}
+#world-atlas *{box-sizing:border-box}
+#world-atlas header{display:flex;align-items:center;gap:12px;padding:12px 18px;background:#172730;border-bottom:1px solid #3d555d;flex-wrap:wrap}
+#world-atlas h2{margin:0;font-size:20px;font-weight:600;flex:1}
+#world-atlas .wa-tools{display:flex;align-items:center;gap:8px;padding:10px 18px;flex-wrap:wrap}
+#world-atlas button,#world-atlas select,#world-atlas input{font:inherit;color:#e4ede8;background:#21343d;border:1px solid #647a81;border-radius:4px;padding:7px 10px;min-height:36px}
+#world-atlas button{cursor:pointer}
+#world-atlas button:disabled{opacity:.45;cursor:default}
+#world-atlas :focus-visible{outline:3px solid #f3d486;outline-offset:2px}
+#world-atlas label{display:flex;gap:6px;align-items:center}
+#world-atlas .wa-search{max-width:260px;min-width:100px}
+#world-atlas .wa-summary{padding:0 18px 9px;color:#b4c9ce;font-size:13px}
+#world-atlas .wa-main{position:relative;flex:1;min-height:160px;overflow:hidden;border-top:1px solid #344b55;border-bottom:1px solid #344b55}
+#world-atlas canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#world-atlas .wa-empty{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:18px;max-width:620px;width:90%;text-align:center;background:#142831ed;border:1px solid #526870;border-radius:6px;pointer-events:none}
+#world-atlas .wa-inspect{padding:10px 18px;max-height:23vh;overflow:auto;background:#172730}
+#world-atlas .wa-inspect p{margin:0 0 5px}
+#world-atlas .wa-stack{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+#world-atlas .wa-key{padding:7px 18px;font-size:12px;color:#b4c9ce}
+#world-atlas .wa-dot{display:inline-block;width:10px;height:10px;background:#e3c971;border:1px solid #fff;margin-right:5px;border-radius:50%}
+#world-atlas .wa-found{max-width:280px}
+@media(max-width:650px){#world-atlas header{padding:8px 10px}#world-atlas h2{font-size:17px}#world-atlas .wa-tools{padding:8px 10px;gap:6px}#world-atlas button,#world-atlas select,#world-atlas input{padding:5px 7px;min-height:34px}#world-atlas .wa-summary,#world-atlas .wa-inspect,#world-atlas .wa-key{padding-left:10px;padding-right:10px}#world-atlas .wa-inspect{max-height:20vh}#world-atlas .wa-search{max-width:150px}}
+/* Short windows may scroll the controls rather than clipping them offscreen. */
+#world-atlas{overflow:auto}
+#world-atlas header,#world-atlas .wa-tools,#world-atlas .wa-summary,#world-atlas .wa-inspect,#world-atlas .wa-key{flex-shrink:0}
+
+.wa-tooltip{position:absolute;max-width:min(320px,90%);padding:7px 10px;background:#0a151ef5;color:#e5dfc6;border:1px solid #62726a;border-radius:4px;pointer-events:auto;z-index:5;overflow-wrap:anywhere;font-size:13px}.wa-tooltip[hidden]{display:none!important}
+
+#world-atlas .wa-spread{flex:1;min-height:180px;display:flex;align-items:stretch;overflow:hidden}
+#world-atlas .wa-place-panel{width:clamp(190px,23vw,320px);box-sizing:border-box;background:#16262d;border-left:1px solid #344b55;overflow:auto;padding:16px}
+#world-atlas .wa-place-panel[hidden]{display:none}
+#world-atlas .wa-place-panel h3{font:600 20px/1.2 system-ui;margin:6px 0}
+#world-atlas .wa-place-panel h4{margin:16px 0 4px}
+#world-atlas .wa-place-panel p{margin:6px 0;color:#c9d7d4}
+#world-atlas .wa-place-panel button{display:block;margin:4px 0;text-align:left}
+#world-atlas .wa-kicker{color:#80c8a8;font-size:11px;letter-spacing:1px}
+#world-atlas .wa-place-panel canvas.wa-terrain-swatch{width:60px;height:60px;margin:8px 0;cursor:default;image-rendering:pixelated}
+#world-atlas .wa-pin-form{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:7px 0}
+@media(max-width:680px){#world-atlas .wa-spread{flex-direction:column;min-height:310px}#world-atlas .wa-place-panel{width:auto;max-height:140px;border-left:0;border-top:1px solid #344b55}}
+
+.wa-terrain-legend:not([hidden]):not(:empty){display:flex;flex-wrap:wrap;gap:3px 14px;align-items:center;padding:4px 18px;color:#c1cfcf;font-size:12px}
+.wa-terrain-legend span{display:inline-flex;align-items:center;gap:4px}.wa-terrain-legend i{width:10px;height:10px;border-radius:2px}
+
+dialog#world-atlas{box-sizing:border-box;margin:0;max-width:none;max-height:none;color:inherit}dialog#world-atlas:not(.atlas-window-restored){width:100%;height:100%}

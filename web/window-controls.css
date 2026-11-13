@@ -1,0 +1,15 @@
+/* Screenshot-inspired neutral circular chrome. Hit targets exceed tiny source icons. */
+.expanse-window-button{display:inline-flex!important;align-items:center;justify-content:center;flex:none;width:32px;height:32px;border:0;border-radius:50%;padding:0!important;background:#303136;color:#c4c6ca;font:bold 19px/1 system-ui;cursor:pointer;touch-action:manipulation}
+.expanse-window-button:hover{background:#45474e;color:#fff}.expanse-window-button:focus-visible{outline:3px solid #9bd7f5;outline-offset:2px}.expanse-window-button:disabled{opacity:.4;cursor:not-allowed}.expanse-window-button[aria-label^="Close"]:hover{background:#963e42;color:#fff}
+.expanse-window-bar{display:flex;align-items:center;justify-content:flex-end;gap:10px;background:#232429;color:#ccc;padding:8px;border-radius:8px 8px 0 0;margin-bottom:8px}.expanse-window-bar strong{margin-right:auto;font-size:14px}.window-panel-tray{display:flex;gap:6px;flex-wrap:wrap}.window-panel-tray:empty{display:none}.dock-panel[hidden]{display:none!important}.dock-panel.window-maximized{min-width:0;min-height:0}.dock-titlebar{background:#232429}.dock-titlebar .expanse-window-button{width:30px;height:30px}.dock-titlebar strong{margin-right:auto}
+dialog.expanse-dialog-maximized{position:fixed!important;inset:12px!important;margin:0!important;width:calc(100vw - 24px)!important;height:calc(100vh - 24px)!important;max-width:none!important;max-height:none!important;box-sizing:border-box;overflow:auto!important}
+.expanse-window-shelf{position:fixed;left:12px;bottom:12px;z-index:1200;display:flex;flex-wrap:wrap;gap:6px;max-width:90vw}.expanse-window-shelf:empty{display:none}
+
+#world-atlas.atlas-window-restored{inset:5vh 5vw;width:auto;height:auto;border:1px solid #59616b;border-radius:8px;box-shadow:0 12px 50px #000a}#world-atlas header .expanse-window-button{padding:0!important;width:32px;height:32px}#world-atlas[hidden]{display:none!important}
+
+.move-window-handle{cursor:move;touch-action:none;user-select:none}
+.move-window-handle:focus-visible{outline:2px solid #9bd7f5;outline-offset:-2px}
+dialog[data-window-moved]:not(.expanse-dialog-maximized),#world-atlas.atlas-window-restored[data-window-moved]{
+ position:fixed!important;inset:var(--window-y) auto auto var(--window-x)!important;margin:0!important;transform:none!important;
+ max-width:calc(100vw - 4px)!important;max-height:calc(100vh - 4px)!important;box-sizing:border-box;overflow:auto}
+#world-atlas.atlas-window-restored[data-window-moved]{width:90vw;height:90vh}

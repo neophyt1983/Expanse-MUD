@@ -1,0 +1,12 @@
+#player-controls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-top:1px solid #29374b}#player-controls small{flex:1;min-width:160px;color:#a9b7ca}#movement-key-focus:focus{outline:3px solid #e4c968;outline-offset:2px}#player-keybindings-dialog{color:#d8e3f0;background:#142033;border:1px solid #6481a5;border-radius:8px;width:min(520px,90vw);max-height:85vh;overflow:auto}#player-keybindings-dialog::backdrop{background:#000a}.keybinding-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center;margin:7px 0}.keybinding-row button{color:#e6edf7;background:#263b56;border:1px solid #6481a5;border-radius:4px;padding:6px}#player-sundial:not([hidden]){display:flex;gap:8px;align-items:center;padding:5px 12px;font-size:13px}.sundial-face{display:inline-block;width:36px;height:36px;border:2px solid #bac9db;border-radius:50%;position:relative;flex-shrink:0}.sundial-hand{position:absolute;top:3px;left:16px;width:2px;height:15px;background:#fff;transform-origin:1px 15px;box-shadow:0 0 2px #000}#player-keybindings-dialog button:focus-visible{outline:3px solid #e4c968}
+
+.sundial-weather{display:inline-flex;align-items:center;gap:5px;padding-left:8px;border-left:1px solid #53657d}.sundial-weather-icon{font-size:20px;line-height:1}#player-sundial{flex-wrap:wrap}
+
+#map-weather-controls{grid-column:1/-1;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font:11px/1.5 system-ui;color:#c5d1c6}#map-weather-controls label{display:inline-flex;align-items:center;gap:3px;cursor:pointer}#map-weather-controls input{margin:0}#map-local-weather:not([hidden]){display:inline-flex;align-items:center;gap:5px}#map-local-weather>span:first-child{font-size:16px}
+
+/* Static local conditions only: wrap in the header, never over terrain. */
+#map-local-weather,.sundial-weather{min-width:0;max-width:100%;overflow-wrap:anywhere;white-space:normal}.sundial-weather{flex-wrap:nowrap}.sundial-weather>span:last-child{min-width:0}#map-local-weather.local-weather-warning,.sundial-weather.local-weather-warning{color:#ffdc9e}#map-weather-controls input:focus-visible{outline:2px solid #ffdc9e;outline-offset:3px}
+
+.atlas-position-header #map-weather-controls{padding:0 12px 7px;}
+
+#game-settings #player-controls{padding:0;border:0;align-items:flex-start;background:transparent}#game-settings #player-controls small{flex:1 1 100%;line-height:1.45}#movement-status:empty{display:none}#movement-status{align-self:center;color:#b3c9bc;font-size:.85em}

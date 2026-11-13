@@ -1,0 +1,31 @@
+#save-browser{box-sizing:border-box;background:#172325;color:#edf1e9;border:1px solid #637e76;border-radius:10px;padding:clamp(14px,2.7vw,26px);width:min(620px,94vw);max-height:85vh;overflow:auto;font:15px/1.5 system-ui,sans-serif}
+#save-browser::backdrop{background:#081011ba}
+#save-browser header{display:flex;align-items:center;justify-content:space-between;background:none;padding:0;border:0}
+#save-browser h2{margin:0;font:600 26px/1.2 Georgia,serif}
+#save-browser form:not([hidden]){display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;margin-top:18px}
+#save-browser label{grid-column:1/-1}
+#save-browser input,#save-browser select{background:#111c1e;color:#edf1e9;border:1px solid #596d66;border-radius:4px;font:inherit;padding:.32em .55em}
+#save-browser button{font:inherit;color:#ebefe8;background:#293a39;border:1px solid #546861;border-radius:4px;padding:.34em .75em;cursor:pointer}
+#save-browser button:disabled{opacity:.55}
+#save-browser .save-tools,#save-browser .save-row-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+#save-browser .save-tools{margin:18px 0 8px}
+.save-entries section{border-top:1px solid #354b47;padding:12px 0;display:grid;grid-template-columns:1fr auto;gap:3px 10px}
+.save-entries span,.save-entries small{color:#c2ccc6;font-size:13px}
+.save-entries small,.save-row-actions{grid-column:1/-1}.save-entries strong{overflow-wrap:anywhere}
+#save-browser [role=status]{margin-bottom:0;color:#e6cea3}
+@media(max-width:480px){.save-entries section{grid-template-columns:1fr}}
+
+#save-browser[data-window-chrome] > header{display:none}
+.resident-window{color:#e8ede5;background:#182529;border:1px solid #60756f;border-radius:7px;padding:16px;width:min(530px,94vw);max-height:83vh;overflow:auto;font:15px/1.45 system-ui,sans-serif}
+.resident-window h2{font:600 24px Georgia,serif;margin:0 0 10px}.resident-window[data-window-chrome]>h2,.resident-window[data-window-chrome]>button:last-child{display:none}
+.offer-list{display:grid;gap:6px;margin:12px 0}.offer-list button{text-align:left;white-space:normal}
+.resident-summary,.watch-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.watch-tools select{min-width:0;max-width:100%;color:#edf4ec;background:#172527;padding:5px;font:inherit}
+.resident-summary p{white-space:pre-line;margin:6px 0}.resident-summary canvas{image-rendering:pixelated}.resident-window ol{list-style:none;margin:0 0 9px;padding:0;max-height:36vh;overflow:auto}
+.resident-window li{border-top:1px solid #40534d;padding:7px 0}.resident-window li small{color:#b7c9bf}.resident-window::backdrop{background:#071015b0}
+#resident-watch .watch-scene{margin:10px 0;background:#0f1c20;border:1px solid #455d58;border-radius:5px;overflow:hidden}
+.watch-scene figcaption{padding:7px 10px;color:#f4e1b4;font-weight:650}
+.watch-scene canvas{width:100%;height:clamp(126px,22vh,220px);display:block;image-rendering:pixelated}
+.watch-scene p{margin:5px 10px 9px;font-size:.9em;color:#c5d4ce}.watch-scene[hidden]{display:none}
+.sky-effects{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1}.sky-effects[hidden]{display:none}
+.watch-weather-view{position:relative}.watch-scene .watch-weather-view .sky-effects{height:100%}
+.atlas-viewport .atlas-tip,.atlas-viewport .atlas-speech{z-index:2}

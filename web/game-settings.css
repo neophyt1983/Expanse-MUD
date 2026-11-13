@@ -1,0 +1,11 @@
+#game-settings{color:#e1e8df;background:#182a30;border:1px solid #71827a;border-radius:8px;max-width:min(520px,90vw);padding:20px;font:14px/1.5 system-ui}#game-settings label{display:flex;align-items:center;gap:10px;min-height:44px}#game-settings input[type=checkbox]{width:20px;height:20px}#game-settings button{min-height:40px;padding:8px 12px;margin:4px;background:#2a4147;color:#e1e8df;border:1px solid #71827a;border-radius:4px}#game-settings :focus-visible{outline:3px solid #9bd7f5;outline-offset:2px}#quest-compass[hidden]{display:none!important}
+
+#game-settings{box-sizing:border-box;width:min(460px,94vw);max-height:90vh;overflow:auto}
+#display-settings{margin:10px 0;padding:6px 12px 12px;border:1px solid #536573;min-width:0}
+#display-settings legend{font-weight:600;padding:0 4px}
+#display-settings label{display:grid;grid-template-columns:minmax(90px,1fr) minmax(120px,1.4fr);gap:8px}
+#display-settings select{font:inherit;width:100%;color:inherit;background:#14232b;border:1px solid #687b86;border-radius:4px;padding:5px}
+#display-summary{font-size:13px;margin:8px 0}
+@media(max-height:560px){#game-settings{padding:8px 12px}#game-settings label{min-height:32px}}
+
+.location-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
