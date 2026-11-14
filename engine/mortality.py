@@ -55,7 +55,7 @@ def environmental_damage(w,actor,amount,cause,event_id=None):
     amount=int(amount)
     if amount<=0:return 0
     before=actor.hp
-    actor.take_damage(amount,defense=0)
+    actor.take_damage(amount,defense=0,cause=cause,kind='environment')
     damage=before-actor.hp
     if not damage:return 0
     now=living.state(w)['minute']
@@ -98,16 +98,31 @@ def assault(w, actor, victim):
     witnesses=guards(w,room)
     if not witnesses:return  # No omniscient policing.
     victim_definition=w.npcs.get(victim.source_def,{})
+    from engine import relationships
+    if victim_definition.get('aggressive') and not relationships.sentient(w,victim):return
     if any(society.friendliness(w,actor,g)>=50 for g in witnesses) and (society.friendliness(w,actor,victim)<25 or victim_definition.get('aggressive')):return
     # A guard defending against an existing wanted attacker is not a new crime.
     wanted=state(w)['wanted']
     if victim.id in wanted:return
     # Lawful guards can defend their jurisdiction from hostile invaders.
     if not actor.is_player and w.npcs.get(actor.source_def,{}).get('profession')=='guard' and society.friendliness(w,actor,victim)<25:return
-    wanted[actor.id]=dict(room=room,authority=cfg['authority'],victim=victim.id,
-        reported=living.state(w)['minute'])
-    state(w)['incidents']=(state(w)['incidents']+[dict(kind='assault',actor=actor.id,
-        victim=victim.id,room=room,minute=living.state(w)['minute'])])[-500:]
+    report_crime(w,actor,'assault',victim.id,witnesses)
+
+
+def report_crime(w,actor,kind,victim,witnesses):
+    """Retain an actual witnessed act for later judicial review."""
+    from engine import relationships
+    if not society.enabled(w) or not relationships.sentient(w,actor):return
+    cfg={**LAWS,**living.details(w,actor.location).get('laws',{})}
+    witnesses=[e for e in witnesses if e.alive and e.id!=actor.id and relationships.sentient(w,e)]
+    if not cfg['enabled'] or not witnesses:return
+    minute=living.state(w)['minute'];ids=[e.id for e in witnesses]
+    evidence=dict(kind=kind,actor=actor.id,victim=victim,room=actor.location,minute=minute,witnesses=ids)
+    current=state(w)['wanted'].get(actor.id,{})
+    previous=current.get('evidence',[]) if current.get('authority')==cfg['authority'] else []
+    state(w)['wanted'][actor.id]=dict(room=actor.location,authority=cfg['authority'],victim=victim,
+        reported=minute,kind=kind,witnesses=ids,evidence=(previous+[evidence])[-8:])
+    state(w)['incidents']=(state(w)['incidents']+[evidence])[-500:]
 
 
 def advance(w, rng=random.random):
@@ -119,6 +134,10 @@ def advance(w, rng=random.random):
     for pid, report in list(s['wanted'].items()):
         suspect=w.entities.get(pid)
         if suspect is None or not suspect.alive:continue
+        from engine import regional_world, relationships
+        if regional_world.enabled(w) and not relationships.sentient(w,suspect):
+            del s['wanted'][pid]
+            continue
         cfg={**LAWS,**living.details(w,suspect.location).get('laws',{})}
         officers=[g for g in guards(w,suspect.location) if g.id!=pid and g.group_id==report['authority']]
         if not officers:continue
@@ -134,6 +153,11 @@ def advance(w, rng=random.random):
         chance=max(.1,min(.95,(guard.attack+guard.defense+1)/(guard.attack+guard.defense+suspect.attack+suspect.defense+2)))
         if rng()>=chance:
             messages.append((origin,guard.name+' tries to restrain '+suspect.name+', but fails.'));continue
+        from engine import regional_world, city_justice
+        if regional_world.enabled(w) and city_justice.apprehend(w,suspect,guard,report):
+            del s['wanted'][pid]
+            messages.append((origin,guard.name+' escorts '+suspect.name+' to court for a hearing. No verdict has been issued.'))
+            continue
         fine=min(suspect.gold,max(0,cfg['fine']));suspect.gold-=fine;guard.gold+=fine
         if cfg['arrest_room'] in w.rooms:w.move_entity(suspect.id,cfg['arrest_room'],forced=True)
         suspect.progress['restrained_until']=now+2
@@ -152,7 +176,7 @@ def advance(w, rng=random.random):
         bystanders=[e for e in w.entities_in_room(room) if e.id!=vehicle.id and not w.npcs.get(e.source_def,{}).get('traffic',{}).get('enabled')]
         if not bystanders or rng()>=chance:continue
         victim=bystanders[min(len(bystanders)-1,int(rng()*len(bystanders)))]
-        damage=victim.take_damage(hazard['damage'],defense=0)
+        damage=victim.take_damage(hazard['damage'],defense=0,source=vehicle,cause='traffic collision',kind='collision')
         living.progress(victim)['injury']=min(100,living.progress(victim)['injury']+damage)
         from engine import gazette
         gazette.record(w, room, 'Public safety', f'{vehicle.name} struck {victim.name} at {w.rooms[room].name}. '+('The collision caused an injury.' if victim.alive else 'The collision was fatal.'))

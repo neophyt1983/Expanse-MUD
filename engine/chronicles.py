@@ -7,7 +7,7 @@ from engine import geology, history_templates, world_history, worldtime
 
 ARCHIVE = 'chronicles.json'
 YEAR = worldtime.MINUTES_PER_YEAR
-LABELS = {'geology':'Geology · Deep time','civilization':'Civilization · Medium time','individual':'Individuals · Recent time', 'natural':'Natural history and peoples', 'monstorium':'Monstorium', 'knowledge':'Frontiers of knowledge', 'sources':'Research bibliography'}
+LABELS = {'geology':'Geology · Deep time','civilization':'Civilization · Medium time','individual':'Individuals · Recent time', 'natural':'Creature Compendium', 'monstorium':'Monstorium', 'knowledge':'Frontiers of knowledge', 'sources':'Research bibliography'}
 STRATA = {
     'collision_range':(8_000_000, 100_000_000, 'Colliding plates raised a mountain belt.'),
     'eroded_range':(2_000_000, 40_000_000, 'Erosion wore down an older mountain range, leaving exposed ridges.'),

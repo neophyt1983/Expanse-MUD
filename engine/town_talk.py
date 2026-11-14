@@ -193,23 +193,12 @@ def ask(world, player, guide, action, query):
     contacts = contacts_for(world, guide)
     names = {key: fact['name'] for key, fact in contacts.items() if key != player.id}
     prefix = guide.name+' says, '
-    if action in ('people','memories'):
+    if action in ('people','work','activities','plans','creatures','localnews'):
+        from engine import resident_discussion
+        return prefix+'“'+resident_discussion.discuss(world,guide,action)+'”'
+    if action=='memories':
         profile = world.npcs.get(guide.source_def,{}).get('founding_profile',{})
         if (guide.spawner_key or '').startswith('birth:'):profile={}
-        if action=='people':
-            lines=[]
-            for tie in profile.get('feelings',[]):
-                other=world.npcs.get(tie['person'])
-                if other:
-                    words='I love ' if tie['kind']=='love' else 'I dislike '
-                    lines.append(words+other['name']+'. '+other['name']+' '+tie['why']+'.')
-            for bond in relationships.state(world)['bonds'].values():
-                if guide.id not in bond['participants'] or bond.get('deceased'):continue
-                if not any(kind in bond['kinds'] for kind in ('married','lover')):continue
-                partner=next((world.entities.get(k) for k in bond['participants'] if k!=guide.id),None)
-                if partner and partner.alive:lines.append('I love '+partner.name+'.')
-            if not lines:return prefix+'“I’ll keep that to myself.”'
-            return prefix+'“'+' '.join(lines)+'”'
         memories=[profile['event']] if profile.get('event') else []
         memories.extend('I was '+str(e['age'])+'. '+e['title']+'. '+e['text'] for e in profile.get('influences',[]))
         if not memories:return prefix+'“I have no story to share today.”'
@@ -247,11 +236,6 @@ def ask(world, player, guide, action, query):
             return prefix+'“I’ve heard that one.”'
         remember(reports,query,headlines[query],8)
         return 'You share the report with '+guide.name+'.'
-    if action == 'localnews':
-        reports = notes.get('news',{})
-        if not reports:return prefix+'“I haven’t heard any news yet.”'
-        article=next(reversed(reports.values()))
-        return prefix+'“From the '+article['area']+' Gazette: '+article['headline']+'”'
     if action == 'about':
         if not query:
             return prefix+('“Ask me about '+', '.join(list(names.values())[-4:])+'.'+'”' if names else '“No introductions yet.”')
@@ -298,44 +282,8 @@ def ask(world, player, guide, action, query):
 
 
 def everyday(world, speaker, listener, turn):
-    state = speaker.progress.get('npc_life', {})
-    needs = speaker.progress.get('needs', {})
-    cfg = world.npcs.get(speaker.source_def, {})
-    activity = str(getattr(speaker, 'activity', '')).lower()
-    from time import monotonic
-    fight = getattr(speaker, '_fight_display', None)
-    if fight and fight[0] == speaker.location and fight[1] > monotonic():
-        topic = 'danger'
-    elif speaker.hp * 3 <= speaker.max_hp:
-        topic = 'hurt'
-    else:
-        profile = cfg.get('founding_profile') or {}
-        if not (speaker.spawner_key or '').startswith('birth:') and turn % 5 == 2:
-            ties = profile.get('feelings', [])
-            if ties:
-                tie = ties[(turn // 5) % len(ties)]
-                other = world.npcs.get(tie['person'])
-                if other:
-                    first = other.get('first_name') or other['name'].split()[0]
-                    return 'says', tie['line'].format(first=first), 'I hear you.'
-        if turn % 5 == 4 and not (speaker.spawner_key or '').startswith('birth:'):
-            memories=[e for e in profile.get('influences',[]) if e['scope']=='Local']
-            if memories:return 'says',memories[0]['voice'],'I remember.'
-        topics = []
-        if state.get('mood', 50) < 25: topics.append('temper')
-        if needs.get('rest', 0) >= 65: topics.append('rest')
-        if needs.get('hunger', 0) >= 65: topics.append('hunger')
-        if state.get('wages_today', 0) > 0: topics.append('paid')
-        if 'work' in activity or 'craft' in activity: topics.append('work')
-        if speaker.location == (speaker.progress.get('home_room') or cfg.get('home_room')): topics.append('home')
-        bond = relationships.state(world)['bonds'].get(relationships.key(speaker,listener),{'kinds':[]})
-        if any(k in bond['kinds'] for k in ('married','lover','parent')): topics.append('family')
-        if not topics: return None
-        topic = topics[turn % len(topics)]
-    tone, words, reply = VOICES[topic]
-    override = cfg.get('gift_preferences', {}).get('everyday_lines', {}).get(topic)
-    from engine.speech_bubbles import valid_phrase
-    return (tone, override if valid_phrase(override) else words, reply)
+    from engine import resident_discussion
+    return resident_discussion.everyday(world,speaker,listener,turn)
 
 
 def exchange(world, speaker, listener, turn):
@@ -357,23 +305,21 @@ def exchange(world, speaker, listener, turn):
     daily = everyday(world, speaker, listener, turn)
     if daily and daily[0] in ('yells','calls out'):
         return daily
-    if turn % 3 == 0:
-        for ident, article in reversed(list(notes.get('news', {}).items())):
-            reports = notebook(listener).setdefault('news', {})
-            if ident not in reports:
-                remember(reports,ident,dict(article),8)
-                return 'says', 'News from '+article['area']+'.', 'Tell me more.'
+    if turn % 7 == 0:
         facts = [(key, f) for key, f in contacts_for(world, speaker).items() if key not in (speaker.id, listener.id)]
         for key, fact in reversed(facts):
             if hearsay(listener, speaker, key, fact):
-                name = fact['name'].split()[0]
-                return 'says', name+'? '+fact['look'].capitalize()+'.' if fact['look'] else 'Know '+name+'?', 'So I heard.' if fact['source'] else 'I’ll remember.'
-    if turn % 3 == 1:
+                words='I know '+fact['name']+'.' if fact.get('met') else 'I have heard about '+fact['name']+'.'
+                if fact.get('look'):words+=' I remember the '+fact['look']+'.'
+                if fact.get('source'):words+=' '+fact['source']+' was the one who told me.'
+                if public(world,fact.get('place')):words+=' My last sighting was at '+world.rooms[fact['place']].name+'.'
+                return 'says',words,'Thank you. That is useful to know, though they may have moved on since then.'
+    if turn % 7 == 1:
         places = [key for key in local_places(world, speaker) if key != speaker.location]
         if places:
-            end = places[(turn//3) % len(places)]
+            end = places[(turn//7) % len(places)]
             route = directions(world, speaker, listener, end)
             if route and any(notebook(listener)['roads'].get(src, {}).get(d) != dst for src, d, dst in route):
                 pass_route(world, listener, route)
-                return 'says', world.rooms[end].name+'? '+route[0][1].capitalize()+'.', 'Got it.'
-    return daily if turn % 3 != 0 else None
+                return 'says','If you are heading to '+world.rooms[end].name+', start '+route[0][1]+' from here. I can describe the route I know if you need more directions.','Thank you. I would rather ask someone who knows the road than guess.'
+    return daily

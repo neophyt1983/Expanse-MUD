@@ -21,6 +21,9 @@ def available(w, room, recipe):
     counts=Counter()
     for animal in w.entities_in_room(room):
         if animal.is_player or not animal.alive:continue
+        # Viewing a protected exhibit does not make it available as livestock
+        # for recipes or renewable-resource production in the visitor gallery.
+        if animal.progress.get('zoo_exhibit') or w.npcs.get(animal.source_def,{}).get('zoo_exhibit'):continue
         p=relationships.profile(w,animal)
         if recipe.get('requires_carrier') and p['reproductive_role']!='carrier':continue
         if not p['sentient'] and not p['undead'] and p['age_years']>=p['maturity_years']:

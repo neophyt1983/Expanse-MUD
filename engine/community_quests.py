@@ -1,9 +1,9 @@
 """Local, funded contracts built from the loaded world's people, sites and designs."""
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, OrderedDict
 from math import ceil
 
 from engine import ecology, frontiers, gathering, geology_impacts, knowledge, life_stages
-from engine import livelihoods, living, quest_progress, relationships, resource_nodes, sleep_movement, town_talk
+from engine import livelihoods, living, quest_progress, relationships, resource_nodes, sleep_movement, society, town_talk
 
 LABELS = {'find':'Find a person or animal','gather':'Gather supplies','make':'Make something',
           'watch':'Watch children','herd':'Herd animals'}
@@ -11,7 +11,9 @@ PUBLIC = {'inn','tavern','market','school','recreation','guild','port'}
 
 
 def ledger(w):
-    return living.state(w).setdefault('community_jobs', {'next':1,'jobs':{},'deliveries':{},'credits':{}})
+    book=living.state(w).setdefault('community_jobs', {'next':1,'jobs':{},'deliveries':{},'credits':{}})
+    book.setdefault('recent',[])
+    return book
 
 
 def now(w):
@@ -110,10 +112,10 @@ def plan(w,actor,spec):
     steps=[];minutes=0;used=set()
     def step(room,action,key='',length=1):
         nonlocal origin,minutes
-        travel=distance(w,actor,origin,room)
-        if travel is None:raise ValueError('No open route to '+w.rooms[room].name+'.')
-        minutes+=travel+length;origin=room
-        steps.append(dict(room=room,action=action,key=key,length=length))
+        route=[] if origin==room else frontiers.path(w,origin,room,actor)
+        if route is None:raise ValueError('No open route to '+w.rooms[room].name+'.')
+        minutes+=len(route)+length;origin=room
+        steps.append(dict(room=room,action=action,key=key,length=length,route=route,route_index=0))
     def harvest(iid,qty):
         nonlocal minutes
         repeats=[]
@@ -205,6 +207,15 @@ def note(w,j,text):
     message(w,w.entities.get(j['issuer']),text)
 
 
+def announce(w,j,text):
+    """Witnessed local activity, not a global quest reveal or a newspaper feed."""
+    giver=w.entities.get(j['issuer'])
+    room=j['home'] if j['mode']=='board' else giver.location if giver else j['home']
+    if room in w.rooms:
+        excluded=j['issuer'] if giver and giver.is_player else None
+        w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(room,text,excluded)])[-500:]
+
+
 def offer_plan(w,p,spec,recipient=None):
     # A commissioner can hire a specialist who has equipment or skills they lack.
     candidates=[p]
@@ -240,13 +251,15 @@ def post(w,p,spec,mode,to=None,expected_pay=None):
            note='Reward deposited.',created=now(w),history=[],declined={})
     book['jobs'][ident]=j
     if to:message(w,w.entities[to],p.name+' offers '+j['title']+'. Open Local quests to respond.')
+    if not p.is_player:
+        announce(w,j,p.name+' '+('posts a local quest' if mode=='board' else 'asks for help')+': '+j['title']+f' ({pay} gold).')
     return j
 
 
 def visible(w,p,j):
     if p.id in (j['issuer'],j['worker']):return True
+    if j['mode']=='board':return p.location==j['home'] and j['status'] in ('open','active','completed')
     if j['status']!='open':return False
-    if j['mode']=='board':return p.location==j['home']
     giver=w.entities.get(j['issuer'])
     return giver and giver.location==p.location and (not j['to'] or j['to']==p.id)
 
@@ -316,8 +329,12 @@ def accept(w,e,j):
     if not e.is_player and not livelihoods.awake(w,e):raise ValueError(e.name+' is off duty and asleep.')
     reason,cover=('',None) if e.is_player else leave(w,e,j,minutes)
     j.update(status='active',worker=e.id,worker_name=e.name,steps=steps,index=0,bound=False,cover=cover,until=now(w)+minutes+5)
+    # The accepted route belongs to this task, not the ordinary commuter FIFO.
+    getattr(w,'_commute_routes',{}).pop(e.id,None)
+    getattr(w,'_pending_commutes',{}).pop(e.id,None)
     changed(w)
     note(w,j,e.name+' accepted. '+reason)
+    announce(w,j,e.name+' accepts '+j['name']+'’s local quest: '+j['title']+'.')
 
 
 def release(w,j,reason):
@@ -345,8 +362,69 @@ def settle(w,e,j):
             box[i]=box.get(i,0)+n
     if provider:provider.progress['community_receipt']=e.name+' completed '+j['title']+' for '+str(j['pay'])+' gold.'
     note(w,j,e.name+' completed '+j['title']+'.')
+    announce(w,j,e.name+' completes '+j['title']+' and receives '+str(j['pay'])+' gold from '+j['name']+'.')
+    book['recent']=(book['recent']+[dict(id=j['id'],title=j['title'],issuer=j['issuer'],name=j['name'],
+        worker=e.id,worker_name=e.name,pay=j['pay'],home=j['home'],mode=j['mode'],status='completed',
+        note=j['note'],history=list(j['history']),completed=now(w),to=j.get('to'))])[-48:]
+    from engine import npc_life
+    npc_life.earned(w,e,j['pay'])
+    npc_life.event(w,e,'completed a local quest',3,source=j['issuer'])
+    if provider:npc_life.event(w,provider,'received help with a local quest',3,source=e.id)
     del book['jobs'][j['id']]
     changed(w)
+
+
+def _route_slot(w,e):
+    """At most four changed task routes per game minute, with FIFO fairness."""
+    minute=now(w)
+    pending=getattr(w,'_community_route_queue',None)
+    if pending is None:pending=w._community_route_queue=OrderedDict()
+    if getattr(w,'_community_route_minute',None)!=minute:
+        w._community_route_minute=minute
+        w._community_route_slots=set()
+        for _ in range(min(4,len(pending))):
+            ident,_=pending.popitem(last=False);w._community_route_slots.add(ident)
+        w._community_route_free=4-len(w._community_route_slots)
+    if e.id in w._community_route_slots:w._community_route_slots.remove(e.id)
+    elif w._community_route_free>0:w._community_route_free-=1
+    else:
+        pending[e.id]=None
+        return False
+    pending.pop(e.id,None)
+    return True
+
+
+def _move_step(w,e,j,step):
+    """Reuse proved paths, validating every live edge before moving one tile."""
+    target=step['room'];route=step.get('route',[]);index=step.get('route_index',0)
+    def usable():
+        if not isinstance(route,(list,tuple)) or not isinstance(index,int) or not 0<=index<len(route):return False
+        edge=route[index]
+        if not isinstance(edge,(list,tuple)) or len(edge)!=3 or not all(isinstance(x,str) for x in edge):return False
+        if not isinstance(route[-1],(list,tuple)) or len(route[-1])!=3 or route[-1][2]!=target:return False
+        origin,direction,destination=edge
+        return (origin==e.location and origin in w.rooms and destination in w.rooms
+                and w.rooms[origin].exits.get(direction)==destination
+                and not frontiers.blocked(w,origin,direction,e))
+    if not usable():
+        if now(w)<step.get('route_retry_at',-1):return False
+        if not _route_slot(w,e):
+            # Queue delay is not work the resident failed to perform.
+            if j.get('route_waited_at')!=now(w):
+                j['until']+=1;j['route_waited_at']=now(w)
+            return False
+        route=frontiers.path(w,e.location,target,e)
+        if route is None:
+            step.update(route=[],route_index=0,route_retry_at=now(w)+4)
+            return False
+        index=0;step.update(route=route,route_index=0)
+        step.pop('route_retry_at',None)
+        if not route:return e.location==target
+        if not usable():return False
+    _,_,destination=route[index]
+    moved=w.move_entity(e.id,destination)
+    if moved:step['route_index']=index+1
+    return bool(moved)
 
 
 def work(w,e,j,automatic=False):
@@ -359,11 +437,17 @@ def work(w,e,j,automatic=False):
         room=crew[0].location;step['room']=room
     if e.location!=room:
         if automatic:
-            livelihoods.move_towards(w,e,room)
-            if e.location!=room:e.activity='travelling to '+w.rooms[room].name+' for '+j['title']
-            return
-        raise ValueError('Go to '+w.rooms[room].name+' for the next step.')
+            _move_step(w,e,j,step)
+            if e.location!=room:
+                e.activity='travelling to '+w.rooms[room].name+' for '+j['title']
+                return
+            # Arrival is an observation now. Waiting for another tick could
+            # miss a moving person/animal who leaves later in this same tick.
+        else:raise ValueError('Go to '+w.rooms[room].name+' for the next step.')
     if action in ('gather','make'):
+        if automatic:
+            label=(w.resources if action=='gather' else w.recipes).get(step['key'],{}).get('name',step['key'])
+            e.activity=('gathering ' if action=='gather' else 'making ')+label+' for '+j['name']+'’s local quest'
         if step.get('renewal') and action=='gather':
             reason=gathering.resource_state(w,e,room,w.resources[step['key']])
             if reason and ('Ready ' in reason or 'minute' in reason or 'replenish' in reason):
@@ -425,7 +509,9 @@ def ask_or_return(w,e,j):
     try:accept(w,e,j)
     except ValueError as exc:
         text=str(exc);j['declined'][e.id]=now(w)+120
-        if j.get('to')==e.id or 'required a replacement' in text or 'refused leave' in text:
+        # A public offer remains open when one worker cannot obtain shift cover.
+        # Only an offer addressed specifically to this person is returned.
+        if j.get('to')==e.id:
             release(w,j,e.name+' could not take the request. '+text)
         else:note(w,j,e.name+' declined. '+text)
 
@@ -461,13 +547,16 @@ def propose(w,giver,turn):
     name=(w.items if kind=='gather' else w.recipes).get(targets[0],{}).get('name') if kind in ('make','gather') else w.entities[targets[0]].name
     spec=dict(kind=kind,targets=targets,qty=qty,dest=dest,home=giver.location,title=LABELS[kind]+' · '+name)
     mode='board' if board(w,giver.location) and turn%3 else 'ask'
-    try:post(w,giver,spec,mode,next((e.id for e in seen if human(w,e) and e.id not in targets),None) if mode=='ask' and turn%2 else None)
-    except ValueError:return
+    try:
+        return post(w,giver,spec,mode,next((e.id for e in seen if is_eligible(w,e) and e.id not in targets),None) if mode=='ask' and turn%2 else None)
+    except ValueError as exc:
+        giver.progress['community_offer_reason']=str(exc)
+        return None
 
 
 def is_eligible(w,e):
     return (not e.is_player and human(w,e) and e.alive and livelihoods.work_eligible(w,e)
-            and not sleep_movement.asleep(w,e) and not e.progress.get('escort_post'))
+            and livelihoods.awake(w,e) and not sleep_movement.asleep(w,e) and not e.progress.get('escort_post'))
 
 
 def recruit(w,j):
@@ -484,13 +573,17 @@ def recruit(w,j):
             if roads and not any(e.id!=giver.id and e.id not in j['targets'] and (e.is_player or is_eligible(w,e)) and j['declined'].get(e.id,-1)<=now(w) for e in people):
                 w.move_entity(giver.id,roads[(now(w)//12)%len(roads)][1]);giver.activity='asking around for help';return
     candidates=[e for e in people if e.id!=j['issuer'] and e.id not in j['targets'] and
-                (not j['to'] or e.id==j['to']) and is_eligible(w,e) and not busy(w,e) and j['declined'].get(e.id,-1)<=now(w)]
-    if candidates:ask_or_return(w,candidates[0],j)
+                (not j['to'] or e.id==j['to']) and is_eligible(w,e) and not busy(w,e) and j['declined'].get(e.id,-1)<=now(w)
+                and (not giver or min(society.friendliness(w,giver,e),society.friendliness(w,e,giver))>=50)]
+    for candidate in candidates[:3]:
+        ask_or_return(w,candidate,j)
+        if j['status']!='open':break
 
 
 def advance(w):
     if not available(w):return
     book=ledger(w);minute=now(w)
+    book['recent'][:]=[j for j in book['recent'] if minute-j.get('completed',0)<1500]
     for j in list(book['jobs'].values()):
         if j['status']!='active':continue
         e=w.entities.get(j['worker'])
@@ -516,7 +609,7 @@ def advance(w):
         if giver:giver.gold+=j['pay']
         del book['jobs'][j['id']]
     if minute<book.get('next_offer',0):return
-    book['next_offer']=minute+30
+    book['next_offer']=minute+10
     # Rotate through a bounded sample. Do not plan work for the entire population every tick.
     roster=getattr(w,'_community_roster',None)
     if not roster or minute>=getattr(w,'_community_recount',0):
@@ -526,10 +619,26 @@ def advance(w):
     if not roster:return
     occupied={j['issuer'] for j in book['jobs'].values()}
     if sum(not j.get('player_post') for j in book['jobs'].values())>=24:return
-    for off in range(min(12,len(roster))):
-        e=w.entities.get(roster[(turn*13+off)%len(roster)])
-        if e and e.gold>=3 and e.id not in occupied and is_eligible(w,e) and not busy(w,e):
-            propose(w,e,turn);break
+    # Alternate a local sample with the global rotation. A large population
+    # must not starve the room the player can actually observe. No teleporting,
+    # free rewards, whole-world route planning, or unseen offer disclosure.
+    local=[]
+    if turn%2==0:
+        rooms={e.location for e in w.entities.values() if e.is_player and e.alive}
+        for room in sorted(rooms):
+            local.extend(e.id for e in w.entities_in_room(room) if not e.is_player)
+        if local:
+            offset=(turn//2)%len(local);local=local[offset:]+local[:offset]
+    sample=list(dict.fromkeys(local[:12]+[roster[(turn*13+off)%len(roster)] for off in range(min(12,len(roster)))]))
+    attempts=0
+    for ident in sample:
+        e=w.entities.get(ident)
+        if (e and e.gold>=3 and e.id not in occupied and is_eligible(w,e) and not busy(w,e)
+                and minute>=e.progress.get('community_offer_after',0)):
+            attempts+=1
+            job=propose(w,e,turn)
+            e.progress['community_offer_after']=minute+(120 if job else 30)
+            if job or attempts>=3:break
 
 
 def assignment(w,e):
@@ -542,7 +651,12 @@ def assignment(w,e):
             worker=w.entities[j['worker']];cfg=livelihoods.definition(w,worker)
             if cfg.get('city_perimeter'):
                 perimeter(w,e,cfg,relief=True)
-            else:livelihoods.move_towards(w,e,livelihoods.workplace(w,worker))
+            else:
+                room=livelihoods.workplace(w,worker)
+                if e.location!=room:
+                    step=j.setdefault('cover_step',dict(room=room))
+                    step['room']=room
+                    _move_step(w,e,j,step)
             e.activity='covering the shift for '+worker.name;return True
         if j['worker']==e.id:
             try:work(w,e,j,automatic=True)
@@ -593,11 +707,13 @@ def view(w,p):
     book=ledger(w)
     for iid,n in book['deliveries'].pop(p.id,{}).items():p.inventory.extend([iid]*n)
     rows=[]
-    for j in book['jobs'].values():
+    for j in list(book['jobs'].values())+list(reversed(book['recent'])):
         if not visible(w,p,j):continue
-        mine=j['issuer']==p.id;assigned=j['worker']==p.id
+        mine=j['issuer']==p.id;assigned=j['worker']==p.id and j['status']=='active'
+        # Completed history is read-only, including for the former issuer.
+        if j['status']=='completed':mine=False
         row=dict(id=j['id'],title=j['title'],issuer=j['name'],pay=j['pay'],status=j['status'],
-                 personal=j.get('to')==p.id,where=w.rooms[j['home']].name,note=j['note'],mine=mine,assigned=assigned,history=j['history'])
+                 personal=j.get('to')==p.id,where=w.rooms[j['home']].name,note=j['note'],mine=mine,assigned=assigned,history=j['history'],worker=j.get('worker_name',''))
         if assigned:
             step=j['steps'][j['index']];rid=step['room'];key=step['key']
             if step['action'] in ('find','herd','watch') and key in w.entities:rid=w.entities[key].location

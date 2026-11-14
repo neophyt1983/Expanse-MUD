@@ -420,6 +420,7 @@ def _trigger_room_spawns(world: World, room: Room,
         dmg = player.take_damage(
             effective_attack(world, npc),
             defense=effective_defense(world, player),
+            source=npc, cause='ambush', kind='combat',
         )
         lines.append(f"{npc.name} hits you for {dmg} damage.")
 

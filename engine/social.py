@@ -200,7 +200,7 @@ def quest(w,a,b,qid,action):
 
 def command(ctx,args):
     action,_,rest=args.strip().partition(' '); w,a=ctx.world,ctx.player
-    if action in ('about','directions','relay','tell','showroute','headline','localnews','people','memories'):
+    if action in ('about','directions','relay','tell','showroute','headline','localnews','people','memories','work','activities','plans','creatures'):
         from engine import town_talk
         query, sep, who = rest.rpartition(' to ')
         if not sep and rest.startswith('to '): who, sep = rest[3:], True

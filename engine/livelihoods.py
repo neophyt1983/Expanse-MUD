@@ -285,13 +285,14 @@ def work_activity(w,n):
         if len(n.inventory)<8 and n.location==target and now>=n.progress.get('next_hunt',0) and not living.details(w,target).get('truce'):
             n.progress['next_hunt']=now+30
             from engine import wildlife,combat
-            prey=next((p for p in w.entities_in_room(target) if p.id!=n.id and p.alive and not p.is_player and not p.progress.get('companion_owner') and not relationships.profile(w,p)['sentient'] and wildlife.species(w,p)),None)
+            prey=next((p for p in w.entities_in_room(target) if p.id!=n.id and p.alive and not p.is_player and not p.progress.get('companion_owner') and not p.progress.get('zoo_exhibit') and not relationships.profile(w,p)['sentient'] and wildlife.species(w,p)),None)
             if prey:
                 text=combat.strike(w,n,prey,counter=True)
                 w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(target,text)])[-500:]
                 if not prey.alive and not prey.progress.get('wildlife_drops_released'):
                     prey.progress['wildlife_drops_released']=True
-                    n.inventory.extend(i for i in definition(w,prey).get('drops',[]) if i in w.items)
+                    if not prey.progress.get('combat_drops_distributed'):
+                        n.inventory.extend(i for i in definition(w,prey).get('drops',[]) if i in w.items)
         return True
     if role not in ('entertainer','teacher'):return False
     target=workplace(w,n)

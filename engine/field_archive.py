@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import random
 
-from engine import worldtime
+from engine import worldtime, creature_catalog
 
 FILE = Path('assets/chronicles/field-survey.json')
 SECTIONS = ('natural', 'monstorium', 'knowledge', 'sources')
@@ -69,7 +69,7 @@ def registered_relatives(seed, npc, register):
 
 
 def compile_volume(archive, book, rooms, npcs, groups, species, races, items, encounters):
-    if not book or archive.get('field_edition') == book.get('edition'):
+    if not book or (archive.get('field_edition') == book.get('edition') and archive.get('field_catalog_revision') == 2):
         return
     records = defaultdict(list)
     def add(section, title, text, date='Survey record', url=None):
@@ -118,19 +118,20 @@ def compile_volume(archive, book, rooms, npcs, groups, species, races, items, en
     for race in races:
         entry=book.get('cultures',{}).get(race['id'])
         if entry:
-            add('natural',race['name']+' · '+entry[0],race['description']+' '+entry[1],'People and oral history')
-            if (race.get('social_profile') or {}).get('undead'):
-                add('monstorium',race['name']+' · '+entry[0],entry[1],'Testimony of the Returned')
+            add('knowledge',race['name']+' · '+entry[0],race['description']+' '+entry[1],'People and oral history')
+    species_by_id={row['id']:row for row in species}
+    known_creatures=set()
     for sp in sorted(species,key=lambda r:r['name']):
-        entry=book.get('species',{}).get(sp['id'])
-        if not entry:continue
-        cat=sp['category'];notes=[entry['note'],book.get('lineages',{}).get(cat,'')]
+        entry=book.get('species',{}).get(sp['id'],{})
+        cat=sp['category'];notes=[entry.get('note') or sp.get('description',''),book.get('lineages',{}).get(cat,'')]
         foods=[item_names[x] for x in sp.get('diet',[]) if x in item_names]
         notes.append(f"The local register places it in {sp.get('habitat','unrecorded habitat')}.")
         if foods:notes.append('Recorded foods include '+', '.join(foods)+'.')
         if sp.get('breeding_seasons'):notes.append('Recorded breeding season: '+', '.join(sp['breeding_seasons'])+'.')
         if sp.get('location') in visible:notes.append('Filed at '+visible[sp['location']]+'.')
-        add('natural',sp['name'],' '.join(filter(None,notes)),'Field history · '+book['witnesses'].get(cat,'field observations'))
+        section='natural' if cat in creature_catalog.ANIMALS and not sp.get('sentient') else 'knowledge'
+        add(section,sp['name'],' '.join(filter(None,notes)),'Field history · '+book.get('witnesses',{}).get(cat,'field observations'))
+        if section=='natural':known_creatures.add(sp['id'])
         src=entry.get('reading',{})
         if src:add('sources',sp['name'],src['title'],'Comparative natural history',src['url'])
     for src in book.get('sources',[]):add('sources',src['title'],'Earth reference used by the creators.','Research bibliography',src['url'])
@@ -142,20 +143,32 @@ def compile_volume(archive, book, rooms, npcs, groups, species, races, items, en
     encounters_by_npc=defaultdict(list)
     for enc in encounters:
         for rid in enc.get('members',[]):encounters_by_npc[rid].extend(locales.get(enc['id'],[]))
+    seen=set()
+    regional_ranges=defaultdict(set)
+    for n in npcs:
+        if n.get('regional_range') and not n.get('zoo_exhibit'):
+            regional_ranges[n['name'].casefold()].add(n['regional_range'])
     for n in sorted(npcs,key=lambda r:r['name']):
+        if n.get('zoo_exhibit'):continue
+        category=creature_catalog.kind(n,species_by_id)
+        if category not in ('monster','creature'):continue
+        taxon=creature_catalog.taxon(n,species_by_id)
+        if category=='creature' and taxon in known_creatures:continue
+        identity=(category,n['name'].casefold())
+        if identity in seen:continue
+        seen.add(identity)
         entry=monsters.get(n['id'])
-        if not (entry or n['id'] in members or n.get('expedition_role') in ('predator','quarry') or
-                n.get('social_profile',{}).get('sentient') is False):continue
         places=sorted(set(encounters_by_npc.get(n['id'],[])))
         site=visible.get(n.get('spawn_room')) or visible.get(n.get('location'))
         if site and site not in places:places.append(site)
         text=n.get('description','')
         if entry:text+=' '+entry['text']
         if places:text+=' Documented sites include '+', '.join(places[:4])+'.'
-        elif not entry:text+=' The current survey gives no public sighting site.'
-        add('monstorium',n['name'],text,entry['range']+' · '+entry['title'] if entry else 'Field identification')
+        if regional_ranges.get(n['name'].casefold()):text+=' Regional records: '+', '.join(sorted(regional_ranges[n['name'].casefold()]))+'.'
+        if not places and not entry and not regional_ranges.get(n['name'].casefold()):text+=' The current survey gives no public sighting site.'
+        add('monstorium' if category=='monster' else 'natural',n['name'],text,entry['range']+' · '+entry['title'] if entry else 'Field identification')
     for title,txt in book.get('frontier',[]):add('knowledge',title,txt,'State of knowledge')
-    archive['field_edition']=book['edition'];archive['volumes']=dict(records)
+    archive['field_edition']=book['edition'];archive['field_catalog_revision']=2;archive['volumes']=dict(records)
     archive['events'].sort(key=lambda e:e['at'])
     archive['register_rules']=book.get('register',{})
     archive['ambient_dialogue']=book.get('founding_residents',{}).get('ambient_lines',[])

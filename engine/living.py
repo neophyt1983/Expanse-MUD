@@ -57,6 +57,11 @@ def advance(world,minutes=1):
     if getattr(world,"_community_simulating",False):return
     if not enabled(world):return
     if getattr(world,'realtime',False) and not getattr(world,'tick_authorized',False):return
+    if not hasattr(world,'commute_budget'):
+        # The existing FIFO route planner keeps a large city from calculating
+        # hundreds of new routes before the server can send injury messages.
+        budget=world.metadata.get('npc_commute_budget',16)
+        world.commute_budget=budget if type(budget) is int and 1<=budget<=128 else 16
     from engine import population
     population.ensure(world)
     s=state(world);s['minute']+=minutes;now=s['minute'];clock=now%worldtime.MINUTES_PER_DAY;hour=clock//60
@@ -66,6 +71,8 @@ def advance(world,minutes=1):
     civic_program.advance(world,now-minutes,now)
     from engine import wildlands
     wildlands.advance(world,now-minutes,now)
+    from engine import regional_world
+    regional_world.advance(world)
     from engine import dynamic_diplomacy, family_life
     family_life.advance(world)
     dynamic_diplomacy.ensure(world,advance=True)
@@ -85,6 +92,8 @@ def advance(world,minutes=1):
     from engine import community_quests
     community_quests.advance(world)
     for e in list(world.entities.values()):
+        if e.progress.get('zoo_exhibit'):
+            continue
         from engine import sleep_movement
         sleep_movement.scheduled_wake(world,e)
         npc_life.step(world,e,now)
@@ -194,12 +203,12 @@ def on_entry(world,p):
             if not p.alive:break
     return '\n'.join(lines)
 
-def on_kill(world,p,target):
+def on_kill(world,p,target,*,grant_drops=True):
     if not enabled(world):return
     if world.npcs.get(target.source_def,{}).get('expedition_role')=='quarry':
         state(world).setdefault('field_hunts',{})[target.source_def]=state(world)['minute']+360
     pr=progress(p);pr['kills'][target.source_def]=pr['kills'].get(target.source_def,0)+1
-    for item in world.npcs.get(target.source_def,{}).get('drops',[]):
+    for item in (world.npcs.get(target.source_def,{}).get('drops',[]) if grant_drops else []):
         if item in world.items:p.inventory.append(item)
     key=getattr(target,'spawner_key',None)
     if key and key.startswith('encounter:'):
@@ -351,7 +360,7 @@ def command(ctx,args,name):
         rec['last_harvest']=now
         damage=obj.get('harvest_damage',0)
         if damage:
-            damage=p.take_damage(damage,defense=0)
+            damage=p.take_damage(damage,defense=0,cause='harvesting '+obj.get('name',obj['id']),kind='harvest')
             from engine import gazette,relationships
             if any(not e.is_player and relationships.sentient(w,e) for e in w.entities_in_room(r.id)):
                 product=next(iter(obj['harvest']))
@@ -815,7 +824,7 @@ def command(ctx,args,name):
         from engine.navigation import route_text
         return route_text(ctx.world,ctx.player,args)
     if name=='guide':
-        return 'Use the map and movement controls to explore. Speak with people or read letters and books to find quests. Accept requests through their conversation or readable source; your Journal keeps accepted objectives and directions. Survey shows local resources and facilities; Inventory and Crafting show items and learned recipes. Use Help for controls.'
+        return 'Use the map and movement controls to explore. Speak with people or read letters and books to find quests. Accept requests through their conversation or readable source; your Quests panel keeps accepted objectives and directions. Survey shows local resources and facilities; Inventory and Crafting show items and learned recipes. Use Help for controls.'
     if name=='gather' and args.strip() and args.strip().casefold() not in ('list','?'):
         from engine import gathering
         name,obj=gathering.identify(ctx.world,gathering.sources(ctx.world,ctx.room.id),args)

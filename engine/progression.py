@@ -69,7 +69,7 @@ def practice_view(w,p):
 
 def award(w,p,kind,key,amount=None,repeat=None):
     cfg=config(w)
-    if not p.is_player or not p.alive or not cfg['enabled']:return ''
+    if (not p.is_player and kind!='combat') or not p.alive or not cfg['enabled'] or p.progress.get('zoo_exhibit'):return ''
     from engine import living,worldtime
     row=state(p);ident=kind+':'+str(key)
     amount=cfg.get(kind+'_xp',0) if amount is None else amount
@@ -83,8 +83,9 @@ def award(w,p,kind,key,amount=None,repeat=None):
         if not repeated:
             row['earned'][ident]=True
             if repeat:last[ident]=now
-            if not hasattr(w,'dirty_players'):w.dirty_players=set()
-            w.dirty_players.add(p.id)
+            if p.is_player:
+                if not hasattr(w,'dirty_players'):w.dirty_players=set()
+                w.dirty_players.add(p.id)
         return ''
     if repeated:
         if not repeat or not cfg['repeat_daily_xp'] or not cfg['repeat_percent']:return ''
@@ -100,8 +101,9 @@ def award(w,p,kind,key,amount=None,repeat=None):
         practice['used']+=amount;practice['counts'][ident]=count+1
     row['earned'][ident]=True
     if repeat:last[ident]=now
-    if not hasattr(w,'dirty_players'):w.dirty_players=set()
-    w.dirty_players.add(p.id)
+    if p.is_player:
+        if not hasattr(w,'dirty_players'):w.dirty_players=set()
+        w.dirty_players.add(p.id)
     if row['level']>=cfg['level_cap']:return ''
     row['xp']+=amount;row['sources'][kind]=row['sources'].get(kind,0)+amount
     old=row['level'];g=growth(w,p);pr=living.progress(p)
@@ -146,8 +148,8 @@ def discovery(w,p,rid):
 
 def combat(w,p,target):
     definition=w.npcs.get(target.source_def,{})
-    if target.is_player or target.progress.get('companion_owner') or not definition.get('aggressive'):return ''
-    return award(w,p,'combat',target.source_def)
+    if target.is_player or target.progress.get('companion_owner') or target.progress.get('zoo_exhibit') or not definition.get('aggressive'):return ''
+    return award(w,p,'combat',target.source_def,definition.get('reward_xp',config(w)['combat_xp']))
 
 
 def validate(data):

@@ -3,6 +3,8 @@ from engine import living, society, relationships, livelihoods
 
 def requirement(w,p,e):
     d=w.npcs.get(e.source_def,{})
+    if e.progress.get('zoo_exhibit') or d.get('zoo_exhibit'):
+        raise ValueError('Zoo exhibits are protected regional animals and cannot be taken as companions.')
     if e.is_player or e.location!=p.location or not d.get('tameable'):raise ValueError('Choose a tameable creature that is here now.')
     if not p.alive or not e.alive:raise ValueError('Both you and the creature must be alive.')
     if e.progress.get('companion_owner'):raise ValueError('That animal already has a caregiver.')

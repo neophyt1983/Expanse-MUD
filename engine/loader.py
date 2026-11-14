@@ -184,6 +184,8 @@ def build_world(game_dir=None) -> World:
         for key,value in patch.get('rules',{}).items():
             world.rules.setdefault(key,value)
     wildlands.install(world)
+    from engine import regional_world
+    regional_world.install(world)
     return world
 
 def start_room_for(world: World) -> str:

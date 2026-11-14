@@ -10,6 +10,7 @@ def owned(w,p,text):
     rows=[c for c in living.progress(p)['companions'] if text.lower() in (c['id'].lower(),c['name'].lower())]
     if len(rows)!=1:raise ValueError('Select one of your companions by exact name or ID.')
     record=rows[0];e=w.entities.get(record['id'])
+    if e and (e.progress.get('zoo_exhibit') or w.npcs.get(e.source_def,{}).get('zoo_exhibit')):raise ValueError('Zoo exhibits remain in their protected habitat.')
     if e and e.progress.get('companion_owner')!=p.id:raise ValueError('You do not control that creature.')
     if e and not e.alive:raise ValueError('A dead companion cannot obey commands.')
     return record,e

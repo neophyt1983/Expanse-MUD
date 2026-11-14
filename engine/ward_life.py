@@ -61,30 +61,46 @@ def advance(w,before,now):
         elif k in (3,9):
             offender=actor(w,'dealer' if k==3 else 'runner');other=actor(w,'porter');witness=actor(w,'watch1')
             if not all(a and a.alive for a in (offender,other,witness)):continue
+            if any(a.progress.get('court_case') for a in (offender,other,witness)):continue
             for a in (offender,other,witness):move(w,a,room(w,'yard'))
             if len({a.location for a in (offender,other,witness)})!=1:continue
             event=w.rules['ward']['sale'] if k==3 else 'an assault on '+other.name
-            if k==9:other.take_damage(1)
+            if k==9:
+                before_hp=other.hp
+                other.take_damage(1,source=offender,cause='assault',kind='combat')
+                if other.hp<before_hp:
+                    from engine import mortality
+                    mortality.report_crime(w,offender,'assault',other.id,[witness])
             action(w,witness,'taking a witness statement')
             s['cases'].append(dict(incident=event,person=offender.name,accused=offender.id,other=other.id,witness=witness.name,when=period,status='reported'))
             s['cases']=s['cases'][-16:]
             gazette.record(w,room(w,'yard'),'Watch',witness.name+' reported '+event+ ' at ' + w.rooms[room(w,'yard')].name + '.',key='lantern case '+str(period))
         elif k in (4,10):
             detective=actor(w,'detective')
-            if detective and detective.alive:
+            if detective and detective.alive and not detective.progress.get('court_case'):
                 case=next((c for c in s['cases'] if c['status']=='reported'),None)
                 if case:
+                    subject=w.entities.get(case.get('accused'))
+                    if subject and subject.progress.get('court_case'):
+                        case['status']='under judicial review'
+                        continue
                     move(w,detective,room(w,'yard'))
                     if detective.location==room(w,'yard'):
                         case['status']='witness interviewed';action(w,detective,'investigating '+case['incident'])
                         second=w.entities.get(case.get('other'));constable=actor(w,'watch2')
-                        subject=w.entities.get(case.get('accused'))
-                        if second and second.alive and second.location==detective.location and constable and constable.alive and subject and subject.alive:
+                        if second and second.alive and second.location==detective.location and constable and constable.alive and not constable.progress.get('court_case') and subject and subject.alive:
                             move(w,constable,room(w,'yard'))
                             if subject.location==constable.location==detective.location:
                                 case['status']='referred to the magistrate'
-                                subject.progress['restrained_until']=now+10
                                 action(w,constable,'escorting '+subject.name+' to the magistrate')
+                                from engine import mortality,regional_world,city_justice
+                                report=mortality.state(w)['wanted'].get(subject.id)
+                                if report and regional_world.enabled(w) and city_justice.apprehend(w,subject,constable,report):
+                                    mortality.state(w)['wanted'].pop(subject.id,None)
+                                    continue
+                                # Authored trade stories without an implemented charge
+                                # retain their original referral, not an invented verdict.
+                                subject.progress['restrained_until']=now+10
                                 move(w,subject,room(w,'court'))
                                 gazette.record(w,room(w,'court'),'Watch',detective.name+' referred the witnessed case to the magistrate.',key='lantern hearing '+str(period))
         else:

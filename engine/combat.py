@@ -18,6 +18,8 @@ def target(w,actor,query,players=True):
     return exact[0]
 
 def validate(w,actor,victim,controller=None):
+    from engine import regional_world
+    regional_world.validate_combat(w,actor,victim)
     owner=controller or actor
     if not actor.alive or not owner.alive or not victim.alive:raise ValueError('Combat requires living participants.')
     if actor.location!=victim.location or owner.location!=actor.location:raise ValueError('The target is no longer here.')
@@ -51,14 +53,8 @@ def finish(w,dead,killer,credit=None):
         return dead.name+' dies.'
     if dead.progress.get('_combat_death_resolved'):return ''
     dead.progress['_combat_death_resolved']=True
-    beneficiary=credit or killer
-    loot=''
-    if beneficiary.is_player:
-        living.on_kill(w,beneficiary,dead);beneficiary.gold+=dead.gold
-        loot=' You loot '+str(dead.gold)+' gold.'
-        from engine import progression
-        advancement=progression.combat(w,beneficiary,dead)
-        if advancement:loot+=' '+advancement
+    from engine import combat_rewards
+    loot=combat_rewards.settle(w,dead,killer,credit)
     if dead.source_def and not dead.spawner_key:w.killed_npcs.add(dead.source_def)
     room=w.rooms[dead.location]
     mode=cmd._corpse_mode_for(w,dead)
@@ -71,11 +67,15 @@ def finish(w,dead,killer,credit=None):
 
 def strike(w,actor,victim,power=None,ignore_defense=False,credit=None,counter=True,lawful=False,wear=True):
     from engine import commands as cmd,mortality
+    from engine import regional_world,combat_rewards
+    regional_world.validate_combat(w,actor,victim)
     from engine import npc_attention
     npc_attention.begin(w,actor,victim)
     controller=credit or actor
     if society.enabled(w) and not lawful:mortality.assault(w,controller,victim)
-    hit=victim.take_damage(cmd.effective_attack(w,actor) if power is None else power,0 if ignore_defense else cmd.effective_defense(w,victim))
+    before=victim.hp
+    hit=victim.take_damage(cmd.effective_attack(w,actor) if power is None else power,0 if ignore_defense else cmd.effective_defense(w,victim),source=actor,cause='attack',kind='combat')
+    combat_rewards.contribute(w,actor,victim,before-victim.hp,credit)
     if getattr(w,'living_state',{}).get('resident_watches'):
         from engine import resident_watch
         resident_watch.note(w,[actor.id,victim.id],f'{actor.name} struck {victim.name} for {hit} damage.')
@@ -95,7 +95,9 @@ def strike(w,actor,victim,power=None,ignore_defense=False,credit=None,counter=Tr
         try:ammunition(w,victim)
         except ValueError as exc:return text+' '+victim.name+' cannot counterattack: '+str(exc)
         fighting_pose.mark(victim,projectile=any(w.items.get(i,{}).get('requires_ammo') for i in victim.equipped.values()))
-        damage=actor.take_damage(cmd.effective_attack(w,victim),cmd.effective_defense(w,actor))
+        before=actor.hp
+        damage=actor.take_damage(cmd.effective_attack(w,victim),cmd.effective_defense(w,actor),source=victim,cause='counterattack',kind='combat')
+        combat_rewards.contribute(w,victim,actor,before-actor.hp)
         ability_rules.consume_hit(victim,'ability_focus_v1')
         ability_rules.consume_hit(actor,'ability_exposed_v1')
         if getattr(w,'living_state',{}).get('resident_watches'):

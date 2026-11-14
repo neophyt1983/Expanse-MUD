@@ -206,7 +206,14 @@ def advance(w,before,now):
                 targets=[p for p in cast if p.alive and (p.is_player or role(w,p)=='quarry') and p is not a and cell(w,p.location) and cell(w,p.location)[0]==i]
                 prey=min(targets,key=lambda p:abs(cell(w,p.location)[1]-x)+abs(cell(w,p.location)[2]-y),default=None)
                 if prey and prey.location==a.location:
-                    prey.take_damage(a.attack);a.progress['field_hunger']=25;a.activity='feeding after a strike'
+                    from engine import combat,combat_rewards
+                    before_hp=prey.hp
+                    prey.take_damage(a.attack,source=a,cause='predator attack',kind='combat');a.progress['field_hunger']=25;a.activity='feeding after a strike'
+                    damage=before_hp-prey.hp
+                    combat_rewards.contribute(w,a,prey,damage)
+                    text=a.name+' strikes '+prey.name+' for '+str(damage)+' damage.'
+                    if not prey.alive:text+=' '+combat.finish(w,prey,a)
+                    w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(a.location,text)])[-500:]
                     if not prey.alive and role(w,prey)=='quarry':
                         w.living_state.setdefault('field_hunts',{})[prey.source_def]=now+360
                 elif prey and max(abs(cell(w,prey.location)[1]-x),abs(cell(w,prey.location)[2]-y))<=4:
@@ -219,10 +226,10 @@ def advance(w,before,now):
         prior=a.progress.get('field_minutes',0);elapsed=prior+now-before;a.progress['field_minutes']=elapsed
         if a.is_player and elapsed//30>prior//30:quest_progress.action(a,'endure '+w.field_regions[i].name)
         if now//15>before//15 and (x>=20 or y!=w.field_regions[i].trail_y) and a.progress.get('field_shelter_until',0)<now:
-            if (now//15)%3==2:a.take_damage(w.field_regions[i].hazard_damage)
+            if (now//15)%3==2:a.take_damage(w.field_regions[i].hazard_damage,cause='exposure in '+w.field_regions[i].name+': '+w.field_regions[i].hazards[(now//15)%3],kind='environment')
             if not a.alive:continue
             if not check(a,now,i,'field'):
-                a.progress['field_witness']=True;a.take_damage(1)
+                a.progress['field_witness']=True;a.take_damage(1,cause='distress in '+w.field_regions[i].name,kind='condition')
             a.activity='taking shelter from '+('the passage hazard' if w.field_regions[i].underground else 'the weather')
         if x>=w.field_regions[i].landmark_x-2 and now//20>before//20:summon(w,i,now)
 

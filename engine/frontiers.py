@@ -59,6 +59,10 @@ def blocked(world,room_id,exit_name,player=None,*,lock_index=None):
     reason=geology_impacts.route_blocked(world,room_id,di,actor=player)
     if reason:return reason
     destination=world.rooms.get(room_id).exits.get(di) if room_id in world.rooms else None
+    if destination:
+        from engine import regional_world
+        reason=regional_world.blocked(world,player,destination)
+        if reason:return reason
     if destination and getattr(world,'room_details',{}).get(destination,{}).get('requires_boat'):
         if player is None or not any(world.items.get(i,{}).get('boat') for i in player.inventory):
             return 'You need a boat to enter open water.'

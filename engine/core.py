@@ -1,6 +1,7 @@
 # engine/core.py
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
+import weakref
 
 
 @dataclass
@@ -36,15 +37,21 @@ class Entity:
     def alive(self) -> bool:
         return self.hp > 0
 
-    def take_damage(self, amount: int, defense: Optional[int] = None) -> int:
+    def take_damage(self, amount: int, defense: Optional[int] = None, *, source=None, cause=None, kind='injury') -> int:
         effective_def = self.defense if defense is None else defense
         dmg = max(1, amount - effective_def)
+        before = self.hp
         self.hp = max(0, self.hp - dmg)
         if dmg and not self.is_player and str(getattr(self,"activity","")).startswith("sleeping"):
             self._sleep_damage=True
         if self.is_player:
             from engine import resting
             resting.signal(self,'you were hurt')
+            world_ref = getattr(self, '_world_ref', None)
+            world = world_ref() if world_ref else None
+            if world is not None and before > self.hp:
+                from engine import damage_feedback
+                damage_feedback.record(world, self, before-self.hp, source=source, cause=cause, kind=kind)
         return dmg
 
 
@@ -100,7 +107,12 @@ class World:
         self.rooms[room.id] = room
         self.index_spawners(room)
 
+    def bind_entity(self, entity: Entity):
+        """Attach ephemeral callbacks when creating, resuming or reloading."""
+        entity._world_ref = weakref.ref(self)
+
     def add_entity(self, entity: Entity, room_id: str):
+        self.bind_entity(entity)
         from engine.shield_compat import restore_equipped
         restore_equipped(self, entity)
         from engine import property_interiors
@@ -116,6 +128,9 @@ class World:
 
     def move_entity(self, entity_id: str, new_room_id: str, *, forced=False):
         ent = self.entities[entity_id]
+        from engine import regional_world
+        if new_room_id!=ent.location and not forced and regional_world.blocked(self,ent,new_room_id):
+            return False
         if new_room_id!=ent.location and not ent.is_player and ent.progress.get('escort_post') and not forced and not getattr(ent,'_escort_step',False):
             return False
         from engine import sleep_movement
@@ -159,6 +174,8 @@ class World:
         if new_room_id != old.id and getattr(self,"expedition_country",False):
             from engine import wildlands
             wildlands.entered(self,ent,old.id)
+        if new_room_id != old.id:
+            regional_world.on_entry(self,ent)
         return True
 
     def entities_in_room(self, room_id: str) -> List[Entity]:

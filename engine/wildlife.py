@@ -25,7 +25,7 @@ def advance(w):
     now=living.state(w)['minute'];stats=living.state(w).setdefault('wildlife',{'last':-100000,'forage':{},'meals':0,'hunts':0})
     if now-stats['last']<30:return
     stats['last']=now
-    animals={e.id:species(w,e) for e in w.entities.values() if e.alive and not e.is_player}
+    animals={e.id:species(w,e) for e in w.entities.values() if e.alive and not e.is_player and not e.progress.get('zoo_exhibit')}
     for e in list(w.entities.values()):
         s=animals.get(e.id,{})
         if not s or not e.alive or s.get('consumption') not in ('herbivore','omnivore','carnivore'):continue
@@ -67,10 +67,15 @@ def advance(w):
                     if not prey.alive:
                         if not prey.progress.get('wildlife_drops_released'):
                             prey.progress['wildlife_drops_released']=True
-                            w.rooms[e.location].items.extend(i for i in w.npcs.get(prey.source_def,{}).get('drops',[]) if i in w.items)
+                            if not prey.progress.get('combat_drops_distributed'):
+                                w.rooms[e.location].items.extend(i for i in w.npcs.get(prey.source_def,{}).get('drops',[]) if i in w.items)
                         # Consume one actual edible drop, leaving other remains for scavengers.
-                        meal=next((i for i in w.rooms[e.location].items if can_eat(w,e,i)),None)
-                        if meal:w.rooms[e.location].items.remove(meal);ate();stats['hunts']+=1
+                        source=e.inventory
+                        meal=next((i for i in source if can_eat(w,e,i)),None)
+                        if not meal:
+                            source=w.rooms[e.location].items
+                            meal=next((i for i in source if can_eat(w,e,i)),None)
+                        if meal:source.remove(meal);ate();stats['hunts']+=1
                     continue
             # Look only one exit away for authored forage or prey: bounded local search.
             if s.get('forage_roaming',True):

@@ -85,15 +85,19 @@ def select(world, actor, query):
     return matched[0]
 
 
-def notice(world, actor, row):
+def notice(world, actor, row, crime='lock tampering'):
     if permitted(world,actor,row):return ''
     from engine import sleep_movement
-    witnesses=[n for n in world.entities_in_room(actor.location) if not n.is_player and n.id!=actor.id and not sleep_movement.asleep(world,n)]
+    from engine import relationships
+    witnesses=[n for n in world.entities_in_room(actor.location) if not n.is_player and n.id!=actor.id and n.alive and relationships.sentient(world,n) and not sleep_movement.asleep(world,n)]
     if not witnesses:return ''
     # This is an event record, not invented omniscient law enforcement.
     events=living.state(world).setdefault('lock_incidents',[])
     events.append({'actor':actor.id,'lock':row['id'],'room':actor.location,'minute':living.state(world)['minute'],'witnesses':[n.id for n in witnesses]})
     del events[:-100]
+    from engine import regional_world, mortality
+    if regional_world.enabled(world):
+        mortality.report_crime(world,actor,crime,row.get('owner') or row['id'],witnesses)
     return ' '+', '.join(n.name for n in witnesses)+' notices the tampering.'
 
 
@@ -135,7 +139,7 @@ def act(world, actor, action, query):
         if row.get('direction'):return 'A door has no contents.'
         if s['locked']:return name+' is locked.'
         if not s['contents']:return name+' is empty.'
-        warning=notice(world,actor,row);actor.inventory.extend(s['contents']);s['contents']=[]
+        warning=notice(world,actor,row,'theft');actor.inventory.extend(s['contents']);s['contents']=[]
         return 'You take the contents of '+name+'.'+warning
     raise ValueError('Choose inspect, unlock, lock, pick, open, or take.')
 

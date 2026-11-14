@@ -117,7 +117,9 @@ def cast(w,p,a,target):
         p.progress.setdefault('durability',{})[item['id']]=min(100,society.durability(p,item['id'])+power)
         return a['name']+': repaired '+item['name']+' by up to '+str(power)+' durability.'
     if effect=='mana_conversion':
-        p.hp-=a.get('health_cost',8);pr['mana']=min(pr['max_mana'],pr['mana']+power)
+        health_cost=a.get('health_cost',8)
+        if health_cost>0:p.take_damage(health_cost,defense=0,cause='health spent on '+a['name'],kind='ability')
+        pr['mana']=min(pr['max_mana'],pr['mana']+power)
         return a['name']+f': exchanged {a.get("health_cost",8)} health for up to {power} mana.'
     if enemy is not None:
         return a['name']+': '+combat.strike(w,p,enemy,power=power,
