@@ -1,11 +1,12 @@
 """Apply compatible, additive content from an installed template to an older adventure in memory."""
 import hashlib
 import json
+from pathlib import Path
 
 
-def additions(folder, games):
+def additions(folder, games, *, template_dirs=()):
     rules_path = folder / 'world-rules.json'
-    if not rules_path.is_file() or not games.is_dir():
+    if not rules_path.is_file() or (not games.is_dir() and not template_dirs):
         return None
     raw=rules_path.read_bytes()
     digest=hashlib.sha256(raw).hexdigest()
@@ -13,7 +14,9 @@ def additions(folder, games):
                                        ensure_ascii=False).encode()).hexdigest()
     # The compatibility key also serves as the filename. Unrelated worlds are never opened.
     best=None
-    for template in sorted(games.iterdir()):
+    templates = list(games.iterdir()) if games.is_dir() else []
+    templates.extend(Path(path) for path in template_dirs)
+    for template in sorted(set(templates)):
         if template == folder or template.name.startswith(('.', 'adventure_')) or template.is_symlink():
             continue
         updates=template/'assets'/'updates'
@@ -48,6 +51,14 @@ def records(name, rows, patch):
         row=by_id.get(change['id'])
         if row is not None and row.get(change['field'])==change['old']:
             row[change['field']]=change['new']
+    # Old campaigns can contain records that the new template retired. Match
+    # the full original row so a creator's replacement with the same ID survives.
+    retired = patch.get('remove_records', {}).get(name, [])
+    for original in retired:
+        current = by_id.get(original['id'])
+        if current == original:
+            rows.remove(current)
+            del by_id[original['id']]
     if name == 'rooms.json':
         for room, exits in patch.get('add_exits',{}).items():
             if room in by_id:

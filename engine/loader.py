@@ -8,6 +8,7 @@ from engine.core import World, Room, Entity
 
 PROJECT_ROOT = Path(__file__).parent.parent
 GAMES_DIR = PROJECT_ROOT / "games"
+WORLD_UPDATE_TEMPLATES = ()
 DEFAULT_GAME = "default"
 GAME_DIR = GAMES_DIR / DEFAULT_GAME
 DATA_DIR = GAME_DIR # legacy alias; kept as monkeypatch target for tests
@@ -109,7 +110,7 @@ def build_world(game_dir=None) -> World:
     if (target_dir / 'history-build.pending').exists():
         raise ValueError('Historical world publication is incomplete; do not play this staged world.')
     from engine import world_additions
-    patch=world_additions.additions(target_dir,GAMES_DIR)
+    patch=world_additions.additions(target_dir,GAMES_DIR,template_dirs=WORLD_UPDATE_TEMPLATES)
     def read_records(name, folder):
         return world_additions.records(name,load_json(name,folder),patch)
     world = World()
