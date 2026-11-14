@@ -134,6 +134,9 @@ class Service:
         self.data.mkdir(parents=True,exist_ok=True)
         self.worlds = self.data/'worlds'
         self.worlds.mkdir(exist_ok=True)
+        self.update_world = os.environ.get('EXPANSE_UPDATE_WORLD_SHA256','').strip()
+        if self.update_world and not re.fullmatch(r'[0-9a-f]{64}',self.update_world):
+            raise ValueError('EXPANSE_UPDATE_WORLD_SHA256 must be the full SHA-256 of an imported game file.')
         self.active_game = None
         self.lock = asyncio.Lock()
         self.process = self.client = self.active = self.socket = self.socket_token = None
@@ -150,6 +153,20 @@ class Service:
 
     def catalogue(self):
         return sorted(((p.parent.name,json.loads(p.read_bytes())) for p in self.worlds.glob('*/info.json')), key=lambda row:(row[1]['name'],row[0]))
+
+    def update_templates(self, ident, slug):
+        if not self.update_world or self.update_world == ident:
+            return ()
+        bundle = self.worlds/self.update_world
+        if not (bundle/'info.json').is_file():
+            raise ValueError('Import the game file selected by EXPANSE_UPDATE_WORLD_SHA256 before playing with this update enabled.')
+        info = json.loads((bundle/'info.json').read_bytes())
+        if info.get('slug') != slug:
+            return ()
+        template = bundle/'games'/slug
+        if template.is_symlink() or not template.is_dir() or not template.resolve().is_relative_to(bundle.resolve()):
+            raise ValueError('The selected world update template is unavailable.')
+        return (template,)
 
     def identity(self,request):
         return self.auth.lookup(request.cookies.get(self.cookie,''))
@@ -175,10 +192,12 @@ class Service:
                 return
             if self.socket is not None and not self.socket.closed:
                 raise web.HTTPConflict(text='An active play tab is using this single-player test. Close that tab before opening another game.')
+            slug=json.loads((bundle/'info.json').read_bytes())['slug']
+            template_args = [value for path in self.update_templates(ident,slug)
+                             for value in ('--update-template',str(path))]
             await self.stop()
             save = self.folder(key,ident)
             save.mkdir(parents=True,exist_ok=True)
-            slug=json.loads((bundle/'info.json').read_bytes())['slug']
             # Pass a pre-bound loopback listener into the worker, closing the port-selection race.
             env = {k:v for k,v in os.environ.items() if k in ('PATH','LANG','LC_ALL','PYTHONUTF8','PYTHONUNBUFFERED','VIRTUAL_ENV','PYTHONPATH')}
             env['EXPANSE_WORKER_TOKEN'] = secrets.token_urlsafe(32)
@@ -189,6 +208,7 @@ class Service:
                 self.process = await asyncio.create_subprocess_exec(sys.executable,str(ROOT/'private_game.py'),
                     '--fd',str(listener.fileno()),'--name',self.auth.records[key][0],
                     '--world',str(bundle/'games'/slug),'--directory',str(save),
+                    *template_args,
                     env=env,pass_fds=(listener.fileno(),))
             self.client = ClientSession(headers={'X-Worker-Key':env['EXPANSE_WORKER_TOKEN']},timeout=ClientTimeout(total=150))
             for _ in range(120):

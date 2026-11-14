@@ -35,13 +35,14 @@ class PlayerSocket:
 
 
 class Game:
-    def __init__(self, world, directory, name):
+    def __init__(self, world, directory, name, update_templates=()):
         self.path = Path(world)
         self.directory = Path(directory)
         self.name = name
         self.slug = self.path.name
         self.directory.mkdir(parents=True, exist_ok=True)
         loader.GAMES_DIR = self.path.parent
+        loader.WORLD_UPDATE_TEMPLATES = tuple(Path(path) for path in update_templates)
         loader.set_game_dir(self.path)
         persistence.DB_PATH = self.directory / 'world.db'
         game_server.SAVE_DIR = self.directory
@@ -133,8 +134,8 @@ async def handle_errors(request, handler):
         return web.json_response({'error':str(exc)},status=400)
 
 
-def make_app(world, directory, name):
-    game = Game(world,directory,name)
+def make_app(world, directory, name, update_templates=()):
+    game = Game(world,directory,name,update_templates)
     token = os.environ.pop('EXPANSE_WORKER_TOKEN')
     @web.middleware
     async def private(req,handler):
@@ -154,5 +155,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     for key in ('world','directory','fd','name'):
         parser.add_argument('--'+key,required=True)
+    parser.add_argument('--update-template',action='append',default=[])
     args = parser.parse_args()
-    web.run_app(make_app(args.world,args.directory,args.name),sock=socket.socket(fileno=int(args.fd)),print=None,access_log=None)
+    web.run_app(make_app(args.world,args.directory,args.name,args.update_template),sock=socket.socket(fileno=int(args.fd)),print=None,access_log=None)
