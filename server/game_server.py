@@ -713,6 +713,8 @@ class GameServer(SocietyServer):
             gold=player.gold,race=player.race,char_class=player.char_class,
             race_name=self.world.races.get(player.race,{}).get("name",""),class_name=self.world.classes.get(player.char_class,{}).get("name",""),
             inventory=[item_view(i) for i in player.inventory if i in self.world.items])
+        from engine import damage_feedback
+        packet['damage_events'] = damage_feedback.recent(player)
         from engine import progression
         packet["character"]["advancement"]=progression.view(self.world,player)
         if living.enabled(self.world):
@@ -906,6 +908,13 @@ class GameServer(SocietyServer):
                     pass
 
     async def flush_notifications(self):
+        injuries=getattr(self.world,'damage_notifications',[])
+        self.world.damage_notifications=[]
+        for injury in injuries:
+            for socket,owner in list(self.clients.items()):
+                if owner==injury['player_id']:
+                    try:await socket.send(json.dumps(injury))
+                    except (websockets.exceptions.ConnectionClosed,ConnectionError):pass
         # Rest progress is personal; never broadcast it to room bystanders.
         messages=getattr(self.world,'rest_notifications',[])
         self.world.rest_notifications=[]
@@ -1302,6 +1311,7 @@ class GameServer(SocietyServer):
                         }))
                         continue
 
+                    self.world.bind_entity(target)
                     from engine import combat
                     combat.starter_ammunition(self.world,target)
                     from engine.shield_compat import restore_equipped
@@ -1625,6 +1635,7 @@ class GameServer(SocietyServer):
             dest = ent.location if ent.location in self.world.rooms \
                    else start_room
             ent.location = dest
+            self.world.bind_entity(ent)
             self.world.entities[pid] = ent
             self.world.rooms[dest].entities.append(pid)
 
