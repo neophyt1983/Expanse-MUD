@@ -43,7 +43,7 @@
    stories.replaceChildren(...event.detail.map(row=>new Option(row.title,row.ref)));
    stories.hidden=shareNews.hidden=!stories.options.length;
  });
- questions.append(button('Relationships and feelings',()=>ask('people')),button('Your work',()=>ask('work')),button('Current activities',()=>ask('activities')),button('Future plans',()=>ask('plans')),button('Creatures and monsters',()=>ask('creatures')),button('Discuss the news',()=>ask('localnews')),button('Share a memory',()=>ask('memories')),subject,about,tell,route,giveRoute,addressee,relay,stories,shareNews);
+ questions.append(button('Relationships and feelings',()=>ask('people')),button('Your work',()=>ask('work')),button('Current activities',()=>ask('activities')),button('Future plans',()=>ask('plans')),button('Creatures and monsters',()=>ask('creatures')),button('Discuss the news',()=>ask('localnews')),button('Stories and memories',()=>ask('memories')),subject,about,tell,route,giveRoute,addressee,relay,stories,shareNews);
  const sellChoice=make('select'),takeChoice=make('select');sellChoice.title='Items this NPC wants';takeChoice.title='NPC possessions available for barter';
  const sellButton=button('Sell to NPC',()=>{if(sellChoice.value)npcAction(`sell ${sellChoice.value} to ${npcChoice.value}`);});
  const barterButton=button('Barter with NPC',()=>{if(sellChoice.value&&takeChoice.value)npcAction(`barter ${sellChoice.value} for ${takeChoice.value} with ${npcChoice.value}`);});
