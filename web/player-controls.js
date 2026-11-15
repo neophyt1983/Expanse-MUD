@@ -19,9 +19,10 @@
  focus.title='Focus movement controls. Keypad or your bindings move; click the command box to type.';
  const hint=make('small','Movement keys work outside text fields. Up/Down in the command box recalls commands. clear or cls clears this conversation only.');
  const movementStatus=make('small');movementStatus.id='movement-status';movementStatus.setAttribute('role','status');
- let pendingMove=null,sequence=0,walk=null,stepTimer=null;
+ let pendingMove=null,sequence=0,walk=null,stepTimer=null,planTimer=null;
+ function travelSpeed(){const value=window.latestMap?.travel_speed_multiplier;return Number.isFinite(value)&&value>=.25&&value<=4?value:1;}
  const stopWalk=make('button','Stop walking');stopWalk.type='button';stopWalk.hidden=true;stopWalk.className='ed-btn';
- function cancelWalk(message=''){clearTimeout(stepTimer);queuedDestination=null;if(walk)window.dispatchEvent(new CustomEvent('expanse:walking',{detail:false}));walk=null;stopWalk.hidden=true;if(message)movementStatus.textContent=message;}
+ function cancelWalk(message=''){clearTimeout(stepTimer);clearTimeout(planTimer);queuedDestination=null;if(walk)window.dispatchEvent(new CustomEvent('expanse:walking',{detail:false}));walk=null;stopWalk.hidden=true;if(message)movementStatus.textContent=message;}
  stopWalk.onclick=()=>cancelWalk('Walking stopped.');
  document.addEventListener('keydown',e=>{if(walk&&e.key==='Escape'){cancelWalk('Walking stopped.');}});
  let queuedDestination=null, ackTimer=null;
@@ -44,7 +45,7 @@
  function confirmedHold(message){
   if(!held||held.id!==message.movement_id)return;
   if(!message.step_taken||!holdAllowed()){stopHold();return;}
-  const intent=held,delay=Math.max(0,(intent.first?350:140)-(performance.now()-intent.started));
+  const intent=held,delay=Math.max(0,(intent.first?350:140)/travelSpeed()-(performance.now()-intent.started));
   intent.first=false;
   repeatTimer=setTimeout(()=>{
    if(intent!==held||ws!==intent.socket||!holdAllowed()||!move('go '+intent.direction)){stopHold();return;}
@@ -57,18 +58,20 @@
  window.addEventListener('expanse:character-reset',stopHold);
  document.addEventListener('focusin',()=>{if(held&&!holdAllowed())stopHold();});
  
- function walkTo(destination){
+ function walkTo(destination,options){
    stopHold();
-   if(typeof ws==='undefined'||ws?.readyState!==1||!destination)return;
-   if(window.latestMap?.location?.id===destination){if(walk)cancelWalk('Walking stopped.');return;}
+   if(typeof ws==='undefined'||ws?.readyState!==1||typeof destination!=='string'||!destination)return;
    cancelWalk();
    if(pendingMove){
-     queuedDestination={destination,options:arguments[1],socket:ws};
+     queuedDestination={destination,options:options||window.ExpanseCountryView?.walkOptions(destination),socket:ws};
      movementStatus.textContent='Changing destination…';
      stopWalk.hidden=false;return;
    }
-   const id='route-'+(++sequence);walk={id,socket:ws,steps:[],index:0};stopWalk.hidden=false;window.dispatchEvent(new CustomEvent('expanse:walking',{detail:true}));movementStatus.textContent='Finding a route…';
-   ws.send(JSON.stringify({command:'walk to tile',request_id:id,destination,...window.ExpanseCountryView?.walkOptions(destination)}));
+   if(window.latestMap?.location?.id===destination){movementStatus.textContent='Arrived.';return;}
+   const id='route-'+(++sequence);walk={id,socket:ws,destination,steps:[],index:0};stopWalk.hidden=false;window.dispatchEvent(new CustomEvent('expanse:walking',{detail:true}));movementStatus.textContent='Finding a route…';
+   planTimer=setTimeout(()=>{if(walk?.id===id)cancelWalk('The route has not been confirmed. Choose a destination to try again.');},15000);
+   try{ws.send(JSON.stringify({command:'walk to tile',request_id:id,destination,...(options||window.ExpanseCountryView?.walkOptions(destination))}));}
+   catch{cancelWalk('The route could not be sent. Choose a destination after reconnecting.');}
  }
  function nextStep(){
    if(!walk||walk.socket!==ws||ws.readyState!==1){cancelWalk();return;}
@@ -80,7 +83,7 @@
  // Do not buffer inputs behind a slow simulation step. A key/click means one
  // immediate step; a rejected typed command remains in the input field.
  function move(command,edge=null){
-  if(!edge&&walk)cancelWalk();
+  if(!edge&&(walk||queuedDestination))cancelWalk();
   if(!edge&&command.startsWith('go ')&&window.latestMap?.visual?.exits?.some(e=>e.direction==='approach '+command.slice(3)))command='go approach '+command.slice(3);
   if(typeof command!=='string'||command.length>4096){append('error','Commands must be at most 4096 characters.');return false;}
   if(!ws||ws.readyState!==WebSocket.OPEN){append('error','Not connected.');return false;}
@@ -100,6 +103,7 @@
  function receive(message){
   if(message.type==='walk_plan'){
    if(walk?.id===message.request_id&&walk.socket===ws){
+    clearTimeout(planTimer);
     if(message.error){cancelWalk(message.error);append('response',message.error);}
     else{walk.steps=message.steps||[];nextStep();}
    }return true;
@@ -118,7 +122,7 @@
     if(!message.walk_arrived){cancelWalk('Walking stopped.');return;}
     walk.index++;
     if(walk.index===walk.steps.length)cancelWalk('Arrived.');
-    else{movementStatus.textContent='Walking · '+(walk.steps.length-walk.index)+' steps left';stepTimer=setTimeout(nextStep,Math.max(0,95-(performance.now()-walk.sentAt)));}
+    else{movementStatus.textContent='Walking · '+(walk.steps.length-walk.index)+' steps left';stepTimer=setTimeout(nextStep,Math.max(0,95/travelSpeed()-(performance.now()-walk.sentAt)));}
    }
   }
  }

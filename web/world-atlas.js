@@ -182,9 +182,23 @@
  const namedRoom=r=>r.publicChart||state.scope==='complete'||r.current||r.id===state.packet?.center||r.visited===true||r.visibility==='visited'||r.learnedOnly;
  function hideTip(){if(hoverFrame)cancelAnimationFrame(hoverFrame);hoverFrame=0;hoverPoint=null;tip.hidden=true;tip.textContent='';tip.dataset.markerKey='';}
  tip.onpointerdown=e=>{const init={bubbles:true,pointerId:e.pointerId,pointerType:e.pointerType,isPrimary:e.isPrimary,button:e.button,buttons:e.buttons,clientX:e.clientX,clientY:e.clientY};hideTip();canvas.dispatchEvent(new PointerEvent('pointerdown',init));};
- function showTip(p){const rows=(p?.rooms||[]).map(r=>knownIndex.get(r.id)||(r.publicChart?r:null)).filter(r=>r&&namedRoom(r));if(!rows.length){hideTip();return;}const text=rows.map(r=>r.name+(r.learnedOnly?' · learned location':'')).join(' · '),key=rows.map(r=>r.id).join('|');if(!tip.hidden&&tip.dataset.markerKey===key&&tip.textContent===text)return;tip.dataset.markerKey=key;tip.textContent=text;tip.hidden=false;tip.style.left=Math.max(4,Math.min(main.clientWidth-tip.offsetWidth-4,p.x+14))+'px';tip.style.top=Math.max(4,Math.min(main.clientHeight-tip.offsetHeight-4,p.y+14))+'px';}
+ function shortTipText(value,limit){const chars=Array.from(String(value||'').replace(/\s+/g,' ').trim());return chars.length>limit?chars.slice(0,limit-1).join('')+'…':chars.join('');}
+ function showTip(p){
+  const rows=(p?.rooms||[]).map(r=>knownIndex.get(r.id)||(r.publicChart?r:null)).filter(r=>r&&namedRoom(r));
+  if(!rows.length){hideTip();return;}
+  const room=rows.find(r=>r.id===state.selected)||rows.find(r=>r.id===state.packet?.center)||rows[0],name=shortTipText(room.name,52),parts=[];
+  if(room.learnedOnly)parts.push('Learned location');
+  if(rows.length>1)parts.push('+'+(rows.length-1)+' other place'+(rows.length===2?'':'s'));
+  else if(!room.learnedOnly)parts.push(room.id===state.packet?.center?(state.scope==='complete'?'Selected room':'You are here'):room.publicChart?'Public survey':shortTipText(String(room.terrain||'').replaceAll('_',' '),18));
+  const meta=parts.join(' · '),text=name+'\n'+meta,key=rows.map(r=>r.id).join('|');
+  if(!tip.hidden&&tip.dataset.markerKey===key&&tip.textContent===text)return;
+  tip.dataset.markerKey=key;tip.replaceChildren(make('strong','wa-tooltip-title',name),document.createTextNode('\n'),make('span','wa-tooltip-meta',meta));tip.hidden=false;
+  tip.style.left=Math.max(4,Math.min(main.clientWidth-tip.offsetWidth-4,p.x+14))+'px';
+  tip.style.top=Math.max(4,Math.min(main.clientHeight-tip.offsetHeight-4,p.y+14))+'px';
+ }
  let hoverFrame=0,hoverPoint=null;function queueHover(e){hoverPoint={clientX:e.clientX,clientY:e.clientY};if(!hoverFrame)hoverFrame=requestAnimationFrame(()=>{hoverFrame=0;if(state.open&&!state.drag)showTip(hit(hoverPoint));});}
- function hit(e){const b=canvas.getBoundingClientRect(),x=e.clientX-b.left,y=e.clientY-b.top;if(state.mode==='globe')return window.ExpanseGlobe.hit(x,y);return state.positions.find(p=>p.bounds?(x>=p.bounds.left&&x<p.bounds.right&&y>=p.bounds.top&&y<p.bounds.bottom):(Math.abs(p.x-x)<=p.radius&&Math.abs(p.y-y)<=p.radius));}
+ function pointerPoint(e){const b=canvas.getBoundingClientRect();return {x:(e.clientX-b.left)*canvas.clientWidth/Math.max(1,b.width),y:(e.clientY-b.top)*canvas.clientHeight/Math.max(1,b.height)};}
+ function hit(e){const {x,y}=pointerPoint(e);if(state.mode==='globe')return window.ExpanseGlobe.hit(x,y);return [...state.positions].reverse().find(p=>p.bounds?(x>=p.bounds.left&&x<p.bounds.right&&y>=p.bounds.top&&y<p.bounds.bottom):(x>=p.x-p.radius&&x<p.x+p.radius&&y>=p.y-p.radius&&y<p.y+p.radius));}
  function focusTip(){const room=known().find(r=>r.id===(document.activeElement===found?found.value:state.selected||state.packet?.center));if(!room||!namedRoom(room)){hideTip();return;}showTip(state.positions.find(p=>p.rooms.some(r=>r.id===room.id))||{rooms:[room],x:8,y:8});}
 
  const known=()=>{const rows=state.packet?.rooms||[];if(state.scope==='complete')return rows;
@@ -349,28 +363,30 @@
  mode.onchange=()=>{state.mode=mode.value;showLayers();fit.textContent=state.mode==='globe'?'Whole planet':state.scope==='complete'?'Fit all rooms':'Fit explored';sidebar.hidden=state.mode!=='globe';knownIndex=new Map(known().map(r=>[r.id,r]));updateSearch();if(state.mode==='globe'&&state.scope==='explored')requestPins({action:'list'});floor.disabled=state.mode==='globe';title.textContent=state.scope==='complete'?(state.mode==='globe'?'Complete host globe':'Complete host atlas'):(state.mode==='globe'?'Explored globe':'Explored room atlas');key.lastChild.textContent=state.mode==='globe'?'Drag the surface to rotate · Click a place to center it · Wheel or +/− to zoom.':'Drag or use arrow keys to pan · × counts rooms sharing a position · Fit shows the overview.';updateSummary();if(state.mode==='layout'||(state.mode==='globe'&&state.scope==='explored'))recenter(true);else{fitRooms();recenter();}};floor.onchange=()=>{state.floor=Number(floor.value);state.follow=false;state.selected=null;details(null);updateSummary();fitRooms();};search.oninput=updateSearch;found.onchange=()=>{chosen(known().find(r=>r.id===found.value),true);focusTip();};found.onfocus=focusTip;found.onblur=hideTip;canvas.onfocus=focusTip;canvas.onblur=hideTip;canvas.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.relatedTarget!==tip&&!tip.contains(e.relatedTarget))hideTip();};tip.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.relatedTarget!==canvas)hideTip();};
  canvas.onpointerdown=e=>{
   if(e.button!==0||state.drag)return;
-  canvas.focus();const rect=canvas.getBoundingClientRect();
-  const anchor=state.mode==='globe'?window.ExpanseGlobe.grabPoint(e.clientX-rect.left,e.clientY-rect.top):null;
-  state.drag={id:e.pointerId,x:e.clientX,y:e.clientY,cx:state.cx,cy:state.cy,moved:false,anchor};
+  canvas.focus();const point=pointerPoint(e),pressed=hit(e);
+  const anchor=state.mode==='globe'?window.ExpanseGlobe.grabPoint(point.x,point.y):null;
+  state.drag={id:e.pointerId,x:e.clientX,y:e.clientY,point,cx:state.cx,cy:state.cy,moved:false,anchor,hit:pressed&&{...pressed,rooms:[...pressed.rooms]},version:state.version,mode:state.mode,floor:state.floor};
   canvas.setPointerCapture(e.pointerId);
  };
  canvas.onpointermove=e=>{
   const d=state.drag;if(!d){queueHover(e);return;}if(d.id!==e.pointerId)return;
   hideTip();const dx=e.clientX-d.x,dy=e.clientY-d.y;
   d.moved=d.moved||Math.hypot(dx,dy)>5;if(!d.moved)return;
+  const point=pointerPoint(e);
   if(state.mode==='globe'){
-   const rect=canvas.getBoundingClientRect();
-   if(!window.ExpanseGlobe.dragTo(d.anchor,e.clientX-rect.left,e.clientY-rect.top))return;
-  }else{state.cx=d.cx-dx/state.scale;state.cy=d.cy-dy/state.scale;}
+   if(!window.ExpanseGlobe.dragTo(d.anchor,point.x,point.y))return;
+  }else{state.cx=d.cx-(point.x-d.point.x)/state.scale;state.cy=d.cy-(point.y-d.point.y)/state.scale;}
   state.follow=false;schedule();
  };
  canvas.onpointerup=e=>{
   const d=state.drag;if(!d||d.id!==e.pointerId)return;
   state.drag=null;
-  if(d.moved||Math.hypot(e.clientX-d.x,e.clientY-d.y)>5)return;
-  const p=hit(e);if(!p)return;
+  if(d.moved||Math.hypot(e.clientX-d.x,e.clientY-d.y)>5||d.version!==state.version||d.mode!==state.mode||d.floor!==state.floor)return;
+  // The map can follow a confirmed step during a press. Select the original
+  // marker, never whichever different room has slid under the release point.
+  const p=d.hit;if(!p)return;
   chosen(p.rooms.find(r=>r.id===state.packet.center)||p.rooms[0],state.mode==='globe'||(state.mode==='layout'&&state.scale<12));
-  if(state.scope==='explored'&&state.mode==='layout'&&!e.shiftKey&&p.rooms.length===1&&p.rooms[0].id!==state.packet.center){
+  if(state.scope==='explored'&&state.mode==='layout'&&!e.shiftKey&&p.rooms.length===1){
    window.ExpansePlayerControls?.walkTo(p.rooms[0].id);
   }
   if(state.mode!=='globe')showTip(p);

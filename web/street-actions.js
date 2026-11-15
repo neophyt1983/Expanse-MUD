@@ -86,8 +86,14 @@
  function draw(s,point){
    if(s.options.designer||s.canvas.closest('#player-visual-map')===null)return;
    if(point)accessibleTiles(s,point);
-   if(!marker){marker=create('button');marker.className='tile-passage';marker.type='button';}
+   if(!marker){
+     marker=create('button');marker.className='tile-passage';marker.type='button';
+     marker.onpointerdown=e=>{if(e.button===0)marker.pressedPassage=marker.passageContext;};
+     marker.onpointercancel=()=>{marker.pressedPassage=null;};
+     marker.onkeydown=e=>{if(e.key==='Enter'||e.key===' ')marker.pressedPassage=null;};
+   }
    const actions=choices(s.packet);marker.hidden=!actions.length||!point;
+   marker.passageContext=JSON.stringify([s.packet.character?.id,s.packet.location.id,actions.map(a=>[a.direction,a.kind,a.blocked||''])]);
    if(marker.hidden)return;
    if(marker.parentElement!==s.viewport)s.viewport.append(marker);
    const primary=actions.find(r=>r.kind==='exit')||actions.find(r=>r.kind==='entry')||actions[0];
@@ -100,7 +106,11 @@
    marker.setAttribute('aria-label',multiple?'Choose a passage · '+marker.title:primary.label);
    marker.style.left=point.x+'px';marker.style.top=(point.y+point.radius*.78)+'px';
    marker.disabled=actions.every(a=>a.blocked);
-   marker.onclick=()=>select(s,point.tile);
+   marker.onclick=()=>{
+     const pressed=marker.pressedPassage;marker.pressedPassage=null;
+     if(pressed&&pressed!==marker.passageContext){s.inspect.textContent='Your location or passage changed. Select the passage again.';return;}
+     select(s,point.tile);
+   };
  }
  function roof(c,t,x,y,size){
    if(!Array.isArray(t.roof_joins))return;

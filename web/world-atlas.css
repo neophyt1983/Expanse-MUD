@@ -26,7 +26,8 @@
 #world-atlas{overflow:auto}
 #world-atlas header,#world-atlas .wa-tools,#world-atlas .wa-summary,#world-atlas .wa-inspect,#world-atlas .wa-key{flex-shrink:0}
 
-.wa-tooltip{position:absolute;max-width:min(320px,90%);padding:7px 10px;background:#0a151ef5;color:#e5dfc6;border:1px solid #62726a;border-radius:4px;pointer-events:auto;z-index:5;overflow-wrap:anywhere;font-size:13px}.wa-tooltip[hidden]{display:none!important}
+.wa-tooltip{position:absolute;box-sizing:border-box;max-width:min(240px,calc(100% - 8px));max-height:calc(2.7em + 10px);overflow:hidden;padding:4px 6px;background:rgba(8,18,24,.64);color:#f4f7ee;border:1px solid #9bada580;border-radius:4px;pointer-events:auto;z-index:5;font:12px/1.35 system-ui,sans-serif;text-shadow:0 1px 2px #000,0 0 1px #000}.wa-tooltip[hidden]{display:none!important}
+.wa-tooltip-title,.wa-tooltip-meta{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 #world-atlas .wa-spread{flex:1;min-height:180px;display:flex;align-items:stretch;overflow:hidden}
 #world-atlas .wa-place-panel{width:clamp(190px,23vw,320px);box-sizing:border-box;background:#16262d;border-left:1px solid #344b55;overflow:auto;padding:16px}

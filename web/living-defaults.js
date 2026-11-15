@@ -7,6 +7,7 @@ Object.assign(window.LIVING_DEFAULTS.quest,{progress_scope:'lifetime',arc_id:'',
 window.LIVING_DEFAULTS.recipe.prerequisites=[];
 
 Object.assign(window.LIVING_DEFAULTS.npc,{market_id:'',market_counter:{}});
+Object.assign(window.LIVING_DEFAULTS.npc,{combat_level:1,loot_table:{}});
 
 // Explicit disclosures remain creator-owned; the generic structured-field editor is used.
 for(const kind of ['npc','item','quest'])window.LIVING_DEFAULTS[kind].knowledge={items:[],rooms:[],recipes:[],quests:[]};

@@ -150,7 +150,11 @@
     if (!current.height) return;
     const resized = current.height !== previous.height || current.content !== previous.content;
     const up = current.top < previous.top - 1, down = current.top > previous.top + 1;
-    if (up && (!resized || pointerActive)) {
+    // Native focus/scroll restoration can move the viewport after our last
+    // anchor, without changing its dimensions. That is not a request to stop
+    // following. Wheel/touch/key gestures pause before their scroll event;
+    // scrollbar dragging is the remaining direct reading gesture here.
+    if (up && (!resized || pointerActive) && (!following || pointerActive)) {
       following = false;
       readingTop = current.top;
     } else if (!following && down && current.content - current.height - current.top <= 2) {
@@ -161,11 +165,29 @@
       readingTop = current.top;
     }
     previous = current;
-    if (resized) settle();
+    if (resized || (following && current.content - current.height - current.top > 2)) settle();
   }, {passive: true});
-  log.addEventListener('wheel', event => { if (event.deltaY < 0) readHistory(); }, {passive: true});
-  log.addEventListener('pointerdown', () => { pointerActive = true; }, {passive: true});
-  const releasePointer = () => { pointerActive = false; };
+  log.addEventListener('wheel', event => {
+    if (!event.ctrlKey && !event.metaKey && !event.shiftKey && event.deltaY < 0) readHistory();
+  }, {passive: true});
+  log.addEventListener('pointerdown', event => {
+    // Clicking an inline action can restore focus and scroll; it is not a drag.
+    pointerActive = event.button !== 2 && !event.target?.closest?.('button, a, input, textarea, select, summary');
+    if (event.button === 1) readHistory(); // Middle-button autoscroll is deliberate.
+  }, {passive: true});
+  const releasePointer = () => {
+    // A scrollbar can move before its queued scroll event is delivered. Record
+    // that deliberate reading position even if pointerup/cancel arrives first.
+    if (pointerActive) {
+      const current = metrics();
+      if (current.height && current.top < previous.top - 1) {
+        following = false;
+        readingTop = current.top;
+        previous = current;
+      }
+    }
+    pointerActive = false;
+  };
   window.addEventListener('pointerup', releasePointer, {passive: true});
   window.addEventListener('pointercancel', releasePointer, {passive: true});
   log.addEventListener('touchstart', event => { touchY = event.touches?.[0]?.clientY ?? null; }, {passive: true});
@@ -175,7 +197,8 @@
     touchY = y ?? null;
   }, {passive: true});
   log.addEventListener('keydown', event => {
-    if (event.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
+    if (event.defaultPrevented || event.isComposing ||
+        event.target?.closest?.('input, textarea, select, [contenteditable="true"], [role="textbox"]')) return;
     if (['ArrowUp', 'PageUp', 'Home'].includes(event.key) || (event.key === ' ' && event.shiftKey)) readHistory();
   });
   latest?.addEventListener('click', jumpToLatest);
@@ -215,5 +238,5 @@
   log.addEventListener('load', settle, true);
   document.fonts?.ready?.then(settle);
   document.fonts?.addEventListener?.('loadingdone', settle);
-  window.ExpanseTranscript = { beforeAppend, afterAppend, jumpToLatest };
+  window.ExpanseTranscript = { beforeAppend, afterAppend, jumpToLatest, version: '1.9.8' };
 })();
