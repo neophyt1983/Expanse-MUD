@@ -20,6 +20,7 @@ DEFAULTS['room']['workshop']={}
 DEFAULTS['npc']['profession']=''
 DEFAULTS['npc']['inventory']=[]
 DEFAULTS['npc']['equipped']={}
+DEFAULTS['npc'].update(combat_level=1, loot_table={})
 
 DEFAULTS['interaction']=dict(name='',description='',location='',creation_method='',tool='',components={},interaction_effect='create',target_kind='item',power=0,outputs={},result_text='Combination completed.')
 DEFAULTS['item']['requires_ammo']=''

@@ -287,6 +287,8 @@ def validate(data,meta):
     obtainable.update(i for row in data['room'] for i in row.get('items',[]) if i in items)
     obtainable.update(s.get('item') for n in data['npc'] for s in n.get('stock',[]) if s.get('qty',1)>0)
     obtainable.update(i for n in data.get('npc',[]) for i in n.get('drops',[]))
+    from engine import loot_tables
+    obtainable.update(i for n in data.get('npc',[]) for i in loot_tables.possible_items(n))
     for _ in range(len(items)):
         old=len(obtainable)
         for rec in data.get('recipe',[]):

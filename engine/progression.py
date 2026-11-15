@@ -147,8 +147,11 @@ def discovery(w,p,rid):
 
 
 def combat(w,p,target):
+    from engine import loot_tables
     definition=w.npcs.get(target.source_def,{})
-    if target.is_player or target.progress.get('companion_owner') or target.progress.get('zoo_exhibit') or not definition.get('aggressive'):return ''
+    if (target.is_player or target.progress.get('companion_owner') or target.progress.get('zoo_exhibit')
+            or definition.get('zoo_exhibit')
+            or not (definition.get('aggressive') or loot_tables.configured(definition))):return ''
     return award(w,p,'combat',target.source_def,definition.get('reward_xp',config(w)['combat_xp']))
 
 

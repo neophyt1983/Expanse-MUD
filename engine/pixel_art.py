@@ -67,7 +67,14 @@ def load(game_dir, *, clone=True):
     if cached and cached[0]==stamp:return copy.deepcopy(cached[1]) if clone else cached[1]
     try:data=json.loads(path.read_text())
     except (RecursionError,UnicodeError) as exc:raise ValueError('Invalid art library encoding/nesting') from exc
+    data=validate_library(data)
+    _CACHE[str(path)]=(stamp,copy.deepcopy(data))
+    return data
+
+
+def validate_library(data):
     if not isinstance(data,dict) or data.get('version')!=1 or not isinstance(data.get('assets'),dict) or len(data['assets'])>256 or not isinstance(data.get('bindings'),dict):raise ValueError('Invalid art library')
+    if len(json.dumps(data,separators=(',', ':')).encode())>MAX_BYTES:raise ValueError('Art library exceeds 8 MB')
     if any(not re.fullmatch(r'[0-9a-f]{32}',key) for key in data['assets']):raise ValueError('Invalid asset ID')
     data={'version':1,'assets':{k:validate(v) for k,v in data['assets'].items()},'bindings':data['bindings']}
     for key,value in data['bindings'].items():
@@ -78,8 +85,25 @@ def load(game_dir, *, clone=True):
         if suffix and (kind not in ('races','npcs') or not key.endswith(suffix)):raise ValueError('Art binding pose mismatch')
         if kind in ('races','items') and (doc.get('rig') not in RIGS or not key.endswith(':'+doc['rig']+suffix)):raise ValueError('Art binding anatomy mismatch')
         if kind=='items' and doc.get('slot') not in SLOTS:raise ValueError('Art binding slot missing')
-    _CACHE[str(path)]=(stamp,copy.deepcopy(data))
     return data
+
+
+def for_world(world):
+    """Read the original library with an optional supported content update."""
+    original=load(world.game_dir,clone=False)
+    patch=getattr(world,'_pixel_art_update',None)
+    if not patch:return original
+    cached=getattr(world,'_pixel_art_updated_cache',None)
+    if cached and cached[0] is original and cached[1] is patch:return cached[2]
+    from engine import world_additions
+    try:
+        merged=validate_library(world_additions.pixel_library(original,patch))
+    except (ValueError,TypeError,KeyError):
+        # Optional new art cannot invalidate a creator's valid full library.
+        # Keep the original art and normal limits without touching the import.
+        merged=original
+    world._pixel_art_updated_cache=(original,patch,merged)
+    return merged
 
 def change(game_dir,body):
     if not isinstance(body,dict):raise ValueError('Expected object')
@@ -159,7 +183,7 @@ def apply(world,visual):
     """Attach only art for permitted rooms/occupants, never expose the library."""
     try:
         if not getattr(world,'game_dir',None):return
-        library=load(world.game_dir,clone=False)
+        library=for_world(world)
     except (ValueError,OSError,TypeError):return  # broken optional art cannot halt play
     if not library['bindings']:return
     assets={}
@@ -202,9 +226,9 @@ def apply(world,visual):
     if assets:visual['pixel_assets']=assets
 
 
-def decorate_rooms(game_dir, rooms):
+def decorate_rooms(game_dir, rooms, *, world=None):
     """Same art for already-authorized atlas detail cells; no new geography."""
     from types import SimpleNamespace
     visual={'tiles':rooms}
-    apply(SimpleNamespace(game_dir=str(game_dir),entities={}),visual)
+    apply(world if world is not None else SimpleNamespace(game_dir=str(game_dir),entities={}),visual)
     return visual.get('pixel_assets',{})

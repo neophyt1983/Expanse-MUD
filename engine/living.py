@@ -588,8 +588,8 @@ def validate(data):
         for rid in d.get('visit_rooms',[]):ref('room',rid,d['id'])
         for iid in d.get('reward_items',[]):ref('item',iid,d['id'])
     from engine import resource_nodes
-    from engine import escorts
-    return issues+resource_nodes.validate(data)+escorts.validate(data)
+    from engine import escorts, loot_tables
+    return issues+resource_nodes.validate(data)+escorts.validate(data)+loot_tables.validate(data)
 
 
 def on_hit(world,p,attacker,damage):
@@ -865,12 +865,14 @@ def material_index(world,query='',selected_ids=None):
           and (not query or query.lower() in (iid+' '+item.get('name','')).lower())}
     def add(iid,field,text):
         if iid in rows:rows[iid][field].append(text)
+    from engine import loot_tables
     for room in world.rooms.values():
         for iid in dict.fromkeys(room.items):add(iid,'sources','floor: '+room.name)
     for npc in world.npcs.values():
         name=npc.get('name',npc.get('id','NPC'))
         for iid in dict.fromkeys(x.get('item') for x in npc.get('stock',[])):add(iid,'sources','shop: '+name)
         for iid in dict.fromkeys(npc.get('drops',[])):add(iid,'sources','drop: '+name)
+        for iid in sorted(loot_tables.possible_items(npc)):add(iid,'sources','possible combat loot: '+name)
         add(npc.get('tame_item'),'uses','befriend '+name)
     for node in catalog(world,'resources').values():
         for iid in node.get('yields',{}):add(iid,'sources','gather: '+node['name'])

@@ -84,15 +84,62 @@ def blocked(world,room_id,exit_name,player=None,*,lock_index=None):
         return gate.get('message') or guard.name+' blocks the way.'
     return gate.get('message','This passage is locked.')
 
-def path(world,start,target,player=None,include_locked=False,*,allowed=None):
-    if start not in world.rooms or target not in world.rooms:return None
+def _candidate_route(world,start,target,boat,allowed):
+    """First BFS route through a conservative superset of permitted edges.
+
+    Only actor-constant water access and physical corner geometry are checked
+    here. None means an explicitly unchecked physical route. No permissions,
+    routes or topology are cached between calls.
+    """
     q=deque([start]);previous={start:None}
     rooms=world.rooms;details=getattr(world,'room_details',{})
-    from engine import geology_impacts
-    hazard_sources=geology_impacts.route_sources(world) if not include_locked else frozenset()
+    while q:
+        current=q.popleft()
+        if current==target:
+            steps=[]
+            while previous[current] is not None:
+                before,di=previous[current];steps.append((before,di,current));current=before
+            return list(reversed(steps))
+        for di,dest in rooms[current].exits.items():
+            if dest not in rooms or dest in previous or (allowed is not None and dest not in allowed):continue
+            if boat is False and details.get(dest,{}).get('requires_boat'):continue
+            if boat is not None and di in DIAGONALS and details.get(current,{}).get('open_country'):
+                clear=True
+                for first,second in (DIAGONALS[di],DIAGONALS[di][::-1]):
+                    via=rooms[current].exits.get(first)
+                    if (via not in rooms or rooms[via].exits.get(second)!=dest or
+                            boat is False and details.get(via,{}).get('requires_boat')):
+                        clear=False;break
+                if not clear:continue
+            previous[dest]=(current,di);q.append(dest)
+            if dest==target:
+                q.clear();q.append(dest);break
+    return None
+
+
+def path(world,start,target,player=None,include_locked=False,*,allowed=None):
+    if start not in world.rooms or target not in world.rooms:return None
+    if start==target:return []
+    rooms=world.rooms;details=getattr(world,'room_details',{})
     boat=player is not None and any(world.items.get(i,{}).get('boat') for i in player.inventory)
+    candidate=_candidate_route(world,start,target,None if include_locked else boat,allowed)
+    if candidate is None or include_locked:return candidate
+    from engine import geology_impacts
+    hazard_sources=geology_impacts.route_sources(world)
     from engine import locks
-    lock_index=locks.index(world) if not include_locked else {}
+    lock_index=locks.index(world)
+    for source,di,dest in candidate:
+        check_passages=(bool(details.get(source,{}).get('gates')) or source in hazard_sources or
+                        any(details.get(d,{}).get('property_unit_id') for d in rooms[source].exits.values()) or
+                        bool(lock_index.get(source)))
+        if path_blocked(world,source,di,dest,player,check_passages,lock_index,hazard_sources,boat):break
+    else:
+        # This is the first shortest route in a superset of the legal graph.
+        # If every edge is legal, checked BFS has the same result and tie order.
+        return candidate
+    # A dynamic restriction rejects the candidate. Preserve the original
+    # permission-aware BFS, including adjacency-order tie-breaking.
+    q=deque([start]);previous={start:None}
     while q:
         current=q.popleft()
         if current==target:

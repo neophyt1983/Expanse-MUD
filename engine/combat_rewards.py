@@ -1,6 +1,6 @@
 """Finite shared spoils and advancement for actual combat participants."""
 from collections import Counter
-from engine import living, progression
+from engine import living, progression, loot_tables
 
 KEY = 'combat_contributions_v1'
 
@@ -50,21 +50,29 @@ def participants(world, dead, killer, credit=None):
     return sorted(rows, key=lambda row: (-row[1], row[0].id))
 
 
-def settle(world, dead, killer, credit=None):
-    if dead.progress.get('zoo_exhibit') or world.npcs.get(dead.source_def, {}).get('zoo_exhibit'):
+def settle(world, dead, killer, credit=None, *, rng=None):
+    if (dead.alive or dead.is_player or dead.progress.get('combat_rewards_settled_v1')
+            or dead.progress.get('combat_drops_distributed') or dead.progress.get('zoo_exhibit')
+            or world.npcs.get(dead.source_def, {}).get('zoo_exhibit')):
         return ''
     rows = participants(world, dead, killer, credit)
     if not rows:
         return ''
     definition = world.npcs.get(dead.source_def, {})
     coins = max(0, int(dead.gold))
+    drops = [item for item in definition.get('drops', ()) if item in world.items]
+    supplemental = loot_tables.roll(world, dead, rng=rng)
+    if supplemental is not None:
+        coins += supplemental['gold']
+        drops.extend(supplemental['items'])
+        dead.progress['combat_loot_v1'] = supplemental
     total = sum(damage for _, damage in rows)
     shares = [coins*damage//total for _, damage in rows]
     remainder_order = sorted(range(len(rows)), key=lambda i: (-(coins*rows[i][1] % total), i))
     for index in remainder_order[:coins-sum(shares)]:
         shares[index] += 1
     dead.gold = 0
-    drops = [item for item in definition.get('drops', ()) if item in world.items]
+    dead.progress['combat_rewards_settled_v1'] = True
     dead.progress['combat_drops_distributed'] = True
     goods = [[] for _ in rows]
     for index, item in enumerate(drops):

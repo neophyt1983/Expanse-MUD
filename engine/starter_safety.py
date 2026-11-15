@@ -78,11 +78,12 @@ def _signature(w, room):
 
 
 def _tutorials(w):
-    # The quest catalogue is small; only explicit introductory destinations
+    # Only explicit introductory destinations
     # participate in the stamp, including in-place creator edits to a quest.
+    category = config(w).get('tutorial_category')
     return tuple(sorted((str(key), row.get('offer_room', ''), row.get('turn_in_room', ''))
                         for key, row in getattr(w, 'quests', {}).items()
-                        if isinstance(row, dict) and row.get('category') == config(w).get('tutorial_category')
+                        if isinstance(row, dict) and row.get('category') == category
                         and not row.get('prerequisites')
                         and isinstance(row.get('offer_room'), str)
                         and isinstance(row.get('turn_in_room'), str)))

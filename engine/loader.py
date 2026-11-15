@@ -115,6 +115,7 @@ def build_world(game_dir=None) -> World:
         return world_additions.records(name,load_json(name,folder),patch)
     world = World()
     world.game_dir = str(target_dir.resolve())
+    world._pixel_art_update = {'pixel_art': patch['pixel_art']} if patch and patch.get('pixel_art') else None
     world.room_details = {r["id"]: r for r in read_records("rooms.json", target_dir)}
     for name in ("recipes", "resources", "encounters", "interactions", "species"):
         setattr(world, name, {r["id"]: r for r in read_records(name+".json", target_dir)})
@@ -133,6 +134,10 @@ def build_world(game_dir=None) -> World:
     from engine.shield_compat import normalize_item
     world.items = {i["id"]: normalize_item(i) for i in read_records("items.json", target_dir)}
     world.npcs = {n["id"]: n for n in read_records("npcs.json", target_dir)}
+    from engine import loot_tables
+    loot_errors = loot_tables.validate({'npc': list(world.npcs.values()), 'item': list(world.items.values())})
+    if loot_errors:
+        raise ValueError('Combat loot content: ' + '; '.join(loot_errors))
     
     # Initialize shop state from NPC stocks
     world.shop_state = {}
@@ -156,6 +161,9 @@ def build_world(game_dir=None) -> World:
     world.sexes = {s["id"]: s for s in read_records("sexes.json", target_dir)}
     
     world.metadata = world_additions.metadata(load_metadata(target_dir),patch)
+    from engine import travel_pacing
+    travel_errors=travel_pacing.validate(world.metadata)
+    if travel_errors:raise ValueError('Travel content: '+'; '.join(travel_errors))
     from engine import dynamic_diplomacy
     dynamic_diplomacy.validate(world.metadata.get("dynamic_diplomacy",{}),world.groups)
     from engine import progression
@@ -181,8 +189,7 @@ def build_world(game_dir=None) -> World:
     from engine.world_package import rules
     world.rules = rules(target_dir,world.room_details,world.npcs)
     if patch:
-        for key,value in patch.get('rules',{}).items():
-            world.rules.setdefault(key,value)
+        world.rules=world_additions.rules(world.rules,patch)
         from engine import regional_rules
         regional_rules.validate(world.rules,world.room_details,world.npcs)
     wildlands.install(world)
@@ -200,6 +207,10 @@ def start_room_for(world: World) -> str:
 def validate_world(world: World):
     errors = []
     warnings = []
+    from engine import travel_pacing
+    errors.extend(travel_pacing.validate(world.metadata))
+    from engine import loot_tables
+    errors.extend(loot_tables.validate({'npc': list(world.npcs.values()), 'item': list(world.items.values())}))
     room_ids = set(world.rooms.keys())
     item_ids = set(world.items.keys())
     npc_ids = set(world.npcs.keys())

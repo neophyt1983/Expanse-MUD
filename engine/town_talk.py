@@ -84,11 +84,18 @@ def travel(world, person, start, end):
 def visible_feature(world, person):
     from engine.costumes import npc_doll
     from engine.visual_mapping import appearance_for, _player_equipment
+    equipment = _player_equipment(world, person)
+    body = next((piece for piece in equipment if piece['layer'] == 'body'), {})
+    garment = body.get('color', '') + ' ' + body.get('kind', '').replace('_', ' ')
+    # Equipped body layers suppress generated workwear in npc_doll, so their
+    # nonempty label is already the final visible feature.
+    if garment.strip():
+        return garment.strip()
     row = world.npcs.get(person.source_def, {})
     race = person.race or row.get('race', '')
     role = person.char_class or row.get('char_class', '')
     appearance = appearance_for(world, person, row, race, role, {}, False)
-    doll = npc_doll(world, person, row, appearance, _player_equipment(world, person))
+    doll = npc_doll(world, person, row, appearance, equipment)
     body = next((piece for piece in doll['equipment'] if piece['layer'] == 'body'), {})
     garment = body.get('color', '') + ' ' + body.get('kind', '').replace('_', ' ')
     if garment.strip():

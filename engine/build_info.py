@@ -1,1 +1,1 @@
-BUILD = '2026-11-15-render-character-names-1.9.7'
+BUILD = '2026-11-15-render-ui-fixes-1.9.8'

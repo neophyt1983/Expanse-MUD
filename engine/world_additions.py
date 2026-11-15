@@ -1,6 +1,7 @@
 """Apply compatible, additive content from an installed template to an older adventure in memory."""
 import hashlib
 import json
+from copy import deepcopy
 from pathlib import Path
 
 
@@ -75,5 +76,31 @@ def metadata(current, patch):
         if current.get(change['field']) == change.get('old'):
             current[change['field']] = change['new']
     return current
+
+
+def rules(current, patch):
+    """Add missing rule blocks, then conditionally upgrade known old values."""
+    if not patch:
+        return current
+    for key, value in patch.get('rules', {}).items():
+        current.setdefault(key, deepcopy(value))
+    for change in patch.get('rule_edits', []):
+        if current.get(change['field']) == change.get('old'):
+            current[change['field']] = deepcopy(change['new'])
+    return current
+
+
+def pixel_library(current, patch):
+    """Compose authored art in memory while retaining creator-owned revisions."""
+    changes = (patch or {}).get('pixel_art')
+    if not changes:
+        return current
+    result = deepcopy(current)
+    for ident, document in changes.get('assets', {}).items():
+        result['assets'].setdefault(ident, deepcopy(document))
+    for change in changes.get('bindings', []):
+        if result['bindings'].get(change['target']) == change.get('old'):
+            result['bindings'][change['target']] = change['new']
+    return result
 
 

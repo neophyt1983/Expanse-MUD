@@ -236,8 +236,6 @@ def _try_spawn(world: World, room: Room, spawner: dict,
     Count cap, cooldown, and total_limit gate all triggers.
     alive_counts is a per-refresh automatic-spawner snapshot, updated on success.
     """
-    from engine import wildlife
-    if not wildlife.recovery_allowed(world,room,spawner,idx):return None
     from engine import geology_impacts
     if geology_impacts.room_unusable(world,room.id):return None
     npc_id = spawner.get("npc")
@@ -285,6 +283,11 @@ def _try_spawn(world: World, room: Room, spawner: dict,
         elapsed = time.monotonic() - state["last_spawn_at"]
         if elapsed < cooldown:
             return None
+
+    # Full or cooling-down spawners cannot recover yet. Count habitat occupants
+    # only for otherwise eligible attempts, retaining the same pre-roll gate.
+    from engine import wildlife
+    if not wildlife.recovery_allowed(world,room,spawner,idx):return None
 
     if trigger == "entry":
         chance = spawner.get("chance", 1.0)
@@ -1214,6 +1217,7 @@ def _cmd_go(ctx: CommandContext, args: str) -> str:
         return (f"The way {direction} is blocked. "
                 f"(content error: room '{target_room_id}' does not exist)")
     last_hit=ctx.player.progress.get('geology_last_hit_minute')
+    travel_remainder=None
     if ctx.world.metadata.get('society'):
         from engine import climate
         # Directions are immediate actions; clear cooldowns left by older saves.
@@ -1222,7 +1226,11 @@ def _cmd_go(ctx: CommandContext, args: str) -> str:
         if target_details.get('requires_boat') and not any(ctx.world.items.get(i,{}).get('boat') for i in ctx.player.inventory):return 'You need a boat to enter open water. Craft or buy a folding boat at a harbour workshop.'
         cost=climate.conditions(ctx.world,target_room_id)['travel_minutes']
         if getattr(ctx.world,'walk_on_clock',False):ctx.time_accounted=True
-        if not ctx.time_accounted and not getattr(ctx.world,'realtime',False) and cost>1:living.advance(ctx.world,cost-1)
+        if not ctx.time_accounted and not getattr(ctx.world,'realtime',False):
+            from engine import travel_pacing
+            cost,travel_remainder=travel_pacing.quote(ctx.world,ctx.player,cost)
+            if cost==0:ctx.time_accounted=True
+            elif cost>1:living.advance(ctx.world,cost-1)
     # Travel time may have caused injury, death, a new closure, or relocation.
     if not ctx.player.alive:return 'Your journey was interrupted. You are unconscious.'
     if ctx.player.progress.get('geology_last_hit_minute')!=last_hit:return 'Your journey was interrupted by a geological injury.'
@@ -1235,6 +1243,8 @@ def _cmd_go(ctx: CommandContext, args: str) -> str:
     escort_block=escorts.check(ctx.world,ctx.player,target_key,target_room_id)
     if escort_block:return escort_block
     if not ctx.world.move_entity(ctx.player.id,target_room_id):return 'You cannot pass.'
+    if travel_remainder is not None:
+        travel_pacing.commit(ctx.player,travel_remainder)
     from engine import companions
     for record in ctx.player.progress.get('companions',[]):
         pet=ctx.world.entities.get(record['id'])
