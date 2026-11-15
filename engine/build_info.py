@@ -1,1 +1,1 @@
-BUILD = '2026-11-15-render-cities-editor-playtests-1.9.6'
+BUILD = '2026-11-15-render-character-names-1.9.7'
