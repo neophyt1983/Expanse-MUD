@@ -21,6 +21,7 @@ from urllib.parse import quote, urlsplit
 import zipfile
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
+from server import world_catalogue
 from server.accounts import display_name, name_key
 from server.save_slots import DB as SLOTS_DB
 
@@ -29,7 +30,17 @@ CSS = """body{background:#10171c;color:#e2e9e6;font:1rem/1.6 system-ui;margin:au
 h1{color:#95d9ad;font-family:Georgia,serif}h2{font-size:1.2rem;margin-top:2rem}
 input,button,a.button{font:inherit;padding:.55rem .85rem;border-radius:.4rem}
 input{max-width:92%;display:block;margin:.2rem 0 1rem}button,a.button{background:#314c41;color:white;border:1px solid #789789;cursor:pointer}
-a{color:#aee6c0}form{margin:1rem 0}small{color:#bdc7c2}"""
+a{color:#aee6c0}form{margin:1rem 0}small{color:#bdc7c2}
+.world-card{border:1px solid #52675e;border-radius:.65rem;padding:1.1rem;margin:1rem 0;min-width:0;overflow-wrap:anywhere}
+.world-card h2{margin:0;font-size:1.2rem;line-height:1.5}.world-card p{margin:.6rem 0}
+.world-meta,.world-links{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem .85rem}
+.world-meta{margin:.65rem 0}.world-links{gap:.4rem 1rem}.world-links a{padding:.35rem 0}
+.world-card form{margin:.85rem 0 .4rem}.world-card button{max-width:100%;min-height:44px;white-space:normal}
+.world-badge{display:inline-block;border:1px solid #789789;border-radius:.35rem;padding:.1rem .5rem;font-size:.85rem;line-height:1.6}
+.world-badge.latest{background:#254b37;color:#c2f5d2;border-color:#89c79c}.world-badge.older{color:#cbd4cf;border-color:#66776f}
+.world-file{display:block;color:#bdc7c2;font-size:.9rem}.world-file code{color:inherit;font-size:inherit}
+.world-note{color:#d0d9d4}button:focus-visible,a:focus-visible{outline:2px solid #b9f0cc;outline-offset:3px}
+@media(max-width:420px){.world-card{padding:.85rem}body{padding:1.1rem .75rem}}"""
 LIMIT = 128 * 1024 * 1024
 
 
@@ -173,7 +184,35 @@ class Service:
         return self.data/'players'/hashlib.sha256(key.encode()).hexdigest()/ident
 
     def catalogue(self):
-        return sorted(((p.parent.name,json.loads(p.read_bytes())) for p in self.worlds.glob('*/info.json')), key=lambda row:(row[1]['name'],row[0]))
+        # Read the original import's authored metadata, without rewriting legacy
+        # info records or starting a game. Archive IDs continue to own all saves.
+        def read_object(path, bundle):
+            try:
+                if path.is_symlink() or not path.resolve().is_relative_to(bundle.resolve()):
+                    return {}
+                with path.open('rb') as stream:
+                    raw = stream.read(16 * 1024 * 1024 + 1)
+                if len(raw) > 16 * 1024 * 1024:
+                    return {}
+                value = json.loads(raw)
+                return value if isinstance(value, dict) else {}
+            except (OSError, ValueError, UnicodeError):
+                return {}
+
+        rows = []
+        for path in self.worlds.glob('*/info.json'):
+            bundle = path.parent
+            if bundle.is_symlink() or not re.fullmatch(r'[0-9a-f]{64}', bundle.name):
+                continue
+            info = read_object(path, bundle)
+            slug = info.get('slug')
+            if not isinstance(slug, str) or not re.fullmatch(r'[a-z][a-z0-9_]{0,31}', slug):
+                continue
+            game = bundle/'games'/slug
+            rows.append((bundle.name, world_catalogue.display_info(
+                info, read_object(game/'metadata.json', bundle),
+                read_object(game/'manifest.json', bundle))))
+        return world_catalogue.annotate_latest(rows)
 
     def update_templates(self, ident, slug):
         if not self.update_world or self.update_world == ident:
@@ -273,16 +312,28 @@ class Service:
             from datetime import timezone
             contents += '<p>Account access ends '+datetime.fromtimestamp(expiry,timezone.utc).isoformat()+' UTC.</p>'
         entries=self.catalogue()
+        if entries:
+            contents += '<p class="world-note">To continue an existing character, open the same game file you used before.</p>'
         for ident,info in entries:
-            contents+='<h2>'+escape(info['name'])+'</h2>'
-            if sum(row['name']==info['name'] for _,row in entries)>1:
-                contents += '<small>Game file '+ident[:12]+'</small>'
-            contents+='<form action="/enter" method="post"><input type="hidden" name="game" value="'+ident+'"><button>Play Expanse</button></form>'
-            contents+='<a href="/world.expanse?game='+ident+'" download>Download imported world</a>'
+            title = escape(info['display_name'])
+            contents += '<section class="world-card" data-game="'+ident+'" aria-labelledby="world-'+ident+'"><h2 id="world-'+ident+'">'+title+'</h2>'
+            version = info.get('version')
+            contents += '<div class="world-meta"><span>Imported world version '+(escape(version) if version else 'not specified')+'</span>'
+            if info['is_latest']:
+                label = 'Newest numbered version' if info['unranked_in_family'] else 'Newest version'
+                contents += '<span class="world-badge latest">'+label+'</span>'
+            elif info['is_older']:
+                contents += '<span class="world-badge older">Older version</span>'
+            if key == self.auth.owner and ident == self.update_world:
+                contents += '<span class="world-badge">Update template</span>'
+            contents += '</div><span class="world-file">File ID <code>'+ident[:12]+'</code></span>'
+            contents += '<form action="/enter" method="post"><input type="hidden" name="game" value="'+ident+'"><button aria-label="Play Expanse — '+title+'; file '+ident[:12]+'">Play Expanse</button></form>'
+            contents += '<div class="world-links"><a href="/world.expanse?game='+ident+'" download>Download imported world</a>'
             if key==self.auth.owner:
-                contents+=' · <a href="/editor?game='+ident+'">Edit a draft</a>'
+                contents+='<a href="/editor?game='+ident+'">Edit a draft</a>'
             if self.has_save(key,ident):
-                contents+=' · <a href="/manual-saves.zip?game='+ident+'" download>Download your manual saves</a>'
+                contents+='<a href="/manual-saves.zip?game='+ident+'" download>Download your manual saves</a>'
+            contents += '</div></section>'
         if key==self.auth.owner:
             contents += '<p><a href="/playtest">Playtest reports</a></p>'
             contents += ('<h2>Import a game</h2><form action="/world/import" enctype="multipart/form-data" method="post"><label>'

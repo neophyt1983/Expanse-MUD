@@ -12,7 +12,7 @@ from aiohttp import web, WSMsgType
 from engine import loader, persistence
 from engine.build_info import BUILD
 from engine.character_style import choices, class_accents
-from server import game_server, save_slots, playtest_telemetry
+from server import game_server, save_slots, playtest_telemetry, world_catalogue
 from server.accounts import display_name
 
 
@@ -97,7 +97,8 @@ class Game:
         elif action == 'playtest/feedback':
             result = self.telemetry.store.feedback(body)
         elif action == 'games':
-            result = {'games':[{'slug':self.slug,'name':self.server.world.metadata.get('name', self.slug)}]}
+            info = world_catalogue.display_info({'slug':self.slug}, self.server.world.metadata)
+            result = {'games':[{'slug':self.slug,'name':info['display_name']}]}
         elif action == 'character/options':
             w = self.server.world
             result = dict(races=[dict(choices(r, {}), id=r['id'], name=r.get('name',r['id'])) for r in w.races.values()],
