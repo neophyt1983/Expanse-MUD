@@ -585,6 +585,8 @@ class Editor:
         issues.extend(validate_route_surfaces(self.data))
         metadata_path=self.data_dir/'metadata.json'
         metadata=json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
+        from engine import travel_pacing
+        issues.extend(travel_pacing.validate(metadata))
         authored_rules = {}
         try:
             from engine.world_package import rules
