@@ -4,7 +4,10 @@
  const d=document.createElement('dialog');d.style.cssText='background:#141a23;color:#bdd0d8;border:1px solid #527b69;max-width:520px;width:90%;padding:24px';
  const title=document.createElement('h2');title.textContent='Expanse account';d.append(title);
  const notice=document.createElement('p');notice.textContent='Accounts belong to this host. Security records include your recovery email, IP, client information and a random installation ID. Connection logs expire after 30 days. These identifiers do not prove a person’s or machine’s identity.';d.append(notice);
- if(state.character_name){const [first,...last]=state.character_name.split(' ');for(const [id,value] of [['cc-first',first],['cc-last',last.join(' ')]]){const field=document.getElementById(id);if(field){field.value=value;field.readOnly=true;}}}
+ const namePolicy=typeof config!=='undefined'&&typeof config.character_name_locked==='boolean'?config.character_name_locked:state.character_name_locked;
+ const editableName=namePolicy===false;
+ const fixedName=typeof state.character_name==='string'?state.character_name.trim():'';
+ if(editableName||fixedName){const [first,...last]=fixedName.split(/\s+/);for(const [id,value] of [['cc-first',first],['cc-last',last.join(' ')]]){const field=document.getElementById(id);if(field){field.readOnly=!editableName;if(!editableName)field.value=value;}}}
  const status=document.createElement('p');status.setAttribute('role','status');d.append(status);
  const fields={};for(const [name,type,label] of [['username','text','Character name'],['email','email','Recovery email'],['password','password','Password (15–128 characters)'],['code','text','Emailed verification or recovery code']]){
  const l=document.createElement('label');l.textContent=label;l.style.display='block';const i=document.createElement('input');i.type=type;i.style.cssText='display:block;width:95%;margin:5px 0 12px';i.maxLength=name==='password'?128:254;i.autocomplete=name==='password'?'current-password':name==='code'?'one-time-code':name;fields[name]=i;l.append(i);d.append(l);}

@@ -110,18 +110,20 @@
     z-index: 200; padding: 20px; overflow-y: auto;
   }
   #character-creation.show { display: flex; }
-  .cc-panel {
+  #character-creation .cc-panel {
     background: #141821; border: 1px solid #2a3342; border-radius: 6px;
-    padding: 24px; max-width: 560px; width: 100%; max-height: calc(100vh - 40px); overflow-y: auto; box-sizing: border-box;
+    padding: 24px; min-width: 0; max-width: 560px; width: 100%;
+    max-height: calc(100vh - 40px); max-height: calc(var(--expanse-viewport-height, 100dvh) - 40px);
+    overflow-y: auto; overflow-wrap: anywhere; box-sizing: border-box;
     box-shadow: 0 12px 40px rgba(0,0,0,0.7);
   }
   .cc-panel h1 {
     margin: 0 0 18px; color: #7fd1a4; font-size: 16px;
     text-transform: uppercase; letter-spacing: 3px;
   }
-  .cc-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
-  .cc-row label {
-    flex: 1; min-width: 140px;
+  #character-creation .cc-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; min-width: 0; }
+  #character-creation .cc-row label {
+    flex: 1 1 140px; min-width: 0; max-width: 100%;
     display: flex; flex-direction: column; gap: 4px;
     font-size: 11px; color: #6b7688;
     text-transform: uppercase; letter-spacing: 1px;
@@ -132,8 +134,23 @@
     padding: 6px 8px; font: inherit;
   }
   .cc-panel textarea { width: 100%; min-height: 60px; resize: vertical; }
-  .cc-actions { display: flex; justify-content: flex-end; margin-top: 18px; }
+  #character-creation input, #character-creation select, #character-creation textarea {
+    width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;
+  }
+  #character-creation button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  #character-creation .cc-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+  #character-creation .cc-row > button, #character-creation .cc-actions > button { flex: 0 1 auto; }
+  #character-creation #cc-style-fields { display: flow-root; min-width: 0; }
+  #character-creation .appearance-grid { min-width: 0; grid-template-columns: repeat(auto-fit, minmax(min(9em, 100%), 1fr)); }
+  #character-creation .appearance-grid label { min-width: 0; }
+  #cc-account-note { margin: 0 0 12px; color: #a9b7ca; font-size: 12px; }
   .cc-status { color: #e0a860; margin-top: 10px; min-height: 16px; font-size: 12px; }
+  @media (max-width: 480px) {
+    #character-creation { padding: 8px; }
+    #character-creation .cc-panel { padding: 16px; max-height: calc(100vh - 16px); max-height: calc(var(--expanse-viewport-height, 100dvh) - 16px); }
+    #character-creation input, #character-creation select, #character-creation textarea { font-size: 16px; }
+    #character-creation button, #character-creation input, #character-creation select { min-height: 44px; }
+  }
   #cc-image-wrap { margin-bottom: 16px; text-align: center; display: none; }
   #cc-image { max-width: 100%; max-height: 200px; border-radius: 4px; border: 1px solid #1e2430; object-fit: cover; }
   .ed-game .thumb { width: 20px; height: 20px; border-radius: 3px; object-fit: cover; margin-right: 4px; vertical-align: middle; border: 1px solid #2a3342; }
@@ -1714,8 +1731,24 @@ async function showCreationModal(reason) {
   if(window.refreshCharacterSaves) window.refreshCharacterSaves();
   const status = document.getElementById('cc-status');
   status.textContent = reason || '';
-  const [first,...last]=config.character_name.split(' ');document.getElementById('cc-first').value=first;document.getElementById('cc-first').readOnly=true;
-  document.getElementById('cc-last').value=last.join(' ');document.getElementById('cc-last').readOnly=true;
+  const editableName = config.character_name_locked === false;
+  const fixedName = typeof config.character_name === 'string' ? config.character_name.trim() : '';
+  const firstField = document.getElementById('cc-first');
+  const lastField = document.getElementById('cc-last');
+  if (editableName) {
+    firstField.readOnly = false;
+    lastField.readOnly = false;
+  } else if (fixedName) {
+    const [first, ...last] = fixedName.split(/\s+/);
+    firstField.value = first;
+    lastField.value = last.join(' ');
+    firstField.readOnly = true;
+    lastField.readOnly = true;
+  }
+  const accountNote = document.getElementById('cc-account-note');
+  const accountName = typeof config.account_name === 'string' ? config.account_name.trim() : '';
+  accountNote.hidden = !editableName || !accountName;
+  accountNote.textContent = accountNote.hidden ? '' : 'Signed in as ' + accountName + '. Choose your character’s name below.';
   document.getElementById('cc-desc').value = '';
   
   const gameSelect = document.getElementById('cc-game');
@@ -1857,9 +1890,10 @@ updateToolbar();
     <div class="cc-row" style="margin-bottom: 16px;">
       <label>Game / World<select id="cc-game"></select></label>
     </div>
+    <p id="cc-account-note" hidden></p>
     <div class="cc-row">
-      <label>First name<input id="cc-first" type="text" maxlength="30" autocomplete="off"></label>
-      <label>Last name<input id="cc-last" type="text" maxlength="30" autocomplete="off"></label>
+      <label>First name<input id="cc-first" type="text" maxlength="30" autocomplete="off" aria-describedby="cc-account-note"></label>
+      <label>Last name (optional)<input id="cc-last" type="text" maxlength="30" autocomplete="off" aria-describedby="cc-account-note"></label>
     </div>
     <div class="cc-row">
       <label>Race<select id="cc-race"></select></label>
@@ -1874,7 +1908,7 @@ updateToolbar();
     <details id="cc-appearance"><summary>Appearance</summary><div id="cc-style-fields"></div></details>
     <div class="cc-status" id="cc-status"></div>
     <div class="cc-actions">
-      <button id="cc-back" class="ed-btn" style="margin-right: 8px;" onclick="if(window.ExpansePixelStudio?.canLeave()===false)return;document.getElementById('character-creation').classList.remove('show'); window.location.href='/mode.html';">Back</button>
+      <button id="cc-back" class="ed-btn" onclick="if(window.ExpansePixelStudio?.canLeave()===false)return;document.getElementById('character-creation').classList.remove('show'); window.location.href='/mode.html';">Back</button>
       <button id="cc-create" class="ed-btn primary" onclick="submitCreation()">Create Character</button>
     </div>
   </div>
