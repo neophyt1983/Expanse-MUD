@@ -1,0 +1,20 @@
+#playtest-notice{box-sizing:border-box;max-width:100%;margin:8px 12px;padding:10px 14px;border:1px solid #42614f;border-radius:8px;background:#1b2b24;color:#d4e5da;font:14px/1.5 system-ui,sans-serif;overflow-wrap:anywhere}
+#playtest-notice[hidden],#playtest-notice button[hidden],#playtest-feedback button[hidden]{display:none!important}
+#playtest-notice p{margin:0}
+#playtest-notice>div{display:flex;flex-wrap:wrap;gap:8px;margin-top:5px}
+#playtest-feedback{box-sizing:border-box;width:min(720px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(100dvh - 24px);margin:auto;padding:22px;background:#182229;color:#e4eee8;border:1px solid #65977c;border-radius:12px;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;font:16px/1.5 system-ui,sans-serif;white-space:normal}
+#playtest-feedback::backdrop{background:rgb(0 0 0 / .72)}
+#playtest-feedback h2{font-size:1.45rem;line-height:1.3;margin:0 0 12px;overflow-wrap:anywhere}
+#playtest-feedback p{white-space:normal;overflow-wrap:anywhere}
+#playtest-feedback form{display:grid;gap:18px;min-width:0}
+#playtest-feedback label{display:grid;gap:7px;min-width:0;max-width:100%;font-weight:600}
+#playtest-feedback label small{font-weight:400;color:#bbcbbf;line-height:1.4}
+#playtest-feedback input,#playtest-feedback select,#playtest-feedback textarea{box-sizing:border-box;min-width:0;max-width:100%;width:100%;font:16px/1.5 system-ui,sans-serif;background:#10191f;color:#e5eee8;border:1px solid #5a7567;border-radius:6px;padding:10px}
+#playtest-feedback select{min-height:46px}
+#playtest-feedback textarea{resize:vertical;white-space:pre-wrap;overflow-wrap:anywhere}
+#playtest-feedback-status{margin:0;color:#e3dba8}
+#playtest-feedback .playtest-feedback-actions{display:flex;flex-wrap:wrap;gap:10px;padding-bottom:env(safe-area-inset-bottom,0px)}
+#playtest-feedback button,#playtest-notice button{min-height:44px;max-width:100%;white-space:normal;overflow-wrap:anywhere;font-size:15px;line-height:1.3}
+#playtest-feedback button:focus-visible,#playtest-feedback select:focus-visible,#playtest-feedback textarea:focus-visible{outline:3px solid #9cdbb8;outline-offset:2px}
+#playtest-feedback .primary{background:#315b46;color:#effaf3;border-color:#86bc9d}
+@media(max-width:560px){#playtest-feedback{width:calc(100vw - 16px);max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:16px}#playtest-feedback .playtest-feedback-actions{display:grid;grid-template-columns:minmax(0,1fr)}#playtest-feedback .playtest-feedback-actions button{width:100%}#playtest-notice{margin:6px 8px;padding:9px 11px;font-size:13px}}

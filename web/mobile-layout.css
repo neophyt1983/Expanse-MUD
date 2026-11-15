@@ -7,13 +7,13 @@
 #command-done{flex:none;background:#202a34;padding-inline:8px}
 #conversation-latest{position:absolute;right:8px;bottom:calc(100% + 8px);z-index:3;max-width:calc(100% - 16px);box-shadow:0 3px 14px #0009;white-space:normal;overflow-wrap:anywhere}
 #command-done[hidden],#conversation-latest[hidden]{display:none!important}
-#log{overflow-anchor:none;overscroll-behavior-y:contain}
+.conversation #log{flex:1 1 0%;min-height:0;min-width:0;overflow-anchor:none;overscroll-behavior-y:contain;scroll-behavior:auto;scroll-padding-bottom:20px;padding-bottom:20px}
 
 @media (max-width:680px), (max-width:950px) and (max-height:500px) and (pointer:coarse) {
  html,body{height:100%;overflow:hidden;overscroll-behavior-y:none}
  #app{position:fixed;top:var(--expanse-mobile-top,0px);left:var(--expanse-mobile-left,0px);width:var(--expanse-mobile-width,100%);height:var(--expanse-mobile-height,100dvh);max-width:none;min-width:0;min-height:0;overflow:hidden;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
  #app>main{flex:1 1 0%;min-height:0;min-width:0;overflow:hidden}
- #tab-game .dock-workspace[data-phone=true] .conversation #log{font:16px/1.5 system-ui,sans-serif;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal}
+ #tab-game .dock-workspace[data-phone=true] .conversation #log{font:16px/1.5 system-ui,sans-serif;padding:12px 12px 20px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal}
  #log .line.system,#log .line.welcome{color:#adb8c9;font-style:normal}
  #input-form{min-height:56px;padding:5px 6px;gap:4px;background:#141821}
  #prompt{display:none}

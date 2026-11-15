@@ -1,0 +1,18 @@
+#editor-draft-note{margin:8px 12px;padding:10px 14px;border:1px solid #486253;border-radius:5px;background:#1b3028;color:#d1ead9;font:14px/1.5 system-ui,sans-serif;white-space:normal;overflow-wrap:anywhere}
+#editor-draft-note[hidden]{display:none}
+.editor-files{box-sizing:border-box;width:min(1100px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:min(850px,calc(100dvh - 24px));max-height:calc(100dvh - 24px);margin:auto;padding:18px;border:1px solid #617b7f;border-radius:8px;background:#142128;color:#dce8e5;font:15px/1.5 system-ui,sans-serif;overflow:auto}
+.editor-files[open]{display:flex;flex-direction:column;gap:8px}
+.editor-files::backdrop{background:#000b}
+.editor-files h2,.editor-files p{margin:0;white-space:normal;overflow-wrap:anywhere}
+.editor-files h2{font-size:20px}
+.editor-files select{box-sizing:border-box;width:100%;min-height:44px;padding:8px;color:inherit;background:#202e37;border:1px solid #617b7f;border-radius:4px;font:inherit}
+.editor-files-actions{display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex:none}
+.editor-files-actions .ed-btn{min-height:44px;padding:8px 11px;box-sizing:border-box;white-space:normal;font:14px/1.4 system-ui,sans-serif}
+.editor-files-actions a{display:inline-flex;align-items:center;text-decoration:none}
+.editor-files textarea{box-sizing:border-box;display:block;flex:1 1 0%;min-height:180px;width:100%;resize:none;padding:12px;border:1px solid #617b7f;border-radius:4px;background:#0e171d;color:#e0e9ed;font:14px/1.5 ui-monospace,monospace;tab-size:2;white-space:pre;overflow:auto}
+.editor-files textarea[readonly]{color:#aebdc6}
+.editor-files [hidden]{display:none!important}
+.editor-files-note{padding:8px;background:#42351e;color:#f2dcaf;border-radius:4px}
+.editor-files-details{font-size:13px;color:#b7c9cd}
+#editor-file-status{min-height:1.5em;font-size:14px;color:#c9dfd2}
+@media(max-width:680px){.editor-files{width:calc(100vw - 12px);max-width:calc(100vw - 12px);height:calc(100dvh - 12px);max-height:calc(100dvh - 12px);padding:12px;gap:6px}.editor-files h2{font-size:18px}.editor-files textarea{font-size:16px}.editor-files-actions .ed-btn{flex:1 1 auto}}

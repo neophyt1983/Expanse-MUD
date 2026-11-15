@@ -92,38 +92,128 @@
   app.dataset.mobileLayout = '1.9.4';
   refresh();
 
-  // Follow incoming messages only while the reader is already at the bottom.
-  let following = true, unread = 0;
-  const nearBottom = () => log.scrollHeight - log.clientHeight - log.scrollTop <= 48;
+  // Retain the reader's intent across wrapping, keyboard changes and panel moves.
+  // Measuring the gap after a resize mistakes a shortened viewport for someone
+  // scrolling into history, especially when combat messages arrive that frame.
+  let following = true, unread = 0, anchorQueued = false;
+  let readingTop = log.scrollTop, pointerActive = false, touchY = null;
+  const metrics = () => ({top: log.scrollTop, height: log.clientHeight, content: log.scrollHeight});
+  let previous = metrics();
   function badge() {
     if (!latest) return;
     latest.hidden = unread === 0;
     latest.textContent = unread ? 'New messages (' + unread + ') ↓' : 'Latest messages ↓';
   }
+  function anchor() {
+    // Hidden/tabbed panels can report scrollTop=0. Keep their reading position.
+    if (!log.clientHeight) return;
+    log.scrollTop = following ? log.scrollHeight : readingTop;
+    previous = metrics();
+  }
+  function settle() {
+    if (anchorQueued) return;
+    anchorQueued = true;
+    requestAnimationFrame(() => {
+      anchorQueued = false;
+      // A reader can scroll up between append and this frame; respect that.
+      anchor();
+    });
+  }
   function jumpToLatest() {
     following = true;
     unread = 0;
-    log.scrollTop = log.scrollHeight;
+    anchor();
+    settle();
     badge();
   }
   function beforeAppend(force = false) {
-    return { follow: force || (log.clientHeight ? nearBottom() : following), top: log.scrollTop };
+    return {follow: force || following, top: log.clientHeight ? log.scrollTop : readingTop};
   }
   function afterAppend(position) {
+    watchTail();
     if (!position || position.follow) { jumpToLatest(); return; }
     following = false;
-    log.scrollTop = position.top;
+    readingTop = position.top;
+    anchor();
+    settle();
     unread += 1;
     badge();
   }
-  log.addEventListener('scroll', () => {
-    if (!log.clientHeight) return;
-    following = nearBottom();
-    if (following) { unread = 0; badge(); }
-  }, { passive: true });
-  latest?.addEventListener('click', jumpToLatest);
-  if (window.ResizeObserver) {
-    new ResizeObserver(() => { if (following && log.clientHeight) jumpToLatest(); }).observe(log);
+  function readHistory() {
+    if (!log.clientHeight || log.scrollTop <= 0) return;
+    following = false;
+    readingTop = log.scrollTop;
+    previous = metrics();
   }
+  log.addEventListener('scroll', () => {
+    const current = metrics();
+    if (!current.height) return;
+    const resized = current.height !== previous.height || current.content !== previous.content;
+    const up = current.top < previous.top - 1, down = current.top > previous.top + 1;
+    if (up && (!resized || pointerActive)) {
+      following = false;
+      readingTop = current.top;
+    } else if (!following && down && current.content - current.height - current.top <= 2) {
+      following = true;
+      unread = 0;
+      badge();
+    } else if (!following && (up || down) && (!resized || pointerActive)) {
+      readingTop = current.top;
+    }
+    previous = current;
+    if (resized) settle();
+  }, {passive: true});
+  log.addEventListener('wheel', event => { if (event.deltaY < 0) readHistory(); }, {passive: true});
+  log.addEventListener('pointerdown', () => { pointerActive = true; }, {passive: true});
+  const releasePointer = () => { pointerActive = false; };
+  window.addEventListener('pointerup', releasePointer, {passive: true});
+  window.addEventListener('pointercancel', releasePointer, {passive: true});
+  log.addEventListener('touchstart', event => { touchY = event.touches?.[0]?.clientY ?? null; }, {passive: true});
+  log.addEventListener('touchmove', event => {
+    const y = event.touches?.[0]?.clientY;
+    if (touchY !== null && y > touchY) readHistory();
+    touchY = y ?? null;
+  }, {passive: true});
+  log.addEventListener('keydown', event => {
+    if (event.target?.closest?.('input, textarea, [contenteditable="true"]')) return;
+    if (['ArrowUp', 'PageUp', 'Home'].includes(event.key) || (event.key === ' ' && event.shiftKey)) readHistory();
+  });
+  latest?.addEventListener('click', jumpToLatest);
+  let tail = null, tailObserver = null;
+  function watchTail() {
+    const next = log.lastElementChild;
+    if (!tailObserver || next === tail) return;
+    tail = next;
+    tailObserver.disconnect();
+    if (tail) tailObserver.observe(tail);
+  }
+  if (window.ResizeObserver) {
+    const resized = () => { anchor(); settle(); };
+    const observer = new ResizeObserver(resized);
+    observer.observe(log);
+    const form = document.getElementById('input-form');
+    if (form) observer.observe(form);
+    tailObserver = new ResizeObserver(resized);
+    watchTail();
+  }
+  if (window.MutationObserver) {
+    new MutationObserver(() => { watchTail(); settle(); }).observe(log, {
+      childList: true, subtree: true, characterData: true,
+      attributes: true, attributeFilter: ['class', 'style', 'hidden']
+    });
+    // Docking reparents the panel; restoring it can reset its scroll position
+    // even when the final dimensions are unchanged. Repair before scroll events.
+    new MutationObserver(records => {
+      if (records.some(record => record.type === 'attributes'
+        ? record.target !== log && record.target.contains(log)
+        : [...record.addedNodes, ...record.removedNodes].some(node => node.contains?.(log)))) {
+        anchor();
+        settle();
+      }
+    }).observe(app, {childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style', 'hidden']});
+  }
+  log.addEventListener('load', settle, true);
+  document.fonts?.ready?.then(settle);
+  document.fonts?.addEventListener?.('loadingdone', settle);
   window.ExpanseTranscript = { beforeAppend, afterAppend, jumpToLatest };
 })();

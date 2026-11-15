@@ -173,6 +173,7 @@
       </form>
     </section>
         <section id="tab-editor" class="tab">
+          <p id="editor-draft-note" hidden>Editing a separate world draft. Save draft keeps your authored changes; Export downloads the complete .expanse file. Import that file from World &amp; saves to add a playable version.</p>
           <nav id="creator-art-tools" aria-label="Creator tools"></nav>
       <div id="ed-breadcrumb"></div>
       <details id="designer-map-panel" style="padding:6px 16px;max-height:45%;overflow:auto">
@@ -248,9 +249,18 @@ let config = {
   running_game: 'default',
 };
 const nativeFetch=window.fetch.bind(window);
+const editorBundle = location.pathname === '/editor' ? new URLSearchParams(location.search).get('game') : null;
+const playBundle = location.pathname === '/play' ? new URLSearchParams(location.search).get('game') : null;
+function gameContextURL(value){
+ const url=new URL(value,location.href),ident=playBundle||config.render_game;
+ if(ident&&url.origin===location.origin)url.searchParams.set('game',ident);
+ return url.origin===location.origin?url.pathname+url.search+url.hash:url.href;
+}
 window.fetch=(input,options={})=>{
  const url=new URL(typeof input==='string'?input:input.url,location.href);
  if(url.origin===location.origin){const pid=sessionStorage.getItem('expanse.active'),token=pid&&localStorage.getItem('expanse.delete_token.'+pid);if(token){const headers=new Headers(options.headers||{});headers.set('X-Expanse-Player',pid);headers.set('Authorization','Bearer '+token);options={...options,headers};}}
+ if(editorBundle && url.origin===location.origin && url.pathname.startsWith('/api/')){const headers=new Headers(options.headers||{});headers.set('X-Expanse-Editor',editorBundle);options={...options,headers};}
+ else if((playBundle||config.render_game) && url.origin===location.origin && url.pathname.startsWith('/api/')){const headers=new Headers(options.headers||{});headers.set('X-Expanse-Game',playBundle||config.render_game);options={...options,headers};}
  return nativeFetch(input,options);
 };
 async function fetchConfig() {
@@ -264,15 +274,28 @@ async function fetchConfig() {
   const reasonMsg = {
     launch_flag: 'Editor disabled by launch flag (--no-editor / EXPANSE_EDITOR=0)',
     not_local: 'Editor available only in local single-player',
+    owner_only: 'World editing is available to the signed-in owner',
     enabled: 'Edit world content',
   }[config.editor_reason] || 'Editor unavailable';
   edTab.disabled = !config.editor_enabled;
+  edTab.hidden = !config.editor_enabled;
   edTab.title = reasonMsg;
+  document.getElementById('editor-draft-note').hidden = !config.editor_only;
+  document.getElementById('app').dataset.editorOnly = String(!!config.editor_only);
+  if(config.editor_only){
+    document.getElementById('ed-save').textContent='Save draft';
+    document.getElementById('ed-reload').textContent='Revert staged edits';
+    document.getElementById('ed-export').textContent='Export .expanse';
+    document.getElementById('ed-import').textContent='Import a .expanse file…';
+    document.getElementById('ed-import').onclick=()=>{location.href='/';};
+  }
 }
 document.querySelectorAll('header nav button').forEach(btn => {
   btn.addEventListener('click', () => {
     if (btn.disabled) return;
     const target = btn.dataset.tab;
+    if(target==='editor' && config.render_web && config.editor_url && !config.editor_only){location.href=config.editor_url;return;}
+    if(target==='game' && config.editor_only){location.href='/';return;}
     document.querySelectorAll('header nav button').forEach(b =>
       b.classList.toggle('active', b === btn));
     document.querySelectorAll('section.tab').forEach(s =>
@@ -283,7 +306,7 @@ document.querySelectorAll('header nav button').forEach(btn => {
 let ws;
 let retry = 1000;
 function wsUrl(){
-  if(config.render_web)return (location.protocol==="https:"?"wss://":"ws://")+location.host+"/ws";
+  if(config.render_web)return (location.protocol==="https:"?"wss://":"ws://")+location.host+gameContextURL('/ws');
   if(config.internet_accounts && location.protocol==='https:')return `wss://${location.host}/ws`;
   if(Number.isInteger(config.ws_port)&&config.ws_port>0&&config.ws_port<=65535)return `ws://${location.hostname}:${config.ws_port}`;
   return null;
@@ -309,6 +332,13 @@ function connect() {
   if(!address){retryConnection();return;}
   ws = new WebSocket(address);
   const connection=ws;
+  window.ExpansePlaytest?.bind({
+    send:packet=>{if(connection!==ws||connection.readyState!==WebSocket.OPEN)return false;connection.send(JSON.stringify(packet));return true;},
+    close:()=>connection.close(),
+    leave:()=>{location.href=window.expanseStartingNewGame?'/mode.html#new-game':'/mode.html';},
+    contextURL:gameContextURL,
+    reconnect:()=>retryConnection()
+  });
   let positionRevision=0;
   ws.onopen = () => {
     if(connection!==ws)return;
@@ -331,11 +361,12 @@ function connect() {
     window.ExpanseWindowControls?.disconnect();
     window.ExpansePlayerLists?.disconnect();window.ExpanseEquipment?.disconnect();window.ExpanseRestControls?.disconnect();
     window.ExpanseWorldAtlas?.disconnect();window.ExpanseMap?.reset();
+    if (window.ExpansePlaytest?.disconnected()) return;
+    if (window.expanseLeaving) return;
     if(window.expanseStartingNewGame){
       window.expanseStartingNewGame=false;
       const fresh=document.getElementById('new-game-in-play');if(fresh)fresh.disabled=false;
     }
-    if (window.expanseLeaving) return;
     if(event?.code===1008&&/Dungeon Master|blocked from this world/i.test(event.reason||'')){append('error',(event.reason||'Connection closed by the host.')+' Return to Start before trying to reconnect.');return;}
     append('system', `Disconnected. Retrying in ${retry / 1000}s…`);
     retryConnection();
@@ -344,6 +375,7 @@ function connect() {
     if(connection!==ws)return;
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
+    if(window.ExpansePlaytest?.receive(msg))return;
     if(window.ExpanseDamage?.handle(msg))return;
     if(msg.type==='error'&&window.expanseStartingNewGame&&/^Save failed/i.test(msg.text||'')){
       window.expanseStartingNewGame=false;
@@ -407,8 +439,8 @@ document.getElementById('input-form')?.addEventListener('submit', (e) => {
   input.value = '';
 });
 fetchConfig().then(() => {
-  connect();
-  if (new URLSearchParams(location.search).get('editor') === '1') {
+  if (!editorBundle && !config.editor_only) connect();
+  if (config.editor_only || new URLSearchParams(location.search).get('editor') === '1') {
     if (config.editor_enabled) {
       const edBtn = document.querySelector('header nav button[data-tab="editor"]');
       if (edBtn && !edBtn.disabled) edBtn.click();
@@ -485,6 +517,8 @@ function updateToolbar() {
   document.getElementById('ed-duplicate').disabled = !ed.entryId;
   document.getElementById('ed-export').disabled = !ed.gameSlug;
   const applyBtn = document.getElementById('ed-apply');
+  applyBtn.hidden = !!config.editor_only;
+  if(config.editor_only){applyBtn.disabled=true;return;}
   if (!ed.gameSlug) {
     applyBtn.disabled = true;
     applyBtn.textContent = 'Apply to running game';
@@ -533,10 +567,10 @@ async function loadGames() {
     div.className = 'ed-game';
     div.dataset.slug = g.slug;
     const isRunning = g.slug === config.running_game;
-    let thumb = '';
-    if (g.image_url) thumb = `<img class="thumb" src="${g.image_url}?t=${Date.now()}">`;
-    div.innerHTML = (isRunning ? '<span class="running-dot"></span>' : '') + thumb + g.name;
-    div.title = isRunning ? `${g.name} (running)` : g.name;
+    if (isRunning) {const dot=document.createElement('span');dot.className='running-dot';div.append(dot);}
+    if (g.image_url) {const image=document.createElement('img'),url=new URL(g.image_url,location.href);url.searchParams.set('t',Date.now());image.className='thumb';image.src=url.href;div.append(image);}
+    div.append(document.createTextNode(g.name));
+    div.title = isRunning ? `${g.name} (${config.editor_only?'source draft':'running'})` : g.name;
     div.addEventListener('click', () => selectGame(g.slug, g.name));
     container.appendChild(div);
   });
@@ -552,8 +586,9 @@ async function loadGamesSilent() {
     div.className = 'ed-game';
     div.dataset.slug = g.slug;
     const isRunning = g.slug === config.running_game;
-    div.innerHTML = (isRunning ? '<span class="running-dot"></span>' : '') + g.name;
-    div.title = isRunning ? `${g.name} (running)` : g.name;
+    if (isRunning) {const dot=document.createElement('span');dot.className='running-dot';div.append(dot);}
+    div.append(document.createTextNode(g.name));
+    div.title = isRunning ? `${g.name} (${config.editor_only?'source draft':'running'})` : g.name;
     div.addEventListener('click', () => selectGame(g.slug, g.name));
     if (g.slug === ed.gameSlug) div.classList.add('active');
     container.appendChild(div);
@@ -1608,6 +1643,12 @@ document.getElementById('ed-delete')?.addEventListener('click', async () => {
 });
 document.getElementById('ed-export')?.addEventListener('click', async () => {
   if (!ed.gameSlug) return;
+  if(config.editor_only){
+    const res=await apiPost(gpath('export'),{});
+    setStatus(res.text||res.error,res.error?'warn':'ok');
+    if(res.download_url){const link=document.createElement('a');link.href=res.download_url;link.download=ed.gameSlug+'.expanse';document.body.append(link);link.click();link.remove();}
+    return;
+  }
   const def = `~/Games/text-rpg/exports/${ed.gameSlug}.expanse`;
   const path = prompt('Export to path:', def);
   if (!path) return;
@@ -1619,6 +1660,7 @@ document.addEventListener('expanse-world-imported', () => loadGamesSilent());
 
 document.getElementById('ed-apply')?.addEventListener('click', async () => {
   if (!ed.gameSlug) return;
+  if(config.editor_only){setStatus('Export this draft, then import its .expanse file from World & saves.');return;}
   if (ed.gameSlug === config.running_game) {
     const res = await apiPost(gpath('apply'), {});
     setStatus(res.text || res.error, res.error ? 'warn' : 'ok');
@@ -1840,6 +1882,8 @@ updateToolbar();
 <script src="/living-defaults.js"></script>
 
 <script src="/geology-editor.js"></script>
+<link rel="stylesheet" href="/editor-files.css">
+<script src="/editor-files.js"></script>
 <script src="/weather-editor.js"></script>
 <script src="/population-editor.js"></script>
 <script src="/history-editor.js"></script>
@@ -1847,6 +1891,8 @@ updateToolbar();
 <script src="/workspace.js"></script>
 <script src="/trade-ui.js"></script>
 <script src="/session-menu.js"></script>
+<link rel="stylesheet" href="/playtest-feedback.css">
+<script src="/playtest-feedback.js"></script>
 <script src="/society-ui.js"></script>
 <link rel="stylesheet" href="/dm-console.css">
 <script src="/dm-console.js"></script>
