@@ -65,3 +65,15 @@ def records(name, rows, patch):
                 for direction,target in exits.items():
                     by_id[room].setdefault('exits',{}).setdefault(direction,target)
     return rows
+
+
+def metadata(current, patch):
+    """Upgrade matching authored metadata fields without changing save identity."""
+    if not patch:
+        return current
+    for change in patch.get('metadata_edits', []):
+        if current.get(change['field']) == change.get('old'):
+            current[change['field']] = change['new']
+    return current
+
+

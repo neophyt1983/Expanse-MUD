@@ -1477,7 +1477,8 @@ def _cmd_read(ctx, args):
         known=item_catalog.item_rows(ctx.world,journal)
         if item_catalog.matches(known,query):
             remembered=item_catalog.choose(known,query)
-            return remembered.get('read_text','')
+            from engine.reading_room import publication_text
+            return publication_text(ctx.world,remembered)+remembered.get('read_text','')
     item=item_catalog.choose(copies,query,missing='That item is not here or in your inventory.')
     if item.get('newspaper'):
         from engine.gazette import browse
@@ -1493,8 +1494,8 @@ def _cmd_read(ctx, args):
     from engine import knowledge
     from engine.quest_discovery import offer_text
     text=knowledge.from_text(ctx.world,ctx.player,item.get('read_text') or item.get('description') or 'There is nothing to read.', source=('item',item['id']))
-    from engine.reading_room import finish
-    return text+offer_text(ctx.world,ctx.player,item.get('knowledge',{}).get('quests',[]))+finish(ctx.world,ctx.player,item)
+    from engine.reading_room import finish, publication_text
+    return publication_text(ctx.world,item)+text+offer_text(ctx.world,ctx.player,item.get('knowledge',{}).get('quests',[]))+finish(ctx.world,ctx.player,item)
 
 
 def _cmd_say(ctx: CommandContext, args: str) -> str:

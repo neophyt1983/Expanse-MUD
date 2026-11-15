@@ -155,7 +155,7 @@ def build_world(game_dir=None) -> World:
     world.classes = {c["id"]: c for c in read_records("classes.json", target_dir)}
     world.sexes = {s["id"]: s for s in read_records("sexes.json", target_dir)}
     
-    world.metadata = load_metadata(target_dir)
+    world.metadata = world_additions.metadata(load_metadata(target_dir),patch)
     from engine import dynamic_diplomacy
     dynamic_diplomacy.validate(world.metadata.get("dynamic_diplomacy",{}),world.groups)
     from engine import progression
@@ -179,10 +179,12 @@ def build_world(game_dir=None) -> World:
     
     from engine import wildlands
     from engine.world_package import rules
-    world.rules = rules(target_dir,world.room_details)
+    world.rules = rules(target_dir,world.room_details,world.npcs)
     if patch:
         for key,value in patch.get('rules',{}).items():
             world.rules.setdefault(key,value)
+        from engine import regional_rules
+        regional_rules.validate(world.rules,world.room_details,world.npcs)
     wildlands.install(world)
     from engine import regional_world
     regional_world.install(world)
@@ -223,6 +225,9 @@ def validate_world(world: World):
                 warnings.append(f"room '{room.id}' spawner[{idx}] npc '{npc_ref}' (no such npc)")
                     
     npc_in_roster = set()
+    from engine import regional_rules
+    npc_in_roster.update(regional_rules.managed_npcs(getattr(world,'rules',{}),world.room_details))
+    npc_in_roster.update(spawner.get('npc') for room in world.rooms.values() for spawner in (room.spawners or []))
     for grp in world.groups.values():
         for n in grp.get("roster", []) or []:
             npc_in_roster.add(n)

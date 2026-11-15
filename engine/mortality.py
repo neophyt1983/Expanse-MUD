@@ -82,13 +82,13 @@ def environmental_damage(w,actor,amount,cause,event_id=None):
 
 
 def guards(w, room):
-    from engine import livelihoods
+    from engine import livelihoods, city_defense
     cfg={**LAWS,**living.details(w,room).get('laws',{})}
     if not cfg['enabled']:return []
     radius=min(1,max(0,cfg['guard_radius']))
     locations={room}|(set(w.rooms[room].exits.values()) if radius else set())
     return [e for rid in locations if rid in w.rooms for e in w.entities_in_room(rid)
-            if not e.is_player and w.npcs.get(e.source_def,{}).get('profession')=='guard' and livelihoods.on_shift(w,e)
+            if not e.is_player and (city_defense.is_guard(w,e) if city_defense.enabled(w) else w.npcs.get(e.source_def,{}).get('profession')=='guard') and livelihoods.on_shift(w,e)
             and (not cfg['authority'] or e.group_id==cfg['authority'])]
 
 
@@ -156,7 +156,7 @@ def advance(w, rng=random.random):
         from engine import regional_world, city_justice
         if regional_world.enabled(w) and city_justice.apprehend(w,suspect,guard,report):
             del s['wanted'][pid]
-            messages.append((origin,guard.name+' escorts '+suspect.name+' to court for a hearing. No verdict has been issued.'))
+            messages.append((origin,guard.name+' takes '+suspect.name+' into custody pending a magistrate hearing. No verdict has been issued.'))
             continue
         fine=min(suspect.gold,max(0,cfg['fine']));suspect.gold-=fine;guard.gold+=fine
         if cfg['arrest_room'] in w.rooms:w.move_entity(suspect.id,cfg['arrest_room'],forced=True)

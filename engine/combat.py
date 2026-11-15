@@ -17,13 +17,16 @@ def target(w,actor,query,players=True):
     if not exact:raise ValueError('No living target matching '+query+' is here.')
     return exact[0]
 
-def validate(w,actor,victim,controller=None):
+def validate(w,actor,victim,controller=None,*,check_starter=True):
     from engine import regional_world
     regional_world.validate_combat(w,actor,victim)
     owner=controller or actor
     if not actor.alive or not owner.alive or not victim.alive:raise ValueError('Combat requires living participants.')
     if actor.location!=victim.location or owner.location!=actor.location:raise ValueError('The target is no longer here.')
     if victim.id in (actor.id,owner.id) or victim.progress.get('companion_owner')==owner.id:raise ValueError('You cannot attack yourself or your own companion.')
+    from engine import starter_safety
+    if check_starter and starter_safety.blocked(w,actor,victim):
+        raise ValueError('This character is protected from unprovoked NPC attacks in their starting area.')
     # Owned creatures have the same PvP protections as their caregiver, including offline caregivers.
     protected=victim.is_player or bool(victim.progress.get('companion_owner'))
     if protected and owner.is_player:
@@ -42,6 +45,22 @@ def ammunition(w,e,consume=True):
     if missing:raise ValueError('Missing ammunition: '+', '.join(missing)+'. Buy or craft ammunition, or equip another weapon.')
     if consume:living.consume(e,required)
     return dict(required)
+
+def npc_attack(w,actor,victim,*,counter=False):
+    """Commit a selected autonomous attack after target and ammunition checks.
+
+    Starter protection reports an actual attempted assault through strike(),
+    without spending ammunition or applying a hit. Ordinary validation remains
+    a side-effect-free preflight; invalid targets and empty weapons never alarm.
+    """
+    if actor.is_player or actor.progress.get('companion_owner'):
+        raise ValueError('An autonomous attack requires an unowned NPC.')
+    validate(w,actor,victim,check_starter=False)
+    ammunition(w,actor,consume=False)
+    from engine import starter_safety
+    if not starter_safety.blocked(w,actor,victim):
+        ammunition(w,actor)
+    return strike(w,actor,victim,counter=counter)
 
 def finish(w,dead,killer,credit=None):
     from engine import commands as cmd,mortality
@@ -71,6 +90,14 @@ def strike(w,actor,victim,power=None,ignore_defense=False,credit=None,counter=Tr
     from engine import commands as cmd,mortality
     from engine import regional_world,combat_rewards
     regional_world.validate_combat(w,actor,victim)
+    from engine import starter_safety
+    if not actor.alive or not victim.alive or actor.location!=victim.location:
+        raise ValueError('Combat requires living participants in the same place.')
+    starter_safety.provoke(w,actor,victim,credit=credit,lawful=lawful)
+    if starter_safety.blocked(w,actor,victim):
+        from engine import city_defense
+        city_defense.note_attempt(w,actor,victim)
+        return starter_safety.prevented(w,actor,victim)
     from engine import npc_attention
     npc_attention.begin(w,actor,victim)
     controller=credit or actor

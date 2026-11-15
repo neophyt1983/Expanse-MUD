@@ -1,33 +1,15 @@
-"""Opt-in regional civic places and bounded encounters for the Wild Lands pack.
-
-Generated IDs are stable. Existing creator definitions and exits are never
-replaced. This supplies the official pack's runtime supplement; custom worlds
-may explicitly enable it with metadata.regional_gameplay.enabled.
-"""
-import re
-from copy import deepcopy
-from engine import living
-from engine.core import Room
+"""Reusable regional systems enabled and authored by a world's own data."""
 
 
 def enabled(w):
-    cfg = w.metadata.get('regional_gameplay', {})
-    if isinstance(cfg, dict) and 'enabled' in cfg:
-        return cfg['enabled'] is True
-    rules = getattr(w, 'rules', {})
-    return bool(w.metadata.get('living_world') and w.metadata.get('civic_places_v1')
-                and rules.get('regions') and rules.get('ward')
-                and 'wl_horror_0' in w.npcs)
+    cfg = getattr(w, 'rules', {}).get('regional_gameplay', {})
+    return isinstance(cfg, dict) and cfg.get('enabled') is True
 
 
 def config(w, name, default):
-    cfg = w.metadata.get('regional_gameplay', {})
+    cfg = getattr(w, 'rules', {}).get('regional_gameplay', {})
     value = cfg.get(name, default) if isinstance(cfg, dict) else default
     return value
-
-
-def key(name):
-    return re.sub(r'[^a-z0-9]+', '_', str(name).casefold()).strip('_')
 
 
 def cities(w):
@@ -44,57 +26,24 @@ def city_for(w, room):
     return next((row for row in cities(w) if row.get('group') == group), None)
 
 
-def add_room(w, ident, name, description, city, *, x=0, y=0, floor=0, environment='building', facilities=(), **extra):
-    if ident in w.rooms:
-        return w.rooms[ident]
-    anchor = w.rooms[city['home']]
-    base = deepcopy(living.details(w, city['home']).get('climate', {}))
-    base['sheltered'] = environment == 'building'
-    base['controlled_growing'] = environment == 'building'
-    details = dict(id=ident, name=name, description=description, exits={}, items=[], spawners=[],
-                   group=city.get('group'), map_x=(anchor.map_x or 0) + x,
-                   map_y=(anchor.map_y or 0) + y, map_z=50 + floor,
-                   map_visibility='discovered', environment=environment,
-                   facilities=list(facilities), climate=base, truce=True, campable=False,
-                   press_locality=city['name'], regional_generated=True, **extra)
-    w.room_details[ident] = details
-    room = Room(id=ident, name=name, description=description, group=city.get('group'),
-                map_x=details['map_x'], map_y=details['map_y'], map_z=details['map_z'])
-    w.add_room(room)
-    return room
-
-
-def connect(w, source, direction, destination, back=None):
-    """Add an unused authored edge, without removing a creator's route."""
-    current = w.rooms[source].exits.get(direction)
-    if current not in (None, destination):
-        return False
-    w.rooms[source].exits[direction] = destination
-    w.room_details.setdefault(source, {}).setdefault('exits', {})[direction] = destination
-    if back:
-        reverse = w.rooms[destination].exits.get(back)
-        if reverse in (None, source):
-            w.rooms[destination].exits[back] = source
-            w.room_details[destination].setdefault('exits', {})[back] = source
-    return True
-
-
 def install(w):
     if not enabled(w):
         return
-    from engine import regional_encounters, regional_zoo, city_justice
+    from engine import regional_encounters, regional_zoo, city_justice, city_defense
     regional_encounters.install(w)
     regional_zoo.install(w)
     city_justice.install(w)
+    city_defense.install(w)
 
 
 def advance(w):
     if not enabled(w):
         return
-    from engine import regional_encounters, regional_zoo, city_justice
+    from engine import regional_encounters, regional_zoo, city_justice, city_defense
     regional_encounters.advance(w)
     regional_zoo.advance(w)
     city_justice.advance(w)
+    city_defense.advance(w)
 
 
 def on_entry(w, actor):

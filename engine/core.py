@@ -38,6 +38,18 @@ class Entity:
         return self.hp > 0
 
     def take_damage(self, amount: int, defense: Optional[int] = None, *, source=None, cause=None, kind='injury') -> int:
+        world_ref = getattr(self, '_world_ref', None)
+        world = world_ref() if world_ref else None
+        if world is not None and source is not None and kind == 'combat':
+            from engine import starter_safety
+            # Direct attack paths also honor the refuge. Automatic counters
+            # are a response, not a new voluntary decision to begin a fight.
+            if getattr(source, 'is_player', False) and cause != 'counterattack':
+                starter_safety.provoke(world, source, self)
+            if starter_safety.blocked(world, source, self):
+                from engine import city_defense
+                city_defense.note_attempt(world, source, self)
+                return 0
         effective_def = self.defense if defense is None else defense
         dmg = max(1, amount - effective_def)
         before = self.hp
@@ -47,11 +59,13 @@ class Entity:
         if self.is_player:
             from engine import resting
             resting.signal(self,'you were hurt')
-            world_ref = getattr(self, '_world_ref', None)
-            world = world_ref() if world_ref else None
             if world is not None and before > self.hp:
                 from engine import damage_feedback
                 damage_feedback.record(world, self, before-self.hp, source=source, cause=cause, kind=kind)
+        if world is not None and before > self.hp and source is not None and kind == 'combat':
+            from engine import city_defense, starter_safety
+            starter_safety.on_damage(world, source, self, before-self.hp)
+            city_defense.on_damage(world, source, self, before-self.hp, cause=cause, kind=kind)
         return dmg
 
 
@@ -176,6 +190,9 @@ class World:
             wildlands.entered(self,ent,old.id)
         if new_room_id != old.id:
             regional_world.on_entry(self,ent)
+            if ent.is_player:
+                from engine import starter_safety
+                starter_safety.on_move(self,ent,old.id,new_room_id)
         return True
 
     def entities_in_room(self, room_id: str) -> List[Entity]:

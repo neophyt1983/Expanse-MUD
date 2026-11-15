@@ -19,7 +19,7 @@ def media(name):
             PurePosixPath(name).suffix.lower() in CONTENT_TYPES and
             (parts[0]=='assets' or CONTENT_TYPES[PurePosixPath(name).suffix.lower()].startswith('image/')))
 
-def rules(folder,rooms):
+def rules(folder,rooms,npcs=None):
     path=Path(folder)/'world-rules.json'
     if not path.is_file():return {}
     data=json.loads(path.read_bytes())
@@ -59,6 +59,8 @@ def rules(folder,rooms):
             raise ValueError('District references missing rooms')
         if not isinstance(ward.get('waiting'),list) or not isinstance(ward.get('activities'),dict) or any(len(ward['activities'].get(str(k),[]))!=3 for k in (1,2,5,7,8,11)):
             raise ValueError('Invalid district schedule')
+    from engine import regional_rules
+    regional_rules.validate(data, rooms, npcs)
     return data
 
 def asset_packet(folder,name,offset):

@@ -161,15 +161,19 @@ def fight(world):
     targeted=set()
     for actor in list(world.entities.values()):
         if not actor.alive or actor.is_player or actor.progress.get('companion_owner') or not world.npcs.get(actor.source_def,{}).get('combatant'):continue
+        from engine import city_defense
+        # A city watch responds to witnessed assaults. Mere faction hostility
+        # must not turn stronger officers into attacks on peaceful visitors.
+        if city_defense.enabled(world) and city_defense.is_defender(world,actor):continue
         from engine import mortality, living, society
         if actor.progress.get('restrained_until',0)>living.state(world)['minute']:continue
         candidates=[e for e in world.entities_in_room(actor.location) if e.id!=actor.id and e.id not in targeted and hostile(world,actor,e)]
         if not candidates:continue
         target=candidates[0];targeted.add(target.id)
         from engine import combat
-        try:combat.validate(world,actor,target);combat.ammunition(world,actor)
+        try:text=combat.npc_attack(world,actor,target,counter=False)
         except ValueError:continue
-        messages.append((actor.location,combat.strike(world,actor,target,counter=False)))
+        messages.append((actor.location,text))
     return messages
 
 def capture_spawners(world):
@@ -186,7 +190,7 @@ def restore_spawners(world,saved):
         except (ValueError,KeyError,IndexError):continue
         elapsed=s.get('elapsed');world.spawner_state[key]={**s,'last_spawn_at':None if elapsed is None else now-max(0,elapsed)}
 
-def audit(data,metadata):
+def audit(data,metadata,rules=None):
     from engine.living import validate
     rooms={r['id']:r for r in data['room']};issues=[]
     for r in rooms.values():
@@ -201,6 +205,9 @@ def audit(data,metadata):
             if other not in group_ids|{'unaffiliated','*'}:issues.append(group['id']+': unknown relationship faction '+other)
             if value not in ('allied','tolerated','neutral','hostile'):issues.append(group['id']+': unknown relationship state '+str(value))
     managed={s.get('npc') for r in rooms.values() for s in r.get('spawners',[])}
+    if rules:
+        from engine import regional_rules
+        managed.update(regional_rules.managed_npcs(rules,rooms))
     for npc in data.get('npc',[]):
         if npc.get('spawn_managed') and npc['id'] not in managed and not any(n.get('summons')==npc['id'] for n in data.get('npc',[])):issues.append(npc['id']+': managed NPC has no spawner')
         for rid in npc.get('patrol_route',[]):

@@ -194,15 +194,17 @@ def on_entry(world,p):
     for enemy in world.entities_in_room(p.location):
         if enemy.is_player or enemy.progress.get('companion_owner'):continue
         definition=world.npcs.get(enemy.source_def,{})
+        from engine import city_defense
+        if city_defense.enabled(world) and city_defense.is_defender(world,enemy):continue
         # Regional threats use their own warning and attack clock; entry must
         # not grant a second, immediate attack outside that scheduler.
         if enemy.progress.get('regional_encounter') and definition.get('regional_generated'):continue
         if definition.get('aggressive') and random.random()<definition.get('aggression_chance',.25):
             from engine import combat
             if details(world,p.location).get('truce'):continue
-            try:combat.validate(world,enemy,p);combat.ammunition(world,enemy)
+            try:text=combat.npc_attack(world,enemy,p,counter=False)
             except ValueError:continue
-            lines.append(combat.strike(world,enemy,p,counter=False))
+            lines.append(text)
             if not p.alive:break
     return '\n'.join(lines)
 
@@ -668,8 +670,10 @@ def restore(world,saved):
     population.ensure(world)
     # Reconcile temporary generated threats in memory, with no checkpoint write
     # and no kill rewards or healing while restoring a saved world.
-    from engine import regional_world, regional_encounters
-    if regional_world.enabled(world):regional_encounters.reconcile(world)
+    from engine import regional_world, regional_encounters, city_defense
+    if regional_world.enabled(world):
+        regional_encounters.reconcile(world)
+        city_defense.reconcile(world)
 
 def apply_effects(world,q):
     changed = False

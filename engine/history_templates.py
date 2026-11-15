@@ -14,7 +14,7 @@ from pathlib import Path,PurePosixPath
 import stat
 from engine.world_history import HistoryError
 
-MAX_FILE=32*1024*1024
+MAX_FILE=64*1024*1024
 MAX_TOTAL=128*1024*1024
 MAX_FILES=2048
 JSON_SIDECARS={'creator-packs.json','world-rules.json','creator-tax-plans.json','population.json','shortcuts.json','pixel-art-library.json'}
@@ -181,7 +181,7 @@ def extras(bundle):
 
 def validate_staged(directory,data,extra_files):
     from engine.world_package import rules
-    rules(directory,{r['id'] for r in data.get('room',[])})
+    rules(directory,{r['id']:r for r in data.get('room',[])},{r['id']:r for r in data.get('npc',[])})
     if 'pixel-art-library.json' not in extra_files:return
     try:from engine import pixel_art
     except ImportError as exc:raise HistoryError('Pixel Studio template requires the compatible Pixel Studio engine; nothing published') from exc
