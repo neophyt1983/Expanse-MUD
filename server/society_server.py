@@ -67,7 +67,7 @@ class SocietyServer:
                 # Leaving does not commit or roll back the shared session.
                 # Another player may explicitly save that session later.
                 self.no_save_sockets.add(ws)
-                await reply('Disconnected without an additional save.','saved_exit')
+                await reply('Disconnected without an additional save.','saved_exit',discarded_exit=True)
                 await ws.close();return True
             if verb in ('say','chat','faction','tell'):
                 text=args;recipients=set(self.clients.values())

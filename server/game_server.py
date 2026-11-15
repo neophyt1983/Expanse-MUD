@@ -544,6 +544,8 @@ class GameServer(SocietyServer):
         if not start_room:
             start_room = start_room_for(self.world)
 
+        from engine import starter_safety
+        starter_safety.origin(self.world,player,actual=start_room)
         self.world.add_entity(player, start_room)
         try:self._stage_players_and_world()
         except Exception:
@@ -1015,6 +1017,7 @@ class GameServer(SocietyServer):
         player_id = None
         equipment_sequence = 0
         lock_sequence = 0
+        save_acknowledgements = {}
         account_token=''
         local_host=False
         accounts=getattr(self,'accounts',None)
@@ -1388,14 +1391,30 @@ class GameServer(SocietyServer):
                     continue
                 if cmd.lower() in ('save', 'save_exit'):
                     ent = self.world.entities[player_id]
+                    request_id = packet.get('request_id')
+                    if not isinstance(request_id, str) or not 1 <= len(request_id) <= 100:
+                        request_id = None
+                    save_key = (player_id, cmd.lower(), request_id) if request_id else None
+                    if save_key and save_key in save_acknowledgements:
+                        await websocket.send(json.dumps(save_acknowledgements[save_key]))
+                        if cmd.lower() == 'save_exit':
+                            break
+                        continue
                     try:
                         if websocket in self.host_sockets:self.local_save_player=player_id
                         self._save_players_and_world(player_id)
                     except Exception as exc:
-                        await websocket.send(json.dumps({"type":"error","text":"Save failed: "+str(exc)}))
+                        await websocket.send(json.dumps({"type":"error","text":"Save failed: "+str(exc),
+                                                         "save_failed":True,"request_id":request_id}))
                         continue
                     exiting = cmd.lower() != 'save'
-                    await websocket.send(json.dumps({"type":"saved_exit" if exiting else "saved", "text":"Character and world saved.", "player_id":player_id}))
+                    acknowledgement = {"type":"saved_exit" if exiting else "saved", "text":"Character and world saved.",
+                                       "player_id":player_id,"request_id":request_id,"checkpoint_saved":True}
+                    if save_key:
+                        save_acknowledgements[save_key] = acknowledgement
+                        while len(save_acknowledgements) > 100:
+                            save_acknowledgements.pop(next(iter(save_acknowledgements)))
+                    await websocket.send(json.dumps(acknowledgement))
                     if exiting:
                         break
                     continue
