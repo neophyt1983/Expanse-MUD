@@ -343,12 +343,13 @@ class EditorService:
 
     def _rules(self, slug, body):
         meta = self._metadata(slug)
-        from engine import worldtime, progression
+        from engine import worldtime, progression, travel_pacing
         if body is None:
             return {'player_death': meta.get('player_death', 'revival'), 'max_players': meta.get('max_players', 128),
                     'pvp': meta.get('pvp', True), 'sunrise_minute': meta.get('sunrise_minute', 375),
                     'start_minute': worldtime.initial_minute(meta), 'start_at_dawn': 'start_minute' not in meta,
-                    'progression': {'enabled': bool(meta.get('living_world', False)), **meta.get('progression', {})}}
+                    'progression': {'enabled': bool(meta.get('living_world', False)), **meta.get('progression', {})},
+                    'travel_speed_multiplier': meta.get('travel_speed_multiplier', 1)}
         mode, cap = body.get('player_death', meta.get('player_death', 'revival')), body.get('max_players', meta.get('max_players', 128))
         if mode not in ('revival', 'permanent') or type(cap) is not int or not 1 <= cap <= 128:
             raise EditorError('Choose revival or permanent death, and 1–128 players.')
@@ -358,10 +359,13 @@ class EditorService:
         if type(pvp) is not bool or type(sunrise) is not int or not 0 <= sunrise < 1500 or (start is not None and (type(start) is not int or not 0 <= start < 1500)):
             raise EditorError('Use valid combat settings and minutes from 00:00 to 24:59.')
         advancement = body.get('progression', meta.get('progression', {}))
-        issues = progression.validate_config(advancement)
+        travel_speed = body.get('travel_speed_multiplier', meta.get('travel_speed_multiplier', 1))
+        issues = progression.validate_config(advancement) + travel_pacing.validate({'travel_speed_multiplier': travel_speed})
         if issues:
             raise EditorError('; '.join(issues))
         meta.update(player_death=mode, max_players=cap, pvp=pvp, sunrise_minute=sunrise, progression=advancement)
+        if 'travel_speed_multiplier' in body:
+            meta['travel_speed_multiplier'] = travel_speed
         if 'start_minute' in body:
             if start is None:
                 meta.pop('start_minute', None)

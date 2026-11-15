@@ -626,6 +626,8 @@ class GameServer(SocietyServer):
         packet['visual']['terrain_release'] = '1.9.1'
         packet['visual']['surface_survey'] = bool(self.world.rules.get('tile_survey'))
         packet['visual']['map_build'] = BUILD
+        from engine import travel_pacing
+        packet['travel_speed_multiplier'] = travel_pacing.speed(self.world)
         # Deliver the measured terrain with the movement itself. Ordinary updates
         # at the same location refresh nearby ground without resending the whole screen.
         extent = getattr(player, '_travel_view_extent', None)
@@ -783,7 +785,7 @@ class GameServer(SocietyServer):
         packet=render(compiled, player.location, player.explored_rooms,nearby=nearby)
         packet.update(world_atlas.terrain_map(self.world,compiled))
         from engine.pixel_art import decorate_rooms
-        packet['pixel_assets']=decorate_rooms(self.world.game_dir,packet.get('rooms',[])) if getattr(self.world,'game_dir',None) else {}
+        packet['pixel_assets']=decorate_rooms(self.world.game_dir,packet.get('rooms',[]),world=self.world) if getattr(self.world,'game_dir',None) else {}
         from engine.local_visibility import blind
         from engine.world_atlas import conceal_routes
         return conceal_routes(packet) if blind(self.world,player) else packet
@@ -868,7 +870,7 @@ class GameServer(SocietyServer):
                     packet.update(world_atlas.terrain_map(self.world,compiled,old.get('terrain_version',-1) if same_world else -1))
                 if 'rooms' in packet and 'pixel_assets' not in packet and getattr(self.world,'game_dir',None):
                     from engine.pixel_art import decorate_rooms
-                    packet['pixel_assets']=decorate_rooms(self.world.game_dir,packet['rooms'])
+                    packet['pixel_assets']=decorate_rooms(self.world.game_dir,packet['rooms'],world=self.world)
                 if dark:
                     from engine.world_atlas import conceal_routes
                     conceal_routes(packet)
