@@ -1,4 +1,6 @@
-# Expanse 1.9.6 on Render
+# Expanse 1.9.7 on Render
+
+**The 1.9.7 character-name update is a code update for the existing 1.9.6 deployment.** It keeps the already imported `Expanse-Wild-Lands-1.9.6.expanse` file and its existing update-template digest. Upload the supplied `github-upload` contents and deploy the latest commit. The creation form now accepts a character's first and last name independently of the login account, and its fields fit narrow dialogs.
 
 This repository runs the Expanse Python engine and browser player. The complete `.expanse` file supplies the authored world: its rooms, characters, creatures, quests, books, media and gameplay settings. Render runs the simulation and game clock; the browser displays the world and sends player actions over a WebSocket.
 
@@ -8,11 +10,11 @@ The normal deployment, account setup, play and editing workflows use GitHub, Ren
 
 ## Update the existing GitHub repository
 
-1. Download and extract the supplied **1.9.6 server update ZIP** on your computer. Use the deployment repository linked to your existing Render service, keeping this server project separate from the desktop/main-line project.
+1. Download and extract the supplied **server update ZIP** on your computer. The 1.9.7 character-name patch applies to an installed 1.9.6 server; its existing world import and update-template setting stay in use. Use the deployment repository linked to your existing Render service, keeping this server project separate from the desktop/main-line project.
 2. In that GitHub repository, select the branch Render deploys. At the repository root, choose **Add file → Upload files**.
 3. Open the extracted release's **`github-upload`** folder and upload its contents, preserving their paths. For example, `render_server.py` and `private_game.py` go at the repository root; a file supplied as `engine/starter_safety.py` goes inside `engine/`; files under `server/`, `web/` and `editor/` keep those folders. Upload the contents of `github-upload`, without adding that enclosing folder, the ZIP, or the release-name folder to the repository.
 4. Review the files GitHub will replace and commit the update. Keep the other existing engine files: an update package supplies replacements and additions to the existing application. GitHub's browser uploader accepts up to **100 files per upload**; split larger uploads into batches while preserving their paths. Finish all batches before deploying. If the branch requires a pull request, merge it before deploying that branch.
-5. Open the existing Render service and choose **Manual Deploy → Deploy latest commit**. Keep its existing persistent disk. Wait for **Live**, then continue with the world import or upgrade steps below.
+5. Open the existing Render service and choose **Manual Deploy → Deploy latest commit**. Keep its existing persistent disk. Wait for **Live**. For the 1.9.7 character-name patch, reload the game page and create a character with its own name. For a full 1.9.6 installation, continue with the world import or upgrade steps below.
 
 Source code and browser assets belong in this repository. Import the `.expanse` file through the game website. Enter account passwords only in Render's environment settings; keep saves outside GitHub.
 
@@ -41,7 +43,7 @@ Review Render's current price and resource choices before creating or changing a
 
 1. In Render, choose **New → Blueprint**, choose **GitHub**, and connect the repository containing the complete server application. Grant access to that repository if prompted.
 2. Select its deployment branch and leave **Blueprint Path** as `render.yaml`. The Blueprint defines one Python web service named `expanse-private` and its persistent disk.
-3. Set `EXPANSE_OWNER_NAME` to your owner account/character name and `EXPANSE_OWNER_PASSWORD` to a new password of **15–128 characters**. Additional accounts default to an empty list. The owner has no expiration unless you set one.
+3. Set `EXPANSE_OWNER_NAME` to your owner login name and `EXPANSE_OWNER_PASSWORD` to a new password of **15–128 characters**. Additional accounts default to an empty list. The owner has no expiration unless you set one. Character names are chosen separately after signing in.
 4. Review the service and disk settings, then deploy. Wait for **Live** and open the service's HTTPS `onrender.com` address.
 5. Sign in as the owner. Under **Import a game**, select **Expanse-Wild-Lands-1.9.6.expanse**, then choose **Import world**. Select **Play Expanse** beside that imported entry and create a character.
 6. Use **Save** for a checkpoint while continuing to play, or **Saves → Create save** for a named checkpoint. Use **Save & quit** to save, end the play session and answer or skip the questionnaire.
@@ -97,7 +99,9 @@ For example, provision the next two testers as `pretzel99` and `pretzel100`:
 
 Replace both placeholder passwords with unique passwords of **15–128 characters** before saving. Keep the JSON quotes and commas. Add further `pretzel<number>` records to the same array, retaining the records for accounts that should continue to have access.
 
-`expires_at` is optional. Omit it for ongoing access, or supply an ISO timestamp with `Z` or an explicit UTC offset. For the owner, the equivalent optional variable is `EXPANSE_OWNER_EXPIRES_AT`. Names must be unique after normalization and case folding; keep an existing tester's name stable to preserve the account's save identity.
+`expires_at` is optional. Omit it for ongoing access, or supply an ISO timestamp with `Z` or an explicit UTC offset. For the owner, the equivalent optional variable is `EXPANSE_OWNER_EXPIRES_AT`. Login names must be unique after normalization and case folding; keep an existing tester's login name stable to preserve the account's save identity.
+
+The account name, such as `pretzel99`, identifies the login and its private saves. In **Create a character**, choose the character's own first name and optional last name. The supported name characters are letters, digits, spaces, hyphens, apostrophes and underscores; the combined normalized name is limited to 61 characters. Each nonempty name field must contain a letter. Separate accounts may use the same character name because their adventures and saves are isolated. Existing characters retain their current names and IDs. Creating another character does not rename an existing one, and creation remains unsaved until the player explicitly saves.
 
 Choose **Save and deploy** from the Render save dropdown to activate the environment changes. All testers must Save & quit first. A service restart clears browser sign-ins, so everyone signs in again using their own name and password. A sign-in lasts at most 12 hours and never beyond the account's expiration; a new sign-in for the same account replaces that account's previous browser session. Removing or expiring an account does not delete its manual saves.
 
@@ -154,10 +158,10 @@ python3 restore_save.py /path/to/Expanse-manual-saves.zip /path/to/original-game
 For self-hosting this web engine, sign in and import the original `.expanse` first, plus the selected update file when applicable. Stop the web service and restore into an unused account/game save directory:
 
 ```bash
-python3 restore_save.py /path/to/Expanse-manual-saves.zip /path/to/original-game.expanse --web-data /path/to/web-data --character "Your Character"
+python3 restore_save.py /path/to/Expanse-manual-saves.zip /path/to/original-game.expanse --web-data /path/to/web-data --account "pretzel99"
 ```
 
-The helper verifies the exact original world file, checks SQLite integrity and refuses to replace a nonempty save directory. Restore the matching engine and update-template configuration as well; the helper does not select that template for you.
+The `--account` value is the Render login name that owns the saves. It may differ from every character's name in the archive. The older `--character` option remains a compatible alias for this same login-account value. The helper verifies the exact original world file, checks SQLite integrity and refuses to replace a nonempty save directory. Restore the matching engine and update-template configuration as well; the helper does not select that template for you.
 
 ## Verify the deployed service
 

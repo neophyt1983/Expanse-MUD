@@ -56,15 +56,16 @@ if __name__=='__main__':
     group=parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--save-dir',type=Path)
     group.add_argument('--web-data',type=Path)
-    parser.add_argument('--character')
+    parser.add_argument('--account', '--character', dest='account',
+                        help='Render login account name, not the in-game character name (--character is a legacy alias)')
     args=parser.parse_args()
     if args.web_data:
-        if not args.character:parser.error('--web-data needs --character')
+        if not args.account:parser.error('--web-data needs --account (the Render login account name; --character is a legacy alias)')
         with args.world.open('rb') as f:
             game_id=hashlib.file_digest(f,'sha256').hexdigest()
         if not (args.web_data/'worlds'/game_id/'info.json').is_file():
             parser.error('Import this world into the web engine first.')
-        args.save_dir=args.web_data/'players'/hashlib.sha256(name_key(args.character).encode()).hexdigest()/game_id
+        args.save_dir=args.web_data/'players'/hashlib.sha256(name_key(args.account).encode()).hexdigest()/game_id
     try:
         restore(args.archive,args.world,args.save_dir)
     except (OSError,ValueError,KeyError,sqlite3.Error,zipfile.BadZipFile) as exc:

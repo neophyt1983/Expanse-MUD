@@ -13,6 +13,7 @@ from engine import loader, persistence
 from engine.build_info import BUILD
 from engine.character_style import choices, class_accents
 from server import game_server, save_slots, playtest_telemetry
+from server.accounts import display_name
 
 
 class PlayerSocket:
@@ -85,7 +86,8 @@ class Game:
             raise ValueError('Expected a form.')
         if action == 'config':
             result = dict(mode='single', running_game=self.slug, title='Expanse',
-                          build=BUILD, render_web=True, character_name=self.name,
+                          build=BUILD, render_web=True, account_name=self.name,
+                          character_name='', character_name_locked=False,
                           can_manage_server=False, editor_enabled=False, game_status='ready',
                           playtest=self.telemetry.configuration())
         elif action == 'playtest/status':
@@ -106,7 +108,23 @@ class Game:
             rows = await self.server.saved_characters(self.slug)
             result = dict(characters=save_slots.visible_characters(self.directory, rows), world=self.slug, mode='single')
         elif action == 'character/create':
-            first, _, last = self.name.partition(' ')
+            first = body.get('first_name', '')
+            last = body.get('last_name', '')
+            if not isinstance(first, str) or not first.strip():
+                raise ValueError('First name is required and must be text.')
+            if not isinstance(last, str):
+                raise ValueError('Last name must be text, or leave it empty.')
+            if any(ord(char) < 32 or 127 <= ord(char) <= 159 for char in first + last):
+                raise ValueError('Character names cannot contain control characters.')
+            # Account ownership is established by the authenticated private
+            # worker and its save directory. Character names are display data.
+            # Normalize the fields separately so multiword given names stay intact.
+            first = display_name(first)
+            last = display_name(last) if last.strip() else ''
+            combined = ' '.join(filter(None, (first, last)))
+            if len(combined) > 61:
+                raise ValueError('First and last names together must be at most 61 characters.')
+            display_name(combined)
             result = await self.server.create_character(dict(body, first_name=first,last_name=last,game_slug=self.slug))
         elif action == 'character/load':
             if not any(r['id']==body.get('player_id') for r in await self.server.saved_characters(self.slug)):

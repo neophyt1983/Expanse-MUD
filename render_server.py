@@ -49,7 +49,7 @@ def page(title, body, status=200):
 
 
 def sign_in(error='', status=200):
-    return page('Expanse', '<form method="post" action="/login"><label>Character name'
+    return page('Expanse', '<form method="post" action="/login"><label>Username'
                 '<input name="name" autocomplete="username" required></label><label>Password'
                 '<input type="password" name="password" autocomplete="current-password" required></label>'
                 '<button>Sign in</button></form><p role="alert">'+escape(error)+'</p>', status)
