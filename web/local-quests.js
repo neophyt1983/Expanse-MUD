@@ -45,6 +45,8 @@
   }
   function list(m){
     body.replaceChildren();body.append(el('p',m.gold+' gold available'+(m.receipt?' · '+m.receipt:'')));
+    if(m.summary)body.append(el('p',m.summary));
+    if(m.recent?.length){const activity=el('details');activity.append(el('summary','Recent local quest activity'));for(const row of m.recent)activity.append(el('p',typeof row==='string'?row:row.text||row.note||''));body.append(activity);}
     if(!m.rows.length)body.append(el('p','No local offers or personal requests here. Visit a tavern, or ask someone in person.'));
     for(const j of m.rows){
       const section=el('section');section.style.cssText='border-top:1px solid #657775;padding:.8em 0';body.append(section);

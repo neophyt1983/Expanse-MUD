@@ -145,6 +145,7 @@
 <link rel="stylesheet" href="/window-controls.css">
 <link rel="stylesheet" href="/character-frame.css">
 <link rel="stylesheet" href="/trade-ui.css">
+<link rel="stylesheet" href="/damage-feedback.css">
 </head>
 <body>
 <div id="app">
@@ -164,8 +165,11 @@
       </section>
       <div id="log"></div>
       <form id="input-form">
-        <span id="prompt">&gt;</span>
-        <input id="input" autofocus autocomplete="off" spellcheck="false">
+      <span id="prompt" aria-hidden="true">&gt;</span>
+      <input id="input" aria-label="Command" placeholder="Type a command…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send">
+      <button id="command-done" type="button" aria-label="Dismiss keyboard" hidden>Done</button>
+      <button id="command-send" type="submit">Send</button>
+      <button id="conversation-latest" type="button" aria-label="Jump to the latest messages" hidden>Latest messages ↓</button>
       </form>
     </section>
         <section id="tab-editor" class="tab">
@@ -234,6 +238,8 @@
     </section>
   </main>
 </div>
+<script src="/damage-feedback.js"></script>
+<script src="/mobile-layout.js"></script>
 <script>
 let config = {
   editor_enabled: false,
@@ -289,11 +295,13 @@ function retryConnection(){
 }
 function append(kind, text) {
   const log = document.getElementById('log');
+  const position = window.ExpanseTranscript?.beforeAppend(kind === 'user');
   const div = document.createElement('div');
   div.className = 'line ' + kind;
   div.textContent = text;
   log.appendChild(div);
-  log.scrollTop = log.scrollHeight;
+  if (window.ExpanseTranscript) window.ExpanseTranscript.afterAppend(position);
+  else log.scrollTop = log.scrollHeight;
 }
 function connect() {
   if(window.expanseLeaving)return;
@@ -336,6 +344,7 @@ function connect() {
     if(connection!==ws)return;
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
+    if(window.ExpanseDamage?.handle(msg))return;
     if(msg.type==='error'&&window.expanseStartingNewGame&&/^Save failed/i.test(msg.text||'')){
       window.expanseStartingNewGame=false;
       const fresh=document.getElementById('new-game-in-play');if(fresh)fresh.disabled=false;
@@ -384,6 +393,7 @@ function connect() {
 }
 document.getElementById('input-form')?.addEventListener('submit', (e) => {
   e.preventDefault();
+  if (window.ExpanseMobileLayout?.isComposing()) return;
   const input = document.getElementById('input');
   const cmd = input.value.trim();
   if (!cmd) return;
@@ -1902,6 +1912,7 @@ window.expansePixelRequest=async(body)=>{if(!ed.gameSlug)throw Error('Select a C
 <script src="/waystones.js"></script>
 <script src="/play-windows.js"></script>
 <link rel="stylesheet" href="/play-windows.css">
+<link rel="stylesheet" href="/mobile-layout.css">
 <script src="/street-actions.js"></script><script src="/pet-union.js"></script><script src="/soundscape.js"></script><script src="/music-editor.js"></script>
 <script src="/local-quests.js"></script>
 </body>

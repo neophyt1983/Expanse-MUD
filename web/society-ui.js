@@ -29,7 +29,7 @@
  const giftButton=button('Offer NPC gift',()=>{if(!gift.value){showNpc();return;}npcAction(`social gift ${gift.value} to ${npcChoice.value}`);});
  const dialogueButton=button('Quest dialogue / services',()=>npcAction('dialogue '+npcChoice.value));
  const wakeButton=button('Wake NPC',()=>npcAction('wake '+npcChoice.value));wakeButton.title='Deliberately wake this person. They may resent the interruption.';
- const questions=make('fieldset');questions.append(make('legend','People and directions'));
+ const questions=make('fieldset');questions.append(make('legend','Conversation topics and directions'));
  const subject=make('input'),addressee=make('input');subject.placeholder='Name or place';subject.maxLength=120;
  subject.setAttribute('aria-label','Person or place to ask about');addressee.placeholder='Person to tell';addressee.maxLength=120;
  addressee.setAttribute('aria-label','Person to give directions to');
@@ -43,7 +43,7 @@
    stories.replaceChildren(...event.detail.map(row=>new Option(row.title,row.ref)));
    stories.hidden=shareNews.hidden=!stories.options.length;
  });
- questions.append(button('People you care about',()=>ask('people')),button('Share a memory',()=>ask('memories')),subject,about,tell,route,giveRoute,addressee,relay,button('Ask for news',()=>ask('localnews')),stories,shareNews);
+ questions.append(button('Relationships and feelings',()=>ask('people')),button('Your work',()=>ask('work')),button('Current activities',()=>ask('activities')),button('Future plans',()=>ask('plans')),button('Creatures and monsters',()=>ask('creatures')),button('Discuss the news',()=>ask('localnews')),button('Share a memory',()=>ask('memories')),subject,about,tell,route,giveRoute,addressee,relay,stories,shareNews);
  const sellChoice=make('select'),takeChoice=make('select');sellChoice.title='Items this NPC wants';takeChoice.title='NPC possessions available for barter';
  const sellButton=button('Sell to NPC',()=>{if(sellChoice.value)npcAction(`sell ${sellChoice.value} to ${npcChoice.value}`);});
  const barterButton=button('Barter with NPC',()=>{if(sellChoice.value&&takeChoice.value)npcAction(`barter ${sellChoice.value} for ${takeChoice.value} with ${npcChoice.value}`);});

@@ -9,7 +9,11 @@
  try{const saved=JSON.parse(localStorage.getItem(storage)||'null');if(saved&&typeof saved==='object'){const used=new Set();for(const action of Object.keys(defaults)){const code=saved[action];if((code===''||valid(code))&&!used.has(code)){bindings[action]=code;if(code)used.add(code);}else bindings[action]='';}}}catch{}
  function persist(){try{localStorage.setItem(storage,JSON.stringify(bindings));settingsStatus.textContent='Bindings saved on this device.';}catch{settingsStatus.textContent='Bindings work this session; this browser could not save them.';}}
  function remember(cmd){if(cmd&&!/^(clear|cls)$/i.test(cmd)&&history.at(-1)!==cmd){history.push(cmd);if(history.length>100)history.shift();}index=history.length;draft='';}
- function submit(cmd){if(!/^(clear|cls)$/i.test(cmd))return false;$('log').replaceChildren();index=history.length;draft='';return true;}
+ function submit(cmd){
+  if(/^(news|newspaper)(?:\s+editions)?$/i.test(cmd)&&window.ExpanseGazette){window.ExpanseGazette.open(/\s+editions$/i.test(cmd));return true;}
+  if(/^(journal|quests)$/i.test(cmd)&&window.ExpansePlayerLists){window.ExpansePlayerLists.open('quests');return true;}
+  if(!/^(clear|cls)$/i.test(cmd))return false;$('log').replaceChildren();window.ExpanseTranscript?.jumpToLatest();index=history.length;draft='';return true;
+ }
  const controls=make('div');controls.id='player-controls';
  const focus=make('button','Use movement keys'),settings=make('button','Keyboard layout and movement bindings');focus.type=settings.type='button';focus.className=settings.className='ed-btn';focus.id='movement-key-focus';settings.id='player-keybindings';
  focus.title='Focus movement controls. Keypad or your bindings move; click the command box to type.';

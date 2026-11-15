@@ -5,13 +5,13 @@
  const head=el('header'),title=el('h2','World chronicles'),exit=el('button','Close');head.append(title,exit);
  title.id='chronicle-title';panel.setAttribute('aria-labelledby',title.id);
  const controls=el('div'),section=el('select'),query=el('input'),full=el('input'),label=el('label');
- for(const [id,name] of [['geology','Geology · Deep time'],['civilization','Civilization · Medium time'],['individual','Individuals · Recent time'],['natural','Natural history and peoples'],['monstorium','Monstorium'],['knowledge','Frontiers of knowledge'],['sources','Research bibliography']])section.add(new Option(name,id));
+ for(const [id,name] of [['geology','Geology · Deep time'],['civilization','Civilization · Medium time'],['individual','Individuals · Recent time'],['natural','Creature Compendium'],['monstorium','Monstorium'],['knowledge','Frontiers of knowledge'],['sources','Research bibliography']])section.add(new Option(name,id));
  section.setAttribute('aria-label','History');query.type='search';query.maxLength=120;
  query.placeholder='Find a name or event';query.setAttribute('aria-label','Search history');
  full.type='checkbox';label.append(full,document.createTextNode(' Host view'));label.hidden=true;
- controls.append(section,query,label);
+ controls.className='chronicle-controls';controls.append(section,query,label);
  const info=el('p'),list=el('ol'),pager=el('div'),back=el('button','Previous'),next=el('button','Next'),count=el('span');
- list.style.cssText='padding-left:1.5em;max-height:50vh;overflow:auto';pager.append(back,count,next);
+ list.className='chronicle-entries';list.tabIndex=0;list.setAttribute('aria-label','Chronicle entries');info.className='chronicle-info';pager.className='chronicle-pager';pager.append(back,count,next);
  panel.append(head,controls,info,list,pager);document.body.append(panel);
  let page=1,sequence=0,timer;
  function request(){

@@ -1,10 +1,10 @@
 /* Structured, server-filtered player knowledge. IDs are transport keys, not labels. */
 (()=>{'use strict';
  const make=(tag,text)=>{const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;};
- const kinds={abilities:'Abilities',inventory:'Inventory',quests:'Quests',adventures:'Adventures',journal:'Journal',markets:'Markets',survey:'Survey',catalog:'Catalog',wardrobe:'Wardrobe',recipes:'Recipes',condition:'Condition'};
+ const kinds={abilities:'Abilities',inventory:'Inventory',quests:'Quests',adventures:'Adventures',markets:'Markets',survey:'Survey',catalog:'Catalog',wardrobe:'Wardrobe',recipes:'Recipes',condition:'Condition'};
  const state={sequence:0,list:null,focus:null,navigation:null,kind:'quests',expanded:new Set(),restore:null,refreshAfterAction:false};
  const dialog=make('dialog');dialog.id='player-lists';dialog.setAttribute('aria-labelledby','player-lists-title');
- const head=make('header'),title=make('h2','Your journal and belongings');title.id='player-lists-title';head.append(title);
+ const head=make('header'),title=make('h2','Your quests and belongings');title.id='player-lists-title';head.append(title);
  const form=make('form'),kind=make('select'),query=make('input'),search=make('button','Find'),refresh=make('button','Refresh');kind.id='player-lists-kind';kind.setAttribute('aria-label','List');query.type='search';query.placeholder='Filter known entries';query.setAttribute('aria-label','Filter known entries');query.id='player-lists-query';for(const [id,name] of Object.entries(kinds))kind.append(new Option(name,id));search.type='submit';refresh.type='button';form.append(kind,query,search,refresh);
  const pager=make('div'),previous=make('button','Previous page'),next=make('button','Next page');pager.className='player-list-pager';previous.type=next.type='button';pager.append(previous,next);pager.hidden=true;
  const status=make('p'),content=make('div');status.id='player-lists-status';status.setAttribute('role','status');content.id='player-lists-content';dialog.append(head,form,status,pager,content);document.body.append(dialog);
@@ -24,7 +24,7 @@
  function send(command,requestId){if(typeof ws==='undefined'||!ws||ws.readyState!==1)return false;ws.send(JSON.stringify({command,...(requestId?{request_id:requestId}:{})}));return true;}
  function token(){return 'player-list-'+(++state.sequence);}
  function request(){if(!dialog.open)return;const id=token();state.list={id,kind:state.kind};content.replaceChildren();pager.hidden=true;status.textContent='Loading your known '+kinds[state.kind].toLowerCase()+'…';if(!send('ui list '+state.kind+(query.value.trim()?' '+query.value.trim():''),id)){state.list=null;status.textContent='Connect and load your character first.';}}
- function open(value='quests'){if(!kinds[value])return;state.kind=value;kind.value=value;query.value='';if(!dialog.open){state.restore=document.activeElement;dialog.showModal();}title.textContent=kinds[value];request();kind.focus();}
+ function open(value='quests'){if(value==='journal')value='quests';if(!kinds[value])return;state.kind=value;kind.value=value;query.value='';if(!dialog.open){state.restore=document.activeElement;dialog.showModal();}title.textContent=kinds[value];request();kind.focus();}
  function dismiss(restore=true){state.list=null;state.focus=null;state.refreshAfterAction=false;if(dialog.open)dialog.close();if(restore&&state.restore?.isConnected)state.restore.focus();state.restore=null;}
  function focusLocation(location){if(!location?.id)return;const id=token();state.focus=id;status.textContent='Checking the known map location…';if(!send('ui focus '+location.id,id)){state.focus=null;status.textContent='Connection unavailable.';}}
  function button(label,fn){const b=make('button',label);b.type='button';b.onclick=fn;return b;}
@@ -45,7 +45,7 @@
   clearMapCompass();if(mapCompass.hidden||!packet.quests?.length)return;
   mapRows.replaceChildren();
   for(const q of packet.quests){
-   const word=q.direction||({here:'Here',blocked:'Blocked',dark:'Dark',unknown:'Unknown',journal:'Journal'}[q.status]||'Journal');
+   const word=q.direction||({here:'Here',blocked:'Blocked',dark:'Dark',unknown:'Unknown'}[q.status]||'Quests');
    const mark=q.direction?(bearings[q.direction]||'➜'):q.status==='here'?'◆':q.status==='blocked'?'×':'?';
    const pill=button('',openCompass);pill.className='compass-track';pill.dataset.quest=q.id||'';
    const arrow=make('b',mark),label=make('span',q.name+' · '+word);pill.append(arrow,label);
@@ -54,7 +54,7 @@
  }
  function renderNavigation(packet){drawMapCompass(packet);window.ExpanseWorldAtlas?.setKnownPins(packet.pins||[]);guidance.replaceChildren();if(!(packet.quests||[]).length){guidance.append(make('p','Select an accepted quest to follow its next known destination.'));return;}
   const arrows={north:'↑',northeast:'↗',east:'→',southeast:'↘',south:'↓',southwest:'↙',west:'←',northwest:'↖',up:'⇧',down:'⇩',in:'↪',out:'↩'};
-  for(const quest of packet.quests){const row=make('div');row.className='quest-guidance';row.append(make('strong',quest.name||'Selected quest'));const direction=quest.direction,statusText={dark:'Darkness conceals the route. Try a direction or use a working lantern.',travel:'Follow the next available exit; this is not a straight-line bearing.',here:'You are at the known destination.',blocked:'No traversable route is currently available.',unknown:'No route through personally visited places is known.',journal:'Check the journal for this objective.'}[quest.status]||quest.status;row.append(make('span',(arrows[direction]?arrows[direction]+' ':'')+(direction?'Next step: '+direction:statusText||'No known destination')));if(quest.objective)row.append(make('small',quest.objective));if(quest.target?.name)row.append(button(quest.target.name,()=>{const id=token();state.focus=id;if(!send('ui focus '+quest.target.id,id)){state.focus=null;guidance.append(make('p','Connection unavailable.'));}}));if(quest.waypoint)row.append(button('Clear destination',()=>{send('waypoint clear');navigation();}));if(direction&&statusText)row.append(make('small',statusText));guidance.append(row);}
+  for(const quest of packet.quests){const row=make('div');row.className='quest-guidance';row.append(make('strong',quest.name||'Selected quest'));const direction=quest.direction,statusText={dark:'Darkness conceals the route. Try a direction or use a working lantern.',travel:'Follow the next available exit; this is not a straight-line bearing.',here:'You are at the known destination.',blocked:'No traversable route is currently available.',unknown:'No route through personally visited places is known.',journal:'Open Quests for this objective.'}[quest.status]||quest.status;row.append(make('span',(arrows[direction]?arrows[direction]+' ':'')+(direction?'Next step: '+direction:statusText||'No known destination')));if(quest.objective)row.append(make('small',quest.objective));if(quest.target?.name)row.append(button(quest.target.name,()=>{const id=token();state.focus=id;if(!send('ui focus '+quest.target.id,id)){state.focus=null;guidance.append(make('p','Connection unavailable.'));}}));if(quest.waypoint)row.append(button('Clear destination',()=>{send('waypoint clear');navigation();}));if(direction&&statusText)row.append(make('small',statusText));guidance.append(row);}
  }
  let refreshPending=false;
  function navigation(){if(window.ExpanseSettings?.questCompassVisible()===false)return;if(state.navigation){refreshPending=true;return;}const id=token();if(send('ui navigation',id))state.navigation=id;}

@@ -11,7 +11,9 @@
  function show(rows,automatic=true){
    if(!Array.isArray(rows)||!rows.length)return;
    const choices=rows.filter(r=>typeof r.id==='string'&&typeof r.name==='string');
-   if(!choices.length)return;clear();list.replaceChildren();
+   if(!choices.length)return;
+   const position=window.ExpanseTranscript?.beforeAppend();
+   clear();list.replaceChildren();
    for(const row of choices){
      const b=document.createElement('button');b.type='button';b.className='ed-btn';b.dataset.sourceQuest=row.id;b.textContent='Accept '+row.name;
      b.onclick=()=>{if(typeof ws==='undefined'||!ws||ws.readyState!==1)return;b.disabled=true;
@@ -19,7 +21,8 @@
      };list.append(b);
    }
    const log=document.getElementById('log');entry=document.createElement('button');entry.type='button';entry.className='ed-btn';
-   entry.textContent='View quest offers ('+choices.length+')';entry.onclick=open;log.append(entry);log.scrollTop=log.scrollHeight;
+   entry.textContent='View quest offers ('+choices.length+')';entry.onclick=open;log.append(entry);
+   if(window.ExpanseTranscript)window.ExpanseTranscript.afterAppend(position);else log.scrollTop=log.scrollHeight;
    if(automatic&&!document.querySelector('dialog:modal'))open();
  }
  window.ExpanseSourceQuests={show,clear,open,locationChanged};

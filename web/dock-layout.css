@@ -6,3 +6,5 @@
 /* Recovery controls stay outside panels and remain usable in compact windows. */
 .dock-toolbar{flex-shrink:0}.window-panel-tray:not(:empty){border-left:2px solid #9bd7f5;padding-left:8px}.window-panel-tray button{min-height:34px}
 .panel-picker{color:#e1e8df;background:#182a30;border:1px solid #71827a;border-radius:8px;max-width:min(560px,90vw);max-height:85vh;overflow:auto;padding:18px}.panel-picker-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid #486154}.panel-picker-row strong{flex:1}.panel-picker button{min-height:40px;margin:4px}.panel-picker :focus-visible{outline:3px solid #9bd7f5;outline-offset:2px}
+.dock-phone-actions{display:none}
+.dock-phone-actions[hidden]{display:none!important}

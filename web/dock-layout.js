@@ -37,18 +37,22 @@
   const tabBar=make('nav','dock-tabs');
   tabBar.setAttribute('aria-label',key==='game'?'Game panels':'Creator panels');
   const panelsButton=make('button','ed-btn','Panels');panelsButton.type='button';panelsButton.dataset.openPanels=key;panelsButton.setAttribute('aria-label','Show, reopen or restore panels');toolbar.insertBefore(panelsButton,hint);
+  const phoneBar=make('div','dock-phone-actions');phoneBar.hidden=true;phoneBar.setAttribute('role','toolbar');phoneBar.setAttribute('aria-label',key==='game'?'Game actions and panels':'Creator panels');
   const tray=make('div','window-panel-tray');tray.setAttribute('aria-label','Restore closed or minimized panels');toolbar.append(tray);
-  const canvas=make('div','dock-canvas'),rail=make('div','dock-rail');canvas.append(rail);root.append(toolbar,tabBar,targets,canvas);parent.append(root);
+  const canvas=make('div','dock-canvas'),rail=make('div','dock-rail');canvas.append(rail);root.append(toolbar,tabBar,phoneBar,targets,canvas);parent.append(root);
   const panes=new Map();let top=10;
   const picker=make('dialog','panel-picker'),pickerTitle=make('h2','',key==='game'?'Game panels':'Creator panels'),pickerRows=make('div','panel-picker-rows'),showAll=make('button','ed-btn','Show all panels'),pickerClose=make('button','ed-btn','Close');
   picker.id='panels-'+key;showAll.id=picker.id+'-show-all';pickerClose.id=picker.id+'-close';pickerTitle.id=picker.id+'-title';picker.setAttribute('aria-labelledby',pickerTitle.id);showAll.type=pickerClose.type='button';
   picker.append(pickerTitle,make('p','','Restore a panel without resetting its saved size or position.'),pickerRows,showAll,pickerClose);document.body.append(picker);let pickerFocus=null;
   function pickerRender(){
    const focused=document.activeElement?.dataset?.pickerPanel;pickerRows.replaceChildren();
-   for(const id of ids){const row=make('div','panel-picker-row'),status=panelHidden(id)?'Hidden':windowModes.get(id)==='closed'?'Closed':windowModes.has(id)?'Minimized':'Visible',b=make('button','ed-btn',status==='Visible'?'Focus':'Show');b.type='button';b.dataset.pickerPanel=id;b.setAttribute('aria-label',(status==='Visible'?'Focus ':'Show ')+panes.get(id).title);row.append(make('strong','',panes.get(id).title),make('span','',status),b);b.onclick=()=>{restorePanel(id);picker.close();panes.get(id).windowButtons[0].focus();};pickerRows.append(row);}
+   for(const id of ids){const row=make('div','panel-picker-row'),status=panelHidden(id)?'Hidden':windowModes.get(id)==='closed'?'Closed':windowModes.has(id)?'Minimized':'Visible',b=make('button','ed-btn',status==='Visible'?'Focus':'Show');b.type='button';b.dataset.pickerPanel=id;b.setAttribute('aria-label',(status==='Visible'?'Focus ':'Show ')+panes.get(id).title);row.append(make('strong','',panes.get(id).title),make('span','',status),b);b.onclick=()=>{restorePanel(id);picker.close();focusPanel(id);};
+    if(status==='Visible'){const hide=make('button','ed-btn','Hide');hide.type='button';hide.setAttribute('aria-label','Hide '+panes.get(id).title);hide.onclick=()=>{windowChange(id,'minimized');pickerRows.querySelector('[data-picker-panel="'+id+'"]')?.focus();};row.append(hide);}
+    pickerRows.append(row);}
    if(focused)pickerRows.querySelector('[data-picker-panel="'+focused+'"]')?.focus();
   }
   if(key==='game')window.addEventListener('expanse:show-terrain',()=>restorePanel('map'));
+  function focusPanel(id){(root.dataset.arrangement==='tabs'?tabBar.querySelector('[data-dock-tab="'+id+'"]'):panes.get(id).windowButtons[0])?.focus({preventScroll:true});}
   function restorePanel(id){const changed=panelHidden(id);if(changed)hidePanel(id,false);activeTab=id;windowModes.delete(id);maximized=null;render();if(changed)save();}
   function restoreAll(){let changed=false;for(const id of ids){if(panelHidden(id)){changed=true;hidePanel(id,false);}}windowModes.clear();maximized=null;render();if(changed)save();}
   function openPicker(){if(picker.open){pickerClose.focus();return;}if(document.querySelector('dialog:modal'))return;pickerFocus=document.activeElement;pickerRender();picker.showModal();pickerClose.focus();}
@@ -63,24 +67,31 @@
   function dock(id,slot){delete state.floating[id];state.order=state.order.filter(x=>x!==id);const before=visibleOrder()[Math.max(0,slot)];state.order.splice(before?state.order.indexOf(before):state.order.length,0,id);render();save();}
   function floating(id){if(!state.floating[id])state.floating[id]={x:.1,y:.1,w:.6,h:.75};render();save();}
   function render(){
+   const editingField=document.activeElement,keepFocus=root.contains(editingField)&&editingField?.matches?.('input,textarea');
+   const selection=keepFocus&&typeof editingField.selectionStart==='number'?[editingField.selectionStart,editingField.selectionEnd,editingField.selectionDirection]:null;
    tray.replaceChildren();for(const [id,mode] of windowModes){const b=make('button','ed-btn',(mode==='minimized'?'Restore ':'Reopen ')+panes.get(id).title);b.type='button';b.dataset.restorePanel=id;b.onclick=()=>windowChange(id,'restore');tray.append(b);}
    rail.replaceChildren();const visible=visibleOrder(),docked=visible.filter(id=>!state.floating[id]);
-   const tabbed=display.tabs();
+   const tabbed=display.tabs(),phone=display.phone?.()===true;
    root.dataset.arrangement=tabbed?'tabs':'columns';
+   root.dataset.phone=String(phone);phoneBar.hidden=!phone;
+   if(phone){if(panelsButton.parentElement!==phoneBar)phoneBar.append(panelsButton);if(reset.parentElement!==picker)picker.insertBefore(reset,showAll);}
+   else{if(panelsButton.parentElement!==toolbar)toolbar.insertBefore(panelsButton,hint);if(reset.parentElement!==toolbar)toolbar.insertBefore(reset,hint);}
    toggle.disabled=tabbed;
    if(tabbed){editing=false;if(maximized)maximized=null;}
    if(!visible.includes(activeTab))activeTab=visible[0];
    tabBar.hidden=!tabbed;tabBar.replaceChildren();
    if(tabbed)for(const id of visible){
-    const b=make('button','ed-btn',panes.get(id).title);
+    const title=panes.get(id).title,short=key==='game'?{conversation:'Talk',map:'Map',location:'Nearby',character:'You'}:{library:'Library',map:'Map',inspector:'Details'};
+    const label=phone?(short[id]||title):title,b=make('button','ed-btn',label);
     b.type='button';b.dataset.dockTab=id;
+    b.title=title;b.setAttribute('aria-label',label===title?title:label+' — '+title);
     b.setAttribute('aria-pressed',String(id===activeTab));
     b.setAttribute('aria-controls',panes.get(id).panel.id);
     b.onclick=()=>{
      activeTab=id;
      render();
      tabBar.querySelector('[data-dock-tab="'+id+'"]')?.focus({preventScroll:true});
-     if(key==='game'&&id==='map'&&window.matchMedia('(max-width:850px),(max-height:530px)').matches){
+     if(key==='game'&&id==='map'&&!display.phone?.()&&window.matchMedia('(max-width:850px),(max-height:530px)').matches){
       requestAnimationFrame(()=>panes.get(id).panel.querySelector('.atlas-viewport')?.scrollIntoView({block:'center'}));
      }
     };
@@ -96,12 +107,13 @@
     if(f){canvas.append(p);p.style.zIndex=++top;floatRect(id);}else{p.style.flex=state.widths[ids.indexOf(id)]+' 1 0';rail.append(p);const next=docked[docked.indexOf(id)+1];if(next){const splitter=make('div','dock-splitter');splitter.tabIndex=editing?0:-1;splitter.setAttribute('role','separator');splitter.setAttribute('aria-label','Resize '+item.title+' and adjacent panel');splitter.setAttribute('aria-orientation','vertical');splitter.setAttribute('aria-valuenow',String(Math.round(state.widths[ids.indexOf(id)]*100)));splitter.onpointerdown=e=>start(e,id,'split',next);splitter.onkeydown=e=>{if(!editing||!['ArrowLeft','ArrowRight'].includes(e.key))return;e.preventDefault();const a=ids.indexOf(id),b=ids.indexOf(next),sum=state.widths[a]+state.widths[b],delta=e.key==='ArrowRight'?.1:-.1;state.widths[a]=Math.max(.15,Math.min(sum-.15,state.widths[a]+delta));state.widths[b]=sum-state.widths[a];render();save();};rail.append(splitter);}}}
    if(picker.open)pickerRender();
    root.classList.toggle('layout-editing',editing);toggle.textContent=editing?'Lock Layout':'Edit Layout';toggle.setAttribute('aria-pressed',String(editing));hint.textContent=editing?'Drag title bars; drop on a docking target. Drag dividers or a floating panel’s corner to resize.':'Layout locked';
+   if(keepFocus&&editingField.isConnected&&!editingField.closest('[hidden]')){if(document.activeElement!==editingField)editingField.focus({preventScroll:true});if(selection)try{editingField.setSelectionRange(...selection);}catch{}}
   }
   function start(e,id,kind,next){if(!editing||e.button!==0||gesture||maximized===id)return;if(kind==='move'&&e.target.closest('button'))return;e.preventDefault();e.stopPropagation();const before=JSON.stringify(state),p=panes.get(id).panel,r=p.getBoundingClientRect(),c=canvas.getBoundingClientRect();
    if(kind==='move'&&!state.floating[id]){state.floating[id]={x:(r.left-c.left)/c.width,y:(r.top-c.top)/c.height,w:r.width/c.width,h:r.height/c.height};render();}
    gesture={id,kind,next,x:e.clientX,y:e.clientY,rect:r,canvas:c,before,weights:[...state.widths],pointer:e.pointerId};p.style.zIndex=++top;if(e.isTrusted)e.currentTarget.setPointerCapture?.(e.pointerId);document.body.classList.add('layout-dragging');
   }
-  function move(e){if(!gesture||e.pointerId!==gesture.pointer)return;const g=gesture,dx=e.clientX-g.x,dy=e.clientY-g.y;if(g.kind==='split'){const a=ids.indexOf(g.id),b=ids.indexOf(g.next),pa=panes.get(g.id).panel,pb=panes.get(g.next).panel,total=pa.clientWidth+pb.clientWidth,sum=g.weights[a]+g.weights[b];const ratio=Math.max(.15,Math.min(.85,(g.rect.width+dx)/total));state.widths[a]=sum*ratio;state.widths[b]=sum-state.widths[a];pa.style.flex=state.widths[a]+' 1 0';pb.style.flex=state.widths[b]+' 1 0';return;}
+  function move(e){if(!gesture||e.pointerId!==gesture.pointer)return;const g=gesture,dx=e.clientX-g.x,dy=e.clientY-g.y;if(g.kind==='split'){const a=ids.indexOf(g.id),b=ids.indexOf(g.next),pa=panes.get(g.id).panel,pb=panes.get(g.next).panel,total=pa.getBoundingClientRect().width+pb.getBoundingClientRect().width,sum=g.weights[a]+g.weights[b];const ratio=Math.max(.15,Math.min(.85,(g.rect.width+dx)/total));state.widths[a]=sum*ratio;state.widths[b]=sum-state.widths[a];pa.style.flex=state.widths[a]+' 1 0';pb.style.flex=state.widths[b]+' 1 0';return;}
    const f=state.floating[g.id];if(g.kind==='move'){f.x=(g.rect.left-g.canvas.left+dx)/g.canvas.width;f.y=(g.rect.top-g.canvas.top+dy)/g.canvas.height;}else{f.w=(g.rect.width+dx)/g.canvas.width;f.h=(g.rect.height+dy)/g.canvas.height;}floatRect(g.id);
    targets.querySelectorAll('.dock-target').forEach(t=>{const r=t.getBoundingClientRect();t.classList.toggle('drop-ready',g.kind==='move'&&e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom);});
   }
@@ -124,7 +136,7 @@
   document.addEventListener('pointermove',move);document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end);
   toggle.onclick=()=>{editing=!editing;render();};reset.onclick=()=>{state=initial();editing=false;windowModes.clear();maximized=null;if(key==='game')display.choose('character','auto');render();save();};new ResizeObserver(()=>{for(const id of ids)floatRect(id);}).observe(canvas);
   function adapt(){
-   const mode=display.tabs()+'|'+(key==='game'&&display.character());
+   const mode=display.tabs()+'|'+(key==='game'&&display.character())+'|'+(display.phone?.()===true);
    if(mode===lastDisplay)return;
    lastDisplay=mode;
    if(gesture){end({pointerId:gesture.pointer,type:'pointercancel'});}

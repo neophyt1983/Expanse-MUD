@@ -36,7 +36,8 @@
     requestAnimationFrame(measure);
   }
   const pane = document.getElementById('player-visual-map');
-  if (pane) new ResizeObserver(measure).observe(pane);
+  if (pane) new ResizeObserver(measure).observe(pane.querySelector('.atlas-viewport')||pane);
+  window.addEventListener('expanse:display',()=>requestAnimationFrame(measure));
   document.addEventListener('change', e => {
     if (e.target.matches('.atlas-zoom,select')) requestAnimationFrame(() => requestAnimationFrame(measure));
   });

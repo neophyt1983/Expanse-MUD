@@ -10,4 +10,19 @@
 #press-reader article{overflow:auto;flex:1;min-height:0;white-space:pre-line}
 #press-reader article h3{margin:.3rem 0}
 
-#chronicle-reader[open]{position:fixed;inset:0;margin:auto;width:min(46rem,94vw);max-height:88vh;box-sizing:border-box}
+#chronicle-reader[open]{position:fixed;inset:0;margin:auto;display:flex;flex-direction:column;gap:.65rem;width:min(58rem,calc(var(--expanse-viewport-width,100vw) - 20px));height:min(44rem,calc(var(--expanse-viewport-height,100dvh) - 24px));max-height:calc(var(--expanse-viewport-height,100dvh) - 24px);box-sizing:border-box;padding:.8rem;overflow:hidden;font:16px/1.6 system-ui,sans-serif}
+#chronicle-reader.expanse-dialog-maximized{overflow:hidden!important}
+#chronicle-reader[data-window-chrome]>header{display:none}
+#chronicle-reader .chronicle-controls{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;flex:none;width:min(100%,76ch);margin-inline:auto}
+#chronicle-reader .chronicle-controls input[type=search]{flex:1 1 15rem;min-width:0}
+#chronicle-reader input,#chronicle-reader select,#chronicle-reader button{font:inherit;line-height:1.35;padding:.4rem .6rem;color:#e9f1eb;background:#20343b;border:1px solid #6b8583;border-radius:4px;max-width:100%;min-width:0}
+#chronicle-reader .expanse-window-button{padding:0;background:#303136}
+#chronicle-reader .chronicle-info{flex:none;overflow-wrap:anywhere;white-space:normal;margin:0 auto;width:min(100%,76ch);color:#c8dcd2}
+#chronicle-reader .chronicle-entries{flex:1 1 auto;min-height:0;min-width:0;max-height:none!important;overflow:auto;overscroll-behavior:contain;padding:.35rem 1rem .5rem 2rem;margin:0 auto;width:min(100%,76ch);box-sizing:border-box;scrollbar-gutter:stable}
+#chronicle-reader .chronicle-entries li{white-space:normal;overflow-wrap:anywhere;padding:.25rem .2rem .75rem .3rem;border-bottom:1px solid #38504d}
+#chronicle-reader .chronicle-entries li>div{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;margin-top:.35rem}
+#chronicle-reader .chronicle-entries small{display:block;font-size:.88em;line-height:1.5;color:#b7cdc6}
+#chronicle-reader .chronicle-entries a{color:#b8e4ff;overflow-wrap:anywhere}
+#chronicle-reader .chronicle-pager{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:.7rem;flex:none;padding-top:.3rem}
+#press-reader article{overflow-wrap:anywhere;min-width:0;line-height:1.65}
+@media(max-width:550px){#chronicle-reader[open]{font-size:15px;padding:.5rem}#chronicle-reader .chronicle-controls select,#chronicle-reader .chronicle-controls input[type=search]{width:100%;flex-basis:100%}}

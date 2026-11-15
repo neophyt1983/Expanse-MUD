@@ -8,6 +8,8 @@
   tiles:['auto','0.75','1','1.5','2']
  };
  const storage = 'expanse.display.v1';
+ const phoneQuery='(max-width:680px), (max-width:950px) and (max-height:500px) and (pointer:coarse)';
+ const phone=()=>window.matchMedia?window.matchMedia(phoneQuery).matches:document.documentElement.clientWidth<=680;
  function valid(key,value){
   if(key==='scale')return value==='auto'||(/^\d+$/.test(value)&&Number(value)>=60&&Number(value)<=250);
   return choices[key]?.includes(value)===true;
@@ -45,7 +47,7 @@
   percent=snapshot.percent;announce();
  }
  function tabs(){
-  return values.layout==='tabs'||(values.layout==='auto'&&(document.documentElement.clientWidth<1050||document.documentElement.clientHeight<510));
+  return phone()||values.layout==='tabs'||(values.layout==='auto'&&(document.documentElement.clientWidth<1050||document.documentElement.clientHeight<510));
  }
  function character(){
   return values.character==='show'||(values.character==='auto'&&document.documentElement.clientWidth>=2000&&document.documentElement.clientHeight>=860);
@@ -56,7 +58,7 @@
   if(width>=600&&height>=460)return 1.5;
   return height<86||width<200?.75:1;
  }
- window.ExpanseDisplay={choose,reset,sync,tabs,character,tileZoom,get values(){return {...values};},get percent(){return percent;}};
+ window.ExpanseDisplay={choose,reset,sync,tabs,phone,character,tileZoom,get values(){return {...values};},get percent(){return percent;}};
  window.addEventListener('storage',e=>{
   if(e.key===storage&&!window.ExpanseNativeFileMenu){values=clean(read());fallbackZoom();announce();}
  });

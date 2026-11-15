@@ -22,9 +22,7 @@
  bar.popover='auto';
  document.getElementById('session-actions').append(tools);
  function placeTools(){
-  const bounds=tools.getBoundingClientRect();
-  bar.style.left=Math.max(4,Math.min(innerWidth-bar.offsetWidth-4,bounds.left))+'px';
-  bar.style.top=Math.max(4,Math.min(innerHeight-bar.offsetHeight-4,bounds.bottom+2))+'px';
+  window.ExpanseWindowControls.placePopover(bar,tools);
  }
  tools.onclick=()=>{if(bar.matches(':popover-open'))bar.hidePopover();else{bar.showPopover();placeTools();bar.querySelector('button:not([hidden])')?.focus();}};
  bar.addEventListener('toggle',()=>tools.setAttribute('aria-expanded',String(bar.matches(':popover-open'))));
@@ -40,17 +38,28 @@
  }
  const quick=document.querySelector('.quick-actions');
  if(quick){
-  const menu=document.createElement('div');menu.className='conversation-menu';menu.id='conversation-menu';menu.popover='auto';menu.setAttribute('role','menu');menu.setAttribute('aria-label','Conversation commands');
-  const actions=[...quick.querySelectorAll('button')];for(const action of actions){action.setAttribute('role','menuitem');menu.append(action);}
-  const entry=document.createElement('button');entry.id='conversation-commands';entry.type='button';entry.textContent='Commands ▾';entry.setAttribute('aria-haspopup','menu');entry.setAttribute('aria-controls',menu.id);entry.setAttribute('aria-expanded','false');
-  quick.append(entry,menu);
-  document.querySelector('#dock-game-conversation .dock-titlebar strong')?.after(quick);
-  function place(){
-   const rect=entry.getBoundingClientRect(),width=menu.offsetWidth,height=menu.offsetHeight;
-   menu.style.left=Math.max(6,Math.min(innerWidth-width-6,rect.left))+'px';
-   menu.style.top=Math.max(6,Math.min(innerHeight-height-6,rect.bottom+3))+'px';
+  const menu=document.createElement('div');menu.className='conversation-menu';menu.id='conversation-menu';menu.popover='auto';menu.setAttribute('role','menu');menu.setAttribute('aria-label','Actions');
+  const actions=[],seen=new Set();
+  for(const action of quick.querySelectorAll('button')){
+   const key=action.dataset.action||action.textContent.trim().toLowerCase();
+   if(seen.has(key)){action.remove();continue;}
+   seen.add(key);actions.push(action);action.setAttribute('role','menuitem');menu.append(action);
   }
-  const enabled=()=>actions.filter(b=>!b.hidden&&!b.disabled&&b.getClientRects().length);
+  const entry=document.createElement('button');entry.id='conversation-commands';entry.type='button';entry.textContent='Actions ▾';entry.setAttribute('aria-haspopup','menu');entry.setAttribute('aria-controls',menu.id);entry.setAttribute('aria-expanded','false');
+  quick.append(entry,menu);
+  function placeActions(){
+   const phoneBar=document.querySelector('.dock-workspace[data-workspace="game"][data-phone="true"] .dock-phone-actions');
+   const heading=document.querySelector('#dock-game-conversation .dock-titlebar strong');
+   const target=phoneBar||heading?.parentElement;
+   if(!target||quick.parentElement===target)return;
+   if(menu.matches(':popover-open'))menu.hidePopover();
+   if(phoneBar)phoneBar.prepend(quick);else heading.after(quick);
+  }
+  placeActions();window.addEventListener('expanse:display',placeActions);
+  function place(){
+   window.ExpanseWindowControls.placePopover(menu,entry);
+  }
+  const enabled=()=>[...menu.querySelectorAll('button[role=menuitem]')].filter(b=>!b.hidden&&!b.disabled&&b.getClientRects().length);
   function open(){if(menu.matches(':popover-open'))return;menu.showPopover();place();enabled()[0]?.focus();}
   function close(){if(menu.matches(':popover-open')){menu.hidePopover();entry.focus();}}
   entry.onclick=()=>menu.matches(':popover-open')?close():open();

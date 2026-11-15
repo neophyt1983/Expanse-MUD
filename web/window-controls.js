@@ -2,15 +2,30 @@
 (()=>{'use strict';
  const shelf=document.createElement('nav');shelf.className='expanse-window-shelf';shelf.setAttribute('aria-label','Minimized windows');document.body.append(shelf);
  const minimized=new Map(),adapters=new Map();
+ const scale=()=>Math.max(.1,Number.parseFloat(getComputedStyle(document.documentElement).zoom)||1);
+ function viewport(){return {width:window.visualViewport?.width||innerWidth,height:window.visualViewport?.height||innerHeight,scale:scale()};}
+ function syncViewport(){
+  const view=viewport();
+  document.documentElement.style.setProperty('--expanse-viewport-width',view.width/view.scale+'px');
+  document.documentElement.style.setProperty('--expanse-viewport-height',view.height/view.scale+'px');
+ }
+ function placePopover(menu,anchor){
+  const view=viewport(),rect=anchor.getBoundingClientRect(),width=view.width/view.scale,height=view.height/view.scale;
+  menu.style.left=Math.max(6,Math.min(width-menu.offsetWidth-6,rect.left/view.scale))+'px';
+  menu.style.top=Math.max(6,Math.min(height-menu.offsetHeight-6,rect.bottom/view.scale+3))+'px';
+ }
+ syncViewport();
+ window.addEventListener('expanse:display',syncViewport);
+ window.visualViewport?.addEventListener('resize',syncViewport);
  function button(symbol,label,fn){const b=document.createElement('button');b.type='button';b.className='expanse-window-button';b.textContent=symbol;b.title=label;b.setAttribute('aria-label',label);b.onclick=fn;return b;}
  function clear(el){minimized.get(el)?.remove();minimized.delete(el);}
  function restore(el,adapter){if(document.querySelector('dialog:modal'))return;clear(el);adapter.restore();}
  function minimize(el,adapter,label){if(!adapter||adapter.minimize()===false){const status=el.querySelector('.window-chrome-status');if(status)status.textContent='Finish the current action before minimizing.';return;}clear(el);const b=document.createElement('button');b.type='button';b.className='ed-btn';b.textContent='Restore '+label;b.onclick=()=>restore(el,adapter);shelf.append(b);minimized.set(el,b);b.focus();}
  function place(el,x,y){
-  const box=el.getBoundingClientRect(),width=document.documentElement.clientWidth,height=document.documentElement.clientHeight;
+  const box=el.getBoundingClientRect(),{width,height,scale:zoom}=viewport();
   if(!box.width||!box.height)return;
-  el.style.setProperty('--window-x',Math.max(0,Math.min(width-box.width,x))+'px');
-  el.style.setProperty('--window-y',Math.max(0,Math.min(height-box.height,y))+'px');
+  el.style.setProperty('--window-x',Math.max(0,Math.min(width-box.width,x))/zoom+'px');
+  el.style.setProperty('--window-y',Math.max(0,Math.min(height-box.height,y))/zoom+'px');
   el.dataset.windowMoved='true';
  }
  function fit(el){
@@ -46,8 +61,8 @@
  }
  const atlas=document.getElementById('world-atlas');
  if(atlas)movable(atlas,atlas.querySelector('header'),()=>atlas.classList.contains('atlas-window-restored'));
- window.addEventListener('resize',()=>{document.querySelectorAll('[data-window-moved]').forEach(fit);});
- function decorate(el){if(el.id==='world-atlas')return;if(el.dataset.windowChrome)return;el.dataset.windowChrome='true';
+ window.addEventListener('resize',()=>{syncViewport();document.querySelectorAll('[data-window-moved]').forEach(fit);});
+ function decorate(el){if(el.id==='world-atlas')return;if(el.dataset.windowChrome&&el.querySelector(':scope > .expanse-window-bar'))return;el.dataset.windowChrome='true';
   const title=el.querySelector('h1,h2,h3')?.textContent||'Window';
   const existingClose=[...el.querySelectorAll('button')].find(b=>/^close(?:\b|$)/i.test(b.textContent.trim()))||[...el.querySelectorAll('button')].find(b=>/^cancel$/i.test(b.textContent.trim()));
   const bar=document.createElement('div');bar.className='expanse-window-bar';const label=document.createElement('strong');label.textContent=title;bar.append(label);
@@ -69,6 +84,6 @@
  adapters.set('player-keybindings-dialog',{minimize:()=>window.ExpansePlayerControls.minimizeBindings(),restore:()=>window.ExpansePlayerControls.restoreBindings()});
  adapters.set('player-calendar',{minimize:()=>window.ExpanseCalendar.minimize(),restore:()=>window.ExpanseCalendar.restore()});
  document.querySelectorAll('dialog').forEach(decorate);
- new MutationObserver(records=>{for(const record of records){if(record.type==='attributes'){if(record.target.open)clear(record.target);continue;}for(const node of record.addedNodes){if(node.nodeType!==1)continue;if(node.matches('dialog'))decorate(node);node.querySelectorAll('dialog').forEach(decorate);}for(const node of record.removedNodes){if(minimized.has(node))clear(node);}}}).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['open']});
- window.ExpanseWindowControls={disconnect:()=>{for(const el of [...minimized.keys()])clear(el);},decorate,register:(id,adapter)=>adapters.set(id,adapter),clear,button,shelf,minimize};
+ new MutationObserver(records=>{for(const record of records){if(record.type==='attributes'){if(record.target.open)clear(record.target);continue;}const owner=record.target.closest?.('dialog');if(owner)decorate(owner);for(const node of record.addedNodes){if(node.nodeType!==1)continue;if(node.matches('dialog'))decorate(node);node.querySelectorAll('dialog').forEach(decorate);}for(const node of record.removedNodes){if(minimized.has(node))clear(node);}}}).observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['open']});
+ window.ExpanseWindowControls={disconnect:()=>{for(const el of [...minimized.keys()])clear(el);},decorate,register:(id,adapter)=>adapters.set(id,adapter),clear,button,shelf,minimize,viewport,placePopover};
 })();
