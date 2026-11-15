@@ -585,6 +585,12 @@ class Editor:
         issues.extend(validate_route_surfaces(self.data))
         metadata_path=self.data_dir/'metadata.json'
         metadata=json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
+        authored_rules = {}
+        try:
+            from engine.world_package import rules
+            authored_rules = rules(self.data_dir,{r['id']:r for r in self.data['room']},{n['id']:n for n in self.data['npc']})
+        except (ValueError, TypeError, KeyError) as exc:
+            issues.append(str(exc))
         from engine import progression
         issues.extend(progression.validate_config(metadata.get('progression',{})))
         from engine import life_stages, population_health, population_content
@@ -605,7 +611,7 @@ class Editor:
             issues.extend(validate(self.data,metadata))
         if metadata.get('frontiers'):
             from engine.frontiers import audit
-            issues.extend(audit(self.data,metadata))
+            issues.extend(audit(self.data,metadata,authored_rules))
         summary = f"{len(self.data['room'])} rooms, {len(self.data['item'])} items, {len(self.data['npc'])} npcs, {len(self.data['quest'])} quests"
         if not issues: return f"OK - {summary}. No issues."
         return f"{len(issues)} issue(s):\n " + "\n ".join(issues)
