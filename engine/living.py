@@ -194,6 +194,9 @@ def on_entry(world,p):
     for enemy in world.entities_in_room(p.location):
         if enemy.is_player or enemy.progress.get('companion_owner'):continue
         definition=world.npcs.get(enemy.source_def,{})
+        # Regional threats use their own warning and attack clock; entry must
+        # not grant a second, immediate attack outside that scheduler.
+        if enemy.progress.get('regional_encounter') and definition.get('regional_generated'):continue
         if definition.get('aggressive') and random.random()<definition.get('aggression_chance',.25):
             from engine import combat
             if details(world,p.location).get('truce'):continue
@@ -663,6 +666,10 @@ def restore(world,saved):
     geology_impacts.reconcile(world)
     from engine import population
     population.ensure(world)
+    # Reconcile temporary generated threats in memory, with no checkpoint write
+    # and no kill rewards or healing while restoring a saved world.
+    from engine import regional_world, regional_encounters
+    if regional_world.enabled(world):regional_encounters.reconcile(world)
 
 def apply_effects(world,q):
     changed = False

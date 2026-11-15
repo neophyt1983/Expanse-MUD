@@ -1,1 +1,1 @@
-BUILD = '2026-11-14-render-gameplay-1.9.3'
+BUILD = '2026-11-15-render-encounters-stories-1.9.5'

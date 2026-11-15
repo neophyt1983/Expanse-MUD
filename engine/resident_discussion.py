@@ -200,6 +200,10 @@ def discuss(world,speaker,topic):
     turns=notes.setdefault('topic_turns',{})
     turn=turns.get(topic,0);turns[topic]=turn+1
     text=TOPICS[topic](world,speaker,turn)
+    if not text and topic=='creatures':
+        from engine import encounter_stories
+        accounts=encounter_stories.accounts(world,speaker,speaker)
+        if accounts:text=encounter_stories.words(world,accounts[turn%len(accounts)])
     fallback={'people':'I am still getting to know the people around me. I do not have a particular relationship to discuss yet.',
               'work':'I do not currently have a regular job. I can still look for local requests that fit my time and skills.',
               'activities':'I am taking a moment here to look around and talk with people.',

@@ -68,6 +68,8 @@ def public(world, room):
 
 
 def travel(world, person, start, end):
+    from engine import encounter_stories
+    encounter_stories.travel(world,person,start,end)
     if (not society.enabled(world) or not relationships.sentient(world, person)
             or not public(world, start) or not public(world, end)):
         return
@@ -197,9 +199,11 @@ def ask(world, player, guide, action, query):
         from engine import resident_discussion
         return prefix+'“'+resident_discussion.discuss(world,guide,action)+'”'
     if action=='memories':
+        from engine import encounter_stories
+        recent=[encounter_stories.words(world,row,player) for row in encounter_stories.accounts(world,guide,player)]
         profile = world.npcs.get(guide.source_def,{}).get('founding_profile',{})
         if (guide.spawner_key or '').startswith('birth:'):profile={}
-        memories=[profile['event']] if profile.get('event') else []
+        memories=recent+([profile['event']] if profile.get('event') else [])
         memories.extend('I was '+str(e['age'])+'. '+e['title']+'. '+e['text'] for e in profile.get('influences',[]))
         if not memories:return prefix+'“I have no story to share today.”'
         index=notes.get('last_shared_memory',-1)+1
@@ -305,6 +309,9 @@ def exchange(world, speaker, listener, turn):
     daily = everyday(world, speaker, listener, turn)
     if daily and daily[0] in ('yells','calls out'):
         return daily
+    from engine import encounter_stories
+    account=encounter_stories.exchange(world,speaker,listener)
+    if account:return account
     if turn % 7 == 0:
         facts = [(key, f) for key, f in contacts_for(world, speaker).items() if key not in (speaker.id, listener.id)]
         for key, fact in reversed(facts):
