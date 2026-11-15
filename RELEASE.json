@@ -1,0 +1,249 @@
+{
+  "schema_version": 2,
+  "name": "Expanse Mobile Layout 1.9.4",
+  "created_at": "2026-11-14T22:18:22-06:00",
+  "frontend_version": "1.9.4",
+  "source_file_count": 25,
+  "new_changes_from_published_1_9_3": [
+    "web/display-settings.js",
+    "web/dock-layout.css",
+    "web/dock-layout.js",
+    "web/index.html",
+    "web/mobile-layout.css",
+    "web/mobile-layout.js",
+    "web/play-windows.css",
+    "web/play-windows.js",
+    "web/player-controls.js",
+    "web/source-quests.js",
+    "web/window-controls.css",
+    "web/workspace.css"
+  ],
+  "known_source_baselines": [
+    "Render 1.9.1",
+    "Render world bridge 1.9.2",
+    "Published gameplay 1.9.3"
+  ],
+  "source_files": [
+    {
+      "path": "web/chronicles.js",
+      "updated_sha256": "ef52fef0ab65c09dce80dab726d29086937d9544aef7481c9e7aa9dfbc99763d",
+      "accepted_before_upload_sha256": [
+        "1dff6ebe754991b0bda32a5e0879c09abed303e53f4b98b365ce19a4a9615af7",
+        "ef52fef0ab65c09dce80dab726d29086937d9544aef7481c9e7aa9dfbc99763d"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/country-view.js",
+      "updated_sha256": "89c0139577dc67bb2a01c4f61ad84ec4c2e97738c749f5c5973f060148d58188",
+      "accepted_before_upload_sha256": [
+        "6941056b22e064f3ee916a06d61f8c40cf06be5177d1421fa2dcdbf2de54f3f2",
+        "89c0139577dc67bb2a01c4f61ad84ec4c2e97738c749f5c5973f060148d58188"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/damage-feedback.css",
+      "updated_sha256": "143d91dfe65660a04c4cd49e4a8848f762f440bc272344a3c0611b0466d937e0",
+      "accepted_before_upload_sha256": [
+        "143d91dfe65660a04c4cd49e4a8848f762f440bc272344a3c0611b0466d937e0"
+      ],
+      "may_be_absent": true
+    },
+    {
+      "path": "web/damage-feedback.js",
+      "updated_sha256": "5486ce55952ef9d8a9c15481ac8aff5798813397cf03af9a7068f0ec3a5235a8",
+      "accepted_before_upload_sha256": [
+        "5486ce55952ef9d8a9c15481ac8aff5798813397cf03af9a7068f0ec3a5235a8"
+      ],
+      "may_be_absent": true
+    },
+    {
+      "path": "web/display-settings.js",
+      "updated_sha256": "a8b23f060eddd34f33dec53727e5f28cd55e697f46c1c6660e4c12b26919af2d",
+      "accepted_before_upload_sha256": [
+        "b0e471006f23959420be76b8330b1739486df7f11cd111cf41a004d68500cebd"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/dock-layout.css",
+      "updated_sha256": "a9f8812fa7a2296adb4d457b85917908d9cfdb197e4e2715b682ec55efda2830",
+      "accepted_before_upload_sha256": [
+        "819e142758f53b7195533702a0a3cbe326bdb5412cf8b620bcc1af1eaea304de"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/dock-layout.js",
+      "updated_sha256": "7921cc255317095ed0f091c0c06eb4b05db82f7bcb6ecbf9b5cdfa20939c0e48",
+      "accepted_before_upload_sha256": [
+        "27c2bc4acb7da2d43e0934cc66b3bef0e32d5a8e8f71927ea851144cc97630a2",
+        "53c2c2c47ce3ddaf903e42916ac6516f858dc8f6913262a03dcd63d92cc528bb",
+        "ee92cb38cc6ff93431baab81ab2a7804b98f81a064e32a53269a012ec6c39c07"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/index.html",
+      "updated_sha256": "546ea53bc8053c9c3a361fdc761ba946da29171abc68bfaafd92ed980cbdcedd",
+      "accepted_before_upload_sha256": [
+        "2040f715d13f51f3a28e3563be33c087af16e9e974e62dff7fd561c7cdecbce3",
+        "f4c91368aae914807e8ab16152938e80d026ff563d7921564d8fab98cac0273e"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/local-quests.js",
+      "updated_sha256": "a0e1ca9a82acf08eea3d7863ed4cb003669de2a024e3b6545500e89b9f7228ef",
+      "accepted_before_upload_sha256": [
+        "2ed7c55d5dbdb17d6b9684c7427edd67438ba940e05f6e69f3cd75322d4c47c1",
+        "a0e1ca9a82acf08eea3d7863ed4cb003669de2a024e3b6545500e89b9f7228ef"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/mobile-layout.css",
+      "updated_sha256": "a306b2ad8c2294bc54758cc50c7cb246251ffe39286ef9b810e2e1cc214e897b",
+      "accepted_before_upload_sha256": [],
+      "may_be_absent": true
+    },
+    {
+      "path": "web/mobile-layout.js",
+      "updated_sha256": "a4bfbd56467696828a369ae29aa68a714764a30d9798ef7d4b281bc56a10b870",
+      "accepted_before_upload_sha256": [],
+      "may_be_absent": true
+    },
+    {
+      "path": "web/pixel-studio.css",
+      "updated_sha256": "43a865eff6a828a9997a99ca6211e9d9d9794ab8aea1b9b3d5391e99136a1fba",
+      "accepted_before_upload_sha256": [
+        "041742fc17f8cd67b606cbf9f064898fa2d06d7f3d82055f11cdbe7241363069",
+        "43a865eff6a828a9997a99ca6211e9d9d9794ab8aea1b9b3d5391e99136a1fba"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/play-windows.css",
+      "updated_sha256": "3a06f59d4ef9f8e1da092a898688064f73656147c9b600b71236b9921ee38f1c",
+      "accepted_before_upload_sha256": [
+        "1c3beb9cccd0606144f1a56f8ce80e18dd65013b25ac1e0020dacc51ecf195b6",
+        "6cc5231256d6f5b6117cfaac3d746b4fb7e85d215428a8880f55e27d0d7b571c",
+        "e1c78bf2c505e9f23f5a1f22395acadf11c7bb6c7e900b932985773cb2df8ca7"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/play-windows.js",
+      "updated_sha256": "a2c7204cd0e8f04230afa4b07cadbb8aad6ea42ffe1a9a93731d600628b7f679",
+      "accepted_before_upload_sha256": [
+        "01f7211b7be0d2965ed4315a685784508ae3959d180d3681f53f53bf83d7dfa7",
+        "aaea958d73ef3916596ba09da6c99c21c490aa790a9316ebcceeb0588330e8d6"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/player-controls.js",
+      "updated_sha256": "ecb586e7c744bb712919a50ba4e1a82dc6aee32f5faf4f266bb44518006447a2",
+      "accepted_before_upload_sha256": [
+        "6a1fb7677984d6d296ca692060d7b58b4f9d2e16cf2342244afa89cbab1dd34f",
+        "d4b3169c1ec3aee01e35e90ca012caa99d396169b94d413f3c1dd570aecc2a38"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/player-lists.js",
+      "updated_sha256": "f1c2be3e39ad9060add3ffb3b51ffc98b07a772faa78a007df0875a2d74c785f",
+      "accepted_before_upload_sha256": [
+        "65caea10bfd2983440c7996b124d4351d07f7e93e163033badafd822316f89aa",
+        "f1c2be3e39ad9060add3ffb3b51ffc98b07a772faa78a007df0875a2d74c785f"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/save-browser.js",
+      "updated_sha256": "a03e3c67674edf270eeb4acde5d1c76d40a265fc394dea61d8961a7b93937ed2",
+      "accepted_before_upload_sha256": [
+        "9e62253ebd37e54403e38b5192639dae38ffe160da0de701ceff8351f01b4518",
+        "a03e3c67674edf270eeb4acde5d1c76d40a265fc394dea61d8961a7b93937ed2"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/society-ui.js",
+      "updated_sha256": "9795ac8e0c8e2fc4854844a394160df2a8e7d38fa68d6759625ed4ad5352dc7f",
+      "accepted_before_upload_sha256": [
+        "5e35a903cc259ce4a934bbd7308ddc28a485d6ec08b52ad055a70cea145c4333",
+        "9795ac8e0c8e2fc4854844a394160df2a8e7d38fa68d6759625ed4ad5352dc7f"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/source-quests.js",
+      "updated_sha256": "ec1e6c240e2ae473d4c8b251aee19b0d53163e66cfd472ac7fff7328c606d474",
+      "accepted_before_upload_sha256": [
+        "d9e2d1511cb205ab8fdd03f92928f7837ec67b2cc5fe5fb7f20c9c2fd801da79"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/visual-map.css",
+      "updated_sha256": "ab3abf699bfdde9814ec444e982fb7c1e77c5d79d4bab9f6a2d529a422a87dee",
+      "accepted_before_upload_sha256": [
+        "ab3abf699bfdde9814ec444e982fb7c1e77c5d79d4bab9f6a2d529a422a87dee",
+        "ed03a8455e83acd459adab79286e17b809d033028ddc298d3eee7f505f53ba3d"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/visual-map.js",
+      "updated_sha256": "c9713db73a3c14a71bb2056c89a171fdd4e9cae2eec069451f94907dad42ce16",
+      "accepted_before_upload_sha256": [
+        "9e570545606538288029fba74430d80561232c4ae84ee768ead178bd75ce3705",
+        "c9713db73a3c14a71bb2056c89a171fdd4e9cae2eec069451f94907dad42ce16"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/window-controls.css",
+      "updated_sha256": "3febb25308236ae5ffc740f7f19321efc89cc76924fc8e2c59874faeea78cfdf",
+      "accepted_before_upload_sha256": [
+        "60e2206ddf9a1cdb4832c132fb96b5aef4f0743a7e8d52e44e264b32f33c67dc",
+        "65a6251f5f2f322e7c2b421375e1888b9a654ec4019c68fd570513bb9f90a6dd"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/window-controls.js",
+      "updated_sha256": "85f816680de2cf1d655aaf2048088424135fa5efe7c8ff288547ca396f715bb9",
+      "accepted_before_upload_sha256": [
+        "85f816680de2cf1d655aaf2048088424135fa5efe7c8ff288547ca396f715bb9",
+        "870cc511bced04d381f6f30831cd37b3bf84b4bae47cbfa8b78c45ac60d49c0f"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/workspace.css",
+      "updated_sha256": "09dcb7f261e676bfb474ce8a233c52312eb10320f00243a39059ffedfe3b6f7a",
+      "accepted_before_upload_sha256": [
+        "98405f31c7021d7595c6849f095a616db2cf0283e507463bd57117ccda8f5d69"
+      ],
+      "may_be_absent": false
+    },
+    {
+      "path": "web/workspace.js",
+      "updated_sha256": "30bb7a54d6317f71f1837af2e66c0b31c6db95097ee6745d4fee50f5473bd97c",
+      "accepted_before_upload_sha256": [
+        "30bb7a54d6317f71f1837af2e66c0b31c6db95097ee6745d4fee50f5473bd97c",
+        "ea5d7600118bb5caf9818e8085c21cd9af7af583cd00b19e5b306977bc72cfa1"
+      ],
+      "may_be_absent": false
+    }
+  ],
+  "non_web_changes_from_published_1_9_3": 0,
+  "engine_update_required": false,
+  "world_import_required": false,
+  "live_assets_verified": false,
+  "live_deployment_performed": false,
+  "real_browser_rendering_verified": false
+}

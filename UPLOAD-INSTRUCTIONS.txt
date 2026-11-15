@@ -1,0 +1,104 @@
+EXPANSE MOBILE LAYOUT 1.9.4
+
+This package adjusts the existing Render game interface for phones. It contains
+25 frontend files for the existing GitHub web/ folder. Twelve differ from the
+previously published full 1.9.3; the rest keep the earlier interface helpers and
+Actions/Quests corrections together. No engine, .expanse import, requirements,
+Render environment variable, disk, or save-namespace change is needed.
+
+UPLOAD USING THE GITHUB WEBSITE
+1. Explicitly save your game before uploading: Render may auto-deploy the commit.
+2. Extract this ZIP on your computer.
+3. Open https://github.com/neophyt1983/Expanse-MUD on branch main.
+4. Open its EXISTING web folder, then choose Add file > Upload files.
+5. Open this package's github-upload/web folder on your computer. Select all
+   25 FILES inside it and drag those files into GitHub's upload page.
+6. Check the destination paths before committing. They must be web/index.html,
+   web/mobile-layout.js, web/mobile-layout.css, etc. Do not create web/web/ or
+   github-upload/web/ in the repository. Do not upload the ZIP itself.
+7. Commit the 25 files together with the message: Improve phone game layout.
+   The README, RELEASE.json, evidence, and checker stay on your computer.
+
+In a repository that requires pull requests, use its normal branch/review flow
+and merge this one coherent upload into the branch connected to Render.
+
+RECENT WORK FROM THE OTHER CHAT
+The current live GitHub HEAD was not available for inspection. The files were
+prepared against the known local 1.9.1, 1.9.2, and published 1.9.3 trees. If the
+other chat has edited these targets since then, preserve and merge that work.
+For a read-only comparison, download the current repository with Code > Download
+ZIP and run the included checker beside RELEASE.json and github-upload:
+  python3 verify_repository.py /path/to/Expanse-MUD-main.zip
+It changes nothing and requires no GitHub login or git setup. PASS means the
+25 named targets match recognized versions or are allowed to be new. STOP means
+at least one target needs a merge or the input/package could not be checked.
+This is an overwrite-target check, not certification of the full live game.
+
+DEPLOY ON RENDER
+1. Open the Expanse-MUD service and its Deploys page.
+2. If the new commit is already deploying automatically, let it finish.
+3. Otherwise select Manual Deploy > Deploy latest commit.
+4. Wait until Live identifies that new GitHub commit, then reload /play and
+   resume the same existing world/character/save entry you normally use.
+5. Keep the existing build command, start command, disk and environment settings.
+
+The wrapper discovers static assets at startup, so a deploy is needed to serve
+the new mobile files. Restart service alone redeploys the existing commit;
+choose Deploy latest commit to install the new GitHub files.
+
+CHECK ON YOUR PHONE
+- Talk / Map / Nearby form one row. Nearby contains Location & Inventory.
+- Actions and Panels sit directly below that row and work from every tab.
+- Actions contains one Quests, no Journal, one Newspaper, no separate Editions.
+- Conversation text wraps comfortably and has a visible command box and Send.
+- While typing in a reduced/short viewport, header/status/session rows compact
+  away; Done dismisses typing focus and restores those controls.
+- Read older messages; incoming text should leave your position in place and
+  offer New messages. Tap it to return to the latest conversation.
+- Rotate while typing and check that your draft and controls remain available.
+- Panels can hide, show, and recover all panels. On a wider desktop window,
+  the full names and stored desktop arrangement return.
+
+The corrected UI is prepared and locally checked; it has not been deployed to
+your Render service. Real Android/iOS keyboard behavior and rendered geometry
+still need review after deployment. The offline HTML preview supplied alongside
+this ZIP uses these same scripts/styles with sample data and no network or saves.
+
+EXACT FILE DESTINATIONS
+  github-upload/web/chronicles.js  ->  web/chronicles.js
+  github-upload/web/country-view.js  ->  web/country-view.js
+  github-upload/web/damage-feedback.css  ->  web/damage-feedback.css
+  github-upload/web/damage-feedback.js  ->  web/damage-feedback.js
+  github-upload/web/display-settings.js  ->  web/display-settings.js
+  github-upload/web/dock-layout.css  ->  web/dock-layout.css
+  github-upload/web/dock-layout.js  ->  web/dock-layout.js
+  github-upload/web/index.html  ->  web/index.html
+  github-upload/web/local-quests.js  ->  web/local-quests.js
+  github-upload/web/mobile-layout.css  ->  web/mobile-layout.css
+  github-upload/web/mobile-layout.js  ->  web/mobile-layout.js
+  github-upload/web/pixel-studio.css  ->  web/pixel-studio.css
+  github-upload/web/play-windows.css  ->  web/play-windows.css
+  github-upload/web/play-windows.js  ->  web/play-windows.js
+  github-upload/web/player-controls.js  ->  web/player-controls.js
+  github-upload/web/player-lists.js  ->  web/player-lists.js
+  github-upload/web/save-browser.js  ->  web/save-browser.js
+  github-upload/web/society-ui.js  ->  web/society-ui.js
+  github-upload/web/source-quests.js  ->  web/source-quests.js
+  github-upload/web/visual-map.css  ->  web/visual-map.css
+  github-upload/web/visual-map.js  ->  web/visual-map.js
+  github-upload/web/window-controls.css  ->  web/window-controls.css
+  github-upload/web/window-controls.js  ->  web/window-controls.js
+  github-upload/web/workspace.css  ->  web/workspace.css
+  github-upload/web/workspace.js  ->  web/workspace.js
+
+COMPATIBILITY
+The overlay resolves all 78 local index script/style references on each known
+baseline. All non-web source files are unchanged from published gameplay 1.9.3.
+Applying this frontend to an older server retains that server's gameplay.
+The larger 1.9.3 gameplay update is still needed for its engine features if it
+has not already been installed. This phone update alone adds no monsters,
+quests, damage events, world records, or saved-game migrations.
+
+Official upload/deploy references:
+https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository
+https://render.com/docs/deploys

@@ -1,0 +1,66 @@
+EXPANSE PHONE LAYOUT REVIEW
+Prepared: 2026-11-14T22:18:22-06:00
+
+SCREENSHOT AND CHANGES
+The supplied phone screenshot shows wrapping full-length panel tabs, a partly
+clipped Panels control, crowded Conversation titlebar, old Commands label,
+low-contrast italic system text, and a command strip without a visible Send.
+It does not show the keyboard open and does not establish live source versions.
+
+1. The phone layout is one active bounded panel, replacing fixed 65vh Conversation
+   height and overflowing wrappers that allowed the surrounding page to grow.
+2. Compact Talk / Map / Nearby tabs remain on one row; full titles are retained
+   in accessible names. Optional Character is a fourth You tab.
+3. A common Actions + Panels row serves every phone tab. Redundant panel title
+   bars and desktop window chrome are removed from phone mode. Panels offers
+   Hide/Show, Show all and Reset Layout, including recovery when all are hidden.
+4. Header links stay on one row. Save, Tools and settings remain reachable in a
+   horizontally scrolling session row. No automatic saves were introduced.
+5. The command field has an accessible label, placeholder, 16px phone type,
+   virtual-keyboard Send hint and a native Send button. Failed/disconnected or
+   refused movement submissions preserve the draft. IME Enter cannot submit
+   partially composed text. Touching Send preserves typing focus.
+6. The workspace fits the visible viewport. Keyboard-sized or very short typing
+   views collapse the header/status/session rows; Done restores the controls.
+   Rotation and keyboard recovery preserve draft/caret. Pinch zoom is retained
+   without shrinking the layout to the pinched visual rectangle.
+7. Phone transcript text uses 16px system text with 1.5 line height and brighter
+   system messages. Incoming text and quest offers preserve an older reading
+   position; New messages jumps to the bottom. Your own submitted command also
+   follows the newest response. clear/cls clears the unread badge.
+8. Menus retain one Quests and one Newspaper. Typed legacy aliases still route
+   to those same readers. Wider windows restore the existing desktop preference.
+
+VERIFICATION
+- 70 executable behavioral checks passed across input/viewport/transcript,
+  phone docking, menu dispatch, damage feedback, map pointer, and offline fixture.
+- 8 CSS/source invariant checks passed. These examine declarations and order.
+- 62 embedded scripts passed JavaScript syntax checks.
+- 78 embedded script/style sources match the current files byte for byte.
+- The input suite ran actual mobile/source-quest modules and extracted the real
+  append/form/local-command handlers; it includes keyboard rotation/recovery,
+  pinch-and-blur, Send/Enter, IME, draft/caret, unread and manual-save invariants.
+- The menu suite executes actual menu scripts in index order on its parsed DOM
+  and separately verifies that the previously shipped 1.9.3 archive is unchanged.
+- All 78 local index script/style references resolve after the 25-file overlay
+  on each known 1.9.1, 1.9.2 and 1.9.3 baseline.
+- Only 12 web files differ from published 1.9.3; all 147 non-web files, including
+  all 121 engine files, remain identical. No world or runtime save was modified.
+
+LIMITS
+Behavioral checks use explicit DOM/event/geometry doubles. They do not emulate
+real CSS layout, Android/iOS keyboard animation, safe-area geometry, pinch/focus
+panning, or native popup layering. CSS 44px target declarations are present;
+rendered touch-target measurements remain unverified. No mobile browser was
+run, no live GitHub assets were confirmed, and no Render deploy was performed.
+The offline preview is an executable review aid, not a captured device result.
+
+PACKAGE SCOPE
+This is the complete current frontend delta for the known older baselines,
+including previous supporting fixes. Use these 25 files together. Do not install
+the older menu-only re-upload over this newer package afterward. Full engine
+and world gameplay requests remain governed by the installed 1.9.3 release.
+
+Evidence details are in evidence/*.json. RELEASE.json records every exact target
+and its SHA256. The included checker is standalone and read-only; the internal
+development test harnesses used source/baseline trees and are not installers.
