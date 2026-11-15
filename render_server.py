@@ -2,6 +2,7 @@
 import asyncio
 from collections import deque
 from contextlib import suppress
+from dataclasses import dataclass, field
 from datetime import datetime
 from html import escape
 import hashlib
@@ -16,7 +17,7 @@ import sqlite3
 import sys
 import tempfile
 import time
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 import zipfile
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
@@ -118,6 +119,21 @@ class Accounts:
         return None
 
 
+@dataclass
+class PrivateWorker:
+    account: str
+    game: str
+    process: object = None
+    client: object = None
+    url: str = ''
+    socket: object = None
+    socket_token: str = None
+    saved_exit: bool = False
+    feedback_complete: bool = False
+    discarded_exit: bool = False
+    last_used: float = field(default_factory=time.monotonic)
+
+
 class Service:
     def __init__(self):
         self.auth = Accounts()
@@ -137,10 +153,15 @@ class Service:
         self.update_world = os.environ.get('EXPANSE_UPDATE_WORLD_SHA256','').strip()
         if self.update_world and not re.fullmatch(r'[0-9a-f]{64}',self.update_world):
             raise ValueError('EXPANSE_UPDATE_WORLD_SHA256 must be the full SHA-256 of an imported game file.')
-        self.active_game = None
+        self.max_workers = int(os.getenv('EXPANSE_MAX_ACTIVE_GAMES', '2'))
+        if not 1 <= self.max_workers <= 8:
+            raise ValueError('EXPANSE_MAX_ACTIVE_GAMES must be between 1 and 8.')
+        self.workers = {}
+        self.selected_games = {}
         self.lock = asyncio.Lock()
-        self.process = self.client = self.active = self.socket = self.socket_token = None
         self.importing = False
+        self.editors = {}
+        self.editor_lock = asyncio.Lock()
         self.assets = {p.name:p for p in (ROOT/'web').iterdir() if p.suffix in {'.css','.js','.svg'}}
 
     def bundle(self, ident):
@@ -171,60 +192,76 @@ class Service:
     def identity(self,request):
         return self.auth.lookup(request.cookies.get(self.cookie,''))
 
-    async def stop(self):
-        if self.socket is not None:
-            await self.socket.close()
-        if self.client:
-            await self.client.close()
-        if self.process and self.process.returncode is None:
-            self.process.terminate()
-            try:
-                await asyncio.wait_for(self.process.wait(),8)
-            except asyncio.TimeoutError:
-                self.process.kill()
-                await self.process.wait()
-        self.client = self.process = self.active = self.socket_token = self.socket = None
+    async def stop(self, key=None, ident=None):
+        for worker_key, worker in list(self.workers.items()):
+            if (key is not None and worker.account != key) or (ident is not None and worker.game != ident):
+                continue
+            if worker.socket is not None:
+                await worker.socket.close()
+            if worker.client:
+                await worker.client.close()
+            if worker.process and worker.process.returncode is None:
+                worker.process.terminate()
+                try:
+                    await asyncio.wait_for(worker.process.wait(), 8)
+                except asyncio.TimeoutError:
+                    worker.process.kill()
+                    await worker.process.wait()
+            if self.workers.get(worker_key) is worker:
+                self.workers.pop(worker_key, None)
 
     async def start(self, key, ident):
         async with self.lock:
-            bundle=self.bundle(ident)
-            if (self.active,self.active_game)==(key,ident) and self.process and self.process.returncode is None:
-                return
-            if self.socket is not None and not self.socket.closed:
-                raise web.HTTPConflict(text='An active play tab is using this single-player test. Close that tab before opening another game.')
-            slug=json.loads((bundle/'info.json').read_bytes())['slug']
+            bundle = self.bundle(ident)
+            worker = self.workers.get((key, ident))
+            if worker and worker.process and worker.process.returncode is None:
+                self.selected_games[key] = ident
+                worker.last_used = time.monotonic()
+                return worker
+            if worker:
+                await self.stop(key, ident)
+            for old in list(self.workers.values()):
+                if old.process and old.process.returncode is not None:
+                    await self.stop(old.account, old.game)
+            if len(self.workers) >= self.max_workers:
+                raise web.HTTPServiceUnavailable(text='All private game slots are in use. Try again after a player saves and quits. No active player has been disconnected.')
+            slug = json.loads((bundle/'info.json').read_bytes())['slug']
             template_args = [value for path in self.update_templates(ident,slug)
                              for value in ('--update-template',str(path))]
-            await self.stop()
             save = self.folder(key,ident)
             save.mkdir(parents=True,exist_ok=True)
-            # Pass a pre-bound loopback listener into the worker, closing the port-selection race.
-            env = {k:v for k,v in os.environ.items() if k in ('PATH','LANG','LC_ALL','PYTHONUTF8','PYTHONUNBUFFERED','VIRTUAL_ENV','PYTHONPATH')}
-            env['EXPANSE_WORKER_TOKEN'] = secrets.token_urlsafe(32)
-            with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as listener:
-                listener.bind(('127.0.0.1',0))
-                listener.listen(16)
-                self.worker_url = f'http://127.0.0.1:{listener.getsockname()[1]}'
-                self.process = await asyncio.create_subprocess_exec(sys.executable,str(ROOT/'private_game.py'),
-                    '--fd',str(listener.fileno()),'--name',self.auth.records[key][0],
-                    '--world',str(bundle/'games'/slug),'--directory',str(save),
-                    *template_args,
-                    env=env,pass_fds=(listener.fileno(),))
-            self.client = ClientSession(headers={'X-Worker-Key':env['EXPANSE_WORKER_TOKEN']},timeout=ClientTimeout(total=150))
-            for _ in range(120):
-                if self.process.returncode is not None:
-                    await self.stop()
-                    raise web.HTTPServiceUnavailable(text='Expanse could not start. Check the service logs.')
-                try:
-                    async with self.client.get(self.worker_url+'/api/config',timeout=1) as answer:
-                        if answer.status==200:
-                            self.active,self.active_game=key,ident
-                            return
-                except (OSError,asyncio.TimeoutError):
-                    pass
-                await asyncio.sleep(.1)
-            await self.stop()
-            raise web.HTTPServiceUnavailable(text='The game took too long to start.')
+            worker = PrivateWorker(key, ident)
+            self.workers[(key, ident)] = worker
+            try:
+                # Each private game receives its own pre-bound listener, secret
+                # worker token, process memory and account/world save directory.
+                env = {k:v for k,v in os.environ.items() if k in ('PATH','LANG','LC_ALL','PYTHONUTF8','PYTHONUNBUFFERED','VIRTUAL_ENV','PYTHONPATH')}
+                env['EXPANSE_WORKER_TOKEN'] = secrets.token_urlsafe(32)
+                with socket.socket(socket.AF_INET,socket.SOCK_STREAM) as listener:
+                    listener.bind(('127.0.0.1',0))
+                    listener.listen(16)
+                    worker.url = f'http://127.0.0.1:{listener.getsockname()[1]}'
+                    worker.process = await asyncio.create_subprocess_exec(sys.executable,str(ROOT/'private_game.py'),
+                        '--fd',str(listener.fileno()),'--name',self.auth.records[key][0],
+                        '--world',str(bundle/'games'/slug),'--directory',str(save),
+                        *template_args,env=env,pass_fds=(listener.fileno(),))
+                worker.client = ClientSession(headers={'X-Worker-Key':env['EXPANSE_WORKER_TOKEN']},timeout=ClientTimeout(total=150))
+                deadline = time.monotonic() + 120
+                while time.monotonic() < deadline:
+                    if worker.process.returncode is not None:
+                        raise web.HTTPServiceUnavailable(text='Expanse could not start. Check the service logs.')
+                    try:
+                        async with worker.client.get(worker.url+'/api/config',timeout=1) as answer:
+                            if answer.status==200:
+                                self.selected_games[key] = ident
+                                return worker
+                    except (OSError,asyncio.TimeoutError):
+                        pass
+                    await asyncio.sleep(.1)
+                raise web.HTTPServiceUnavailable(text='The game took too long to start.')
+            except BaseException:
+                await self.stop(key, ident)
+                raise
 
     async def landing(self,req):
         key = self.identity(req)
@@ -242,9 +279,12 @@ class Service:
                 contents += '<small>Game file '+ident[:12]+'</small>'
             contents+='<form action="/enter" method="post"><input type="hidden" name="game" value="'+ident+'"><button>Play Expanse</button></form>'
             contents+='<a href="/world.expanse?game='+ident+'" download>Download imported world</a>'
+            if key==self.auth.owner:
+                contents+=' · <a href="/editor?game='+ident+'">Edit a draft</a>'
             if self.has_save(key,ident):
                 contents+=' · <a href="/manual-saves.zip?game='+ident+'" download>Download your manual saves</a>'
         if key==self.auth.owner:
+            contents += '<p><a href="/playtest">Playtest reports</a></p>'
             contents += ('<h2>Import a game</h2><form action="/world/import" enctype="multipart/form-data" method="post"><label>'
                          'Game file<input name="world" type="file" accept=".expanse" required></label>'
                          '<button>Import world</button></form>')
@@ -270,8 +310,8 @@ class Service:
         key = req['key']
         self.auth.sessions.pop(req.cookies[self.cookie],None)
         async with self.lock:
-            if self.active==key:
-                await self.stop()
+            await self.stop(key)
+            self.selected_games.pop(key, None)
         response = web.HTTPSeeOther('/')
         response.del_cookie(self.cookie,path='/')
         return response
@@ -279,13 +319,13 @@ class Service:
     async def enter(self,req):
         form=await req.post()
         await self.start(req['key'],form.get('game'))
-        return web.HTTPSeeOther('/play')
+        return web.HTTPSeeOther('/play?game='+form['game'])
 
     async def install(self,req):
         if req['key']!=self.auth.owner:
             raise web.HTTPForbidden()
-        if self.importing or (self.socket is not None and not self.socket.closed):
-            raise web.HTTPConflict(text='Close the play tab and let any current import finish first.')
+        if self.importing:
+            raise web.HTTPConflict(text='Let the current import finish first.')
         self.importing = True
         try:
             with tempfile.TemporaryDirectory(dir=self.data) as scratch:
@@ -321,34 +361,150 @@ class Service:
             self.importing=False
         return web.HTTPSeeOther('/')
 
-    def active_client(self,req):
-        if self.active!=req['key'] or not self.client or self.client.closed or self.process.returncode is not None:
+    def active_worker(self,req):
+        key = req['key']
+        ident = req.headers.get('X-Expanse-Game') or req.query.get('game') or self.selected_games.get(key)
+        worker = self.workers.get((key, ident))
+        if not worker or not worker.client or worker.client.closed or not worker.process or worker.process.returncode is not None:
             raise web.HTTPConflict(text='Reopen your game from the start page.')
-        return self.client
+        worker.last_used = time.monotonic()
+        return worker
+
+    def active_client(self,req):
+        return self.active_worker(req).client
+
+    async def editor_service(self, req, ident=None):
+        if req['key'] != self.auth.owner:
+            raise web.HTTPForbidden(text='Only the signed-in owner can open world drafts.')
+        ident = ident or req.headers.get('X-Expanse-Editor') or req.query.get('editor_game')
+        bundle = self.bundle(ident)
+        info = json.loads((bundle/'info.json').read_bytes())
+        source = bundle/'games'/info['slug']
+        if source.is_symlink() or not source.is_dir() or not source.resolve().is_relative_to(bundle.resolve()):
+            raise ValueError('Imported world template is unavailable.')
+        async with self.editor_lock:
+            if ident not in self.editors:
+                from server.editor_service import EditorService
+                self.editors[ident] = await asyncio.to_thread(EditorService, self.data/'drafts'/ident, source, ident)
+            return self.editors[ident]
+
+    async def editor(self, req):
+        await self.editor_service(req, req.query.get('game'))
+        return web.FileResponse(ROOT/'web'/'index.html')
+
+    async def editor_api(self, req):
+        editor = await self.editor_service(req)
+        body = None
+        if req.method == 'POST':
+            if req.content_type != 'application/json':
+                raise web.HTTPBadRequest(text='Creator requests require JSON.')
+            raw = await req.read()
+            if len(raw) > LIMIT:
+                raise web.HTTPRequestEntityTooLarge(max_size=LIMIT, actual_size=len(raw))
+            def bad_constant(value):
+                raise ValueError('Invalid JSON constant: '+value)
+            body = json.loads(raw, parse_constant=bad_constant)
+        path = req.path.removeprefix('/api/editor/')
+        headers = {name:req.headers.get(name,'') for name in ('Origin','Host','Content-Type')}
+        reply = await asyncio.to_thread(editor.dispatch, req.method, path, body, dict(req.query), headers)
+        if reply.path is not None:
+            headers = {'Content-Type':reply.mime or 'application/octet-stream'}
+            if reply.download:
+                headers['Content-Disposition'] = "attachment; filename*=UTF-8''" + quote(reply.download, safe='')
+            return web.FileResponse(reply.path, status=reply.status, headers=headers)
+        return web.json_response(reply.data, status=reply.status)
+
+    async def playtest_report(self, req):
+        if req['key'] != self.auth.owner:
+            raise web.HTTPForbidden(text='Only the signed-in owner can view playtest reports.')
+        from server.playtest_telemetry import owner_report, report_html
+        worlds = self.catalogue()
+        sources = []
+        for account, (name, _, _) in self.auth.records.items():
+            for ident, info in worlds:
+                folder = self.folder(account, ident)
+                if folder.is_dir() and not folder.is_symlink():
+                    sources.append({'directory':folder, 'account':name, 'game':info['slug']+' · '+ident[:12]})
+        report = await asyncio.to_thread(owner_report, sources, limit=200)
+        if req.path == '/api/playtest/report':
+            return web.json_response(report)
+        return web.Response(text=report_html(report), content_type='text/html')
 
     async def api(self,req):
-        client=self.active_client(req)
+        if req.path == '/api/playtest/report':
+            return await self.playtest_report(req)
+        if req.path == '/api/editor' or req.path.startswith('/api/editor/'):
+            return await self.editor_api(req)
+        if req.headers.get('X-Expanse-Editor') or req.query.get('editor_game'):
+            editor = await self.editor_service(req)
+            if req.method == 'GET' and req.path == '/api/config':
+                from engine.build_info import BUILD
+                return web.json_response(dict(mode='edit', running_game=editor.slug, title='Expanse Creator', build=BUILD,
+                    render_web=True, editor_only=True, editor_enabled=True, editor_reason='enabled',
+                    character_name=self.auth.records[req['key']][0], can_manage_server=False, game_status='editor',
+                    editor_url='/editor?game='+editor.bundle_id))
+            if req.method == 'GET' and req.path == '/api/games':
+                return web.json_response(await asyncio.to_thread(editor.games))
+            return web.json_response({'error':'This draft session does not run a game or open player saves.'}, status=409)
+        worker=self.active_worker(req)
+        client=worker.client
         body=await req.read()
         if len(body)>65536:
             raise web.HTTPBadRequest()
-        async with client.request(req.method,self.worker_url+req.path_qs,data=body,
+        async with client.request(req.method,worker.url+req.path_qs,data=body,
                                   headers={'Content-Type':'application/json'}) as reply:
-            return web.Response(body=await reply.read(),status=reply.status,content_type=reply.content_type)
+            if req.path == '/api/config' and reply.status == 200:
+                config = await reply.json()
+                owner = req['key'] == self.auth.owner
+                config.update(editor_enabled=owner, editor_reason='enabled' if owner else 'owner_only', editor_only=False, render_game=worker.game)
+                if owner:
+                    config['editor_url'] = '/editor?game='+worker.game
+                return web.json_response(config)
+            raw = await reply.read()
+            if req.path == '/api/save-slots/open' and reply.status == 200:
+                restored = json.loads(raw)
+                if restored.get('redirect') == '/play':
+                    restored['redirect'] = '/play?game='+worker.game
+                return web.json_response(restored)
+            response = web.Response(body=raw,status=reply.status,content_type=reply.content_type)
+        if req.path == '/api/playtest/feedback' and response.status == 200 and worker.saved_exit:
+            worker.feedback_complete = True
+            if worker.socket is None or worker.socket.closed:
+                async with self.lock:
+                    if self.workers.get((worker.account,worker.game)) is worker:
+                        await self.stop(worker.account,worker.game)
+        return response
 
     async def socket_route(self,req):
-        client=self.active_client(req)
-        if self.socket is not None and not self.socket.closed:
+        worker=self.active_worker(req)
+        client=worker.client
+        if worker.socket is not None and not worker.socket.closed:
             raise web.HTTPConflict(text='Close the existing play tab first.')
         ws=web.WebSocketResponse(max_msg_size=65536,heartbeat=30)
-        self.socket=ws
-        self.socket_token=req.cookies[self.cookie]
+        worker.socket=ws
+        worker.socket_token=req.cookies[self.cookie]
+        worker.saved_exit=False
+        worker.feedback_complete=False
+        worker.discarded_exit=False
         try:
-            async with client.ws_connect(self.worker_url+'/ws',max_msg_size=32*1024*1024) as game:
+            async with client.ws_connect(worker.url+'/ws',max_msg_size=32*1024*1024) as game:
                 await ws.prepare(req)
                 async def copy(source,dest):
                     async for msg in source:
                         if msg.type!=WSMsgType.TEXT or self.identity(req)!=req['key']:
                             break
+                        worker.last_used = time.monotonic()
+                        if source is game:
+                            try:
+                                packet = json.loads(msg.data)
+                                if isinstance(packet,dict) and packet.get('type')=='saved_exit' and packet.get('checkpoint_saved') is True and not packet.get('save_failed'):
+                                    worker.saved_exit=True
+                                    feedback = packet.get('playtest')
+                                    worker.feedback_complete = not (isinstance(feedback,dict) and feedback.get('questionnaire') is True)
+                                if isinstance(packet,dict) and packet.get('type')=='saved_exit' and packet.get('discarded_exit') is True:
+                                    worker.discarded_exit=True
+                            except ValueError:
+                                pass
                         await dest.send_str(msg.data)
                 tasks=[asyncio.create_task(copy(ws,game)),asyncio.create_task(copy(game,ws))]
                 try:
@@ -357,8 +513,13 @@ class Service:
                     for t in tasks:t.cancel()
                     await asyncio.gather(*tasks,return_exceptions=True)
         finally:
-            if self.socket is ws:
-                self.socket=self.socket_token=None
+            if worker.socket is ws:
+                worker.socket=worker.socket_token=None
+                worker.last_used=time.monotonic()
+                if worker.discarded_exit or (worker.saved_exit and worker.feedback_complete):
+                    async with self.lock:
+                        if self.workers.get((worker.account,worker.game)) is worker:
+                            await self.stop(worker.account,worker.game)
         return ws
 
     async def backup(self,req):
@@ -368,10 +529,11 @@ class Service:
         if not self.has_save(key,ident):
             raise web.HTTPNotFound(text='Make a manual save in the game first.')
         async with self.lock:
-            if self.active==key:
-                if self.socket is not None and not self.socket.closed:
+            worker=self.workers.get((key,ident))
+            if worker:
+                if worker.socket is not None and not worker.socket.closed:
                     raise web.HTTPConflict(text='Close the play tab, then download your saved game.')
-                await self.stop()
+                await self.stop(key,ident)
             folder=self.folder(key,ident)
             with tempfile.TemporaryDirectory() as tmp:
                 backup_path=Path(tmp)/'saves.zip'
@@ -393,8 +555,15 @@ class Service:
         async def monitor():
             while True:
                 await asyncio.sleep(3)
-                if self.socket is not None and self.socket_token and not self.auth.lookup(self.socket_token):
-                    await self.socket.close(code=1008,message=b'Sign in again.')
+                for worker in list(self.workers.values()):
+                    if worker.socket is not None and worker.socket_token and not self.auth.lookup(worker.socket_token):
+                        await worker.socket.close(code=1008,message=b'Sign in again.')
+                    # A completed manual Save & quit can release an abandoned
+                    # questionnaire after 15 minutes. Unsaved games are retained.
+                    if worker.saved_exit and worker.socket is None and time.monotonic()-worker.last_used>900:
+                        async with self.lock:
+                            if self.workers.get((worker.account,worker.game)) is worker:
+                                await self.stop(worker.account,worker.game)
         timer=asyncio.create_task(monitor())
         yield
         timer.cancel()
@@ -422,6 +591,8 @@ def make_app():
         try:
             return await handler(req)
         except (ValueError,zipfile.BadZipFile) as exc:
+            if req.path.startswith('/api/'):
+                return web.json_response({'error':str(exc)},status=400)
             return page('Expanse',escape(str(exc))+'<p><a href="/">Back</a></p>',400)
     app=web.Application(middlewares=[guard],client_max_size=LIMIT+65536)
     async def prepare(req,resp):
@@ -446,6 +617,8 @@ def make_app():
     app.add_routes([web.get('/healthz',health),web.get('/',service.landing),web.get('/mode.html',service.landing),
                     web.post('/login',service.login),web.post('/logout',service.logout),web.post('/enter',service.enter),
                     web.post('/world/import',service.install),web.get('/world.expanse',world),
+                    web.get('/editor',service.editor),
+                    web.get('/playtest',service.playtest_report),
                     web.get('/manual-saves.zip',service.backup),web.get('/play',play),web.get('/ws',service.socket_route),
                     web.get('/api/{path:.*}',service.api),web.post('/api/{path:.*}',service.api),web.get('/{filename}',asset)])
     return app

@@ -12,16 +12,19 @@ from aiohttp import web, WSMsgType
 from engine import loader, persistence
 from engine.build_info import BUILD
 from engine.character_style import choices, class_accents
-from server import game_server, save_slots
+from server import game_server, save_slots, playtest_telemetry
 
 
 class PlayerSocket:
-    def __init__(self, websocket):
+    def __init__(self, websocket, telemetry=None):
         self.socket = websocket
         self.remote_address = None
+        self.telemetry = telemetry
 
     async def send(self, message):
         if not self.socket.closed:
+            if self.telemetry:
+                message = self.telemetry.safely('packet', message) or message
             await self.socket.send_str(message)
 
     async def close(self, code=1000, reason=''):
@@ -31,7 +34,13 @@ class PlayerSocket:
         async for message in self.socket:
             if message.type != WSMsgType.TEXT:
                 break
-            yield message.data
+            if self.telemetry:
+                self.telemetry.safely('before', message.data)
+            try:
+                yield message.data
+            finally:
+                if self.telemetry:
+                    self.telemetry.safely('after')
 
 
 class Game:
@@ -47,6 +56,7 @@ class Game:
         persistence.DB_PATH = self.directory / 'world.db'
         game_server.SAVE_DIR = self.directory
         self.server = game_server.GameServer(mode='single')
+        self.telemetry = playtest_telemetry.open_collector(self.server, self.directory, self.slug)
         self.socket = None
         self.play_task = None
 
@@ -59,8 +69,9 @@ class Game:
         self.play_task = asyncio.current_task()
         timer = asyncio.create_task(self.server.lifecycle_loop())
         try:
-            await self.server.handle(PlayerSocket(ws))
+            await self.server.handle(PlayerSocket(ws, self.telemetry))
         finally:
+            self.telemetry.safely('finish', 'disconnected')
             timer.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await timer
@@ -75,7 +86,14 @@ class Game:
         if action == 'config':
             result = dict(mode='single', running_game=self.slug, title='Expanse',
                           build=BUILD, render_web=True, character_name=self.name,
-                          can_manage_server=False, editor_enabled=False, game_status='ready')
+                          can_manage_server=False, editor_enabled=False, game_status='ready',
+                          playtest=self.telemetry.configuration())
+        elif action == 'playtest/status':
+            result = self.telemetry.status()
+        elif action == 'playtest/activity':
+            result = self.telemetry.activity(body)
+        elif action == 'playtest/feedback':
+            result = self.telemetry.store.feedback(body)
         elif action == 'games':
             result = {'games':[{'slug':self.slug,'name':self.server.world.metadata.get('name', self.slug)}]}
         elif action == 'character/options':
@@ -117,6 +135,7 @@ class Game:
             self.server.db.close()
             self.server.checkpoint_db.close()
             self.server = game_server.GameServer(mode='single', initial_slot=initial)
+            self.telemetry.server = self.server
             result = dict(redirect='/play')
         else:
             raise web.HTTPNotFound()
@@ -130,6 +149,8 @@ class Game:
 async def handle_errors(request, handler):
     try:
         return await handler(request)
+    except playtest_telemetry.UnavailableError as exc:
+        return web.json_response({'error':str(exc),'playtest_unavailable':True},status=503)
     except (ValueError, KeyError, TypeError) as exc:
         return web.json_response({'error':str(exc)},status=400)
 
@@ -144,9 +165,10 @@ def make_app(world, directory, name, update_templates=()):
         return await handler(req)
     app = web.Application(middlewares=[private,handle_errors],client_max_size=65536)
     app.router.add_get('/ws',game.play)
-    for path in ('config','games','character/options','character/saves','application/saves'):
+    for path in ('config','games','character/options','character/saves','application/saves','playtest/status'):
         app.router.add_get('/api/'+path,game.api)
-    for path in ('character/create','character/load','character/delete','save-slots/open','save-slots/delete'):
+    for path in ('character/create','character/load','character/delete','save-slots/open','save-slots/delete',
+                 'playtest/activity','playtest/feedback'):
         app.router.add_post('/api/'+path,game.api)
     return app
 
