@@ -587,6 +587,8 @@ class Editor:
         metadata=json.loads(metadata_path.read_text()) if metadata_path.exists() else {}
         from engine import travel_pacing
         issues.extend(travel_pacing.validate(metadata))
+        from engine import singing
+        issues.extend(singing.validate(self.data,metadata))
         authored_rules = {}
         try:
             from engine.world_package import rules
