@@ -368,6 +368,7 @@ function connect() {
   };
   ws.onclose = (event) => {
     if(connection!==ws)return;
+    window.ExpanseSoundscape?.disconnect();
     window.ExpanseResidentWatch?.close();
     window.ExpanseGazette?.disconnect();
     window.ExpanseChronicles?.close();
@@ -393,6 +394,7 @@ function connect() {
     if(connection!==ws)return;
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
+    if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit'||(msg.type==='system'&&/^Resumed as /.test(msg.text||'')))window.ExpanseSoundscape?.disconnect();
     window.ExpanseSourceQuests?.receive(msg);
     if(msg.type!=='map'&&window.ExpanseInterfaceTour?.receive(msg))return;
     if(window.ExpansePlaytest?.receive(msg))return;
@@ -1917,8 +1919,8 @@ updateToolbar();
     </div>
   </div>
 </div>
-<script src="/living-defaults.js?v=1.9.11"></script>
-<script src="/living-editor.js?v=1.9.11"></script>
+<script src="/living-defaults.js?v=1.9.12"></script>
+<script src="/living-editor.js?v=1.9.12"></script>
 <script src="/geology-editor.js"></script>
 <link rel="stylesheet" href="/editor-files.css">
 <script src="/editor-files.js"></script>
@@ -1945,7 +1947,7 @@ updateToolbar();
 <script src="/dock-layout.js?v=1.9.9"></script>
 <link rel="stylesheet" href="/visual-map.css?v=1.9.8">
 <script src="/fighting-poses.js"></script>
-<script src="/world-assets.js"></script><script src="/world-audio.js"></script><script src="/character-sheets.js?v=1.9.10"></script>
+<script src="/world-assets.js"></script><script src="/world-audio.js?v=1.9.12"></script><script src="/character-sheets.js?v=1.9.10"></script>
 <script src="/sky-weather.js"></script>
 <script src="/visual-map.js?v=1.9.10"></script><script src="/travel-viewport.js"></script><script src="/country-view.js"></script>
 <link rel="stylesheet" href="/world-atlas.css?v=1.9.8">
@@ -1987,7 +1989,7 @@ window.expansePixelRequest=async(body)=>{if(!ed.gameSlug)throw Error('Select a C
 <link rel="stylesheet" href="/game-settings.css">
 <script src="/game-settings.js"></script>
 <link rel="stylesheet" href="/creator-guide.css">
-<script src="/creator-guide-data.js?v=1.9.11"></script>
+<script src="/creator-guide-data.js?v=1.9.12"></script>
 <script src="/creator-guide.js"></script>
 <link rel="stylesheet" href="/creator-assist.css">
 <script src="/creator-assist.js"></script>
@@ -1997,9 +1999,9 @@ window.expansePixelRequest=async(body)=>{if(!ed.gameSlug)throw Error('Select a C
 <script src="/play-windows.js"></script>
 <link rel="stylesheet" href="/play-windows.css">
 <link rel="stylesheet" href="/mobile-layout.css">
-<script src="/street-actions.js?v=1.9.8"></script><script src="/pet-union.js"></script><script src="/soundscape.js"></script><script src="/music-editor.js"></script>
+<script src="/street-actions.js?v=1.9.8"></script><script src="/pet-union.js"></script><script src="/soundscape.js?v=1.9.12"></script><script src="/music-editor.js"></script>
 <script src="/local-quests.js"></script>
-<link rel="stylesheet" href="/interface-tour.css?v=1.9.9">
-<script src="/interface-tour.js?v=1.9.9"></script>
+<link rel="stylesheet" href="/interface-tour.css?v=1.9.13">
+<script src="/interface-tour.js?v=1.9.13"></script>
 </body>
 </html>

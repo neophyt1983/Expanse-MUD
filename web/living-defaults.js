@@ -30,3 +30,8 @@ window.LIVING_DEFAULTS.quest.interface_tour={};
 // Optional chain metadata is authored in the game file, never inferred on load.
 window.LIVING_DEFAULTS.quest.quest_chain={};
 window.LIVING_DEFAULTS.quest.quest_split_migration={};
+// Singing and instruments are optional authored game content, never templates.
+window.LIVING_DEFAULTS.race.singing={};
+window.LIVING_DEFAULTS.npc.singing={};
+window.LIVING_DEFAULTS.item.song={};
+window.LIVING_DEFAULTS.item.instrument={};

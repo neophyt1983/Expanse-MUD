@@ -1,6 +1,12 @@
 /* A compact, nonmodal coach card; the game and highlighted control stay usable. */
-#interface-tour{position:fixed;inset:auto;margin:0;box-sizing:border-box;max-width:calc(100vw - 20px);padding:14px;border:1px solid #88c5ad;border-radius:10px;background:#182923f5;color:#edf4ef;box-shadow:0 6px 24px #0008;font:15px/1.45 system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;z-index:2147483001;white-space:normal;overflow-wrap:anywhere}
-#interface-tour-content{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+#interface-tour{position:fixed;inset:auto;margin:0;box-sizing:border-box;min-width:0;min-height:0;max-width:none;padding:0;border:1px solid #88c5ad;border-radius:10px;background:#182923f5;color:#edf4ef;box-shadow:0 6px 24px #0008;font:15px/1.45 system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:contain;z-index:2147483001;white-space:normal;overflow-wrap:anywhere}
+#interface-tour .interface-tour-titlebar{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;gap:10px;min-width:0;min-height:44px;padding:8px 12px;border-bottom:1px solid #49665a;background:#232b2a;color:#d6e6df;font:600 14px/1.3 system-ui,sans-serif;cursor:grab;touch-action:none;user-select:none}
+#interface-tour-titlebar>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#interface-tour .interface-tour-titlebar.is-dragging{cursor:grabbing}
+#interface-tour-titlebar:focus-visible{outline:3px solid #f4dc92;outline-offset:-4px}
+#interface-tour-content{box-sizing:border-box;flex:1 1 auto;min-width:0;min-height:0;padding:4px 14px 0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+#interface-tour[data-scroll=card]{overflow:auto}
+#interface-tour[data-scroll=card] #interface-tour-content{flex:0 0 auto;max-height:none;overflow:visible;scrollbar-gutter:auto}
 #interface-tour[hidden],#interface-tour-highlight[hidden]{display:none!important}
 #interface-tour::backdrop,#interface-tour-highlight::backdrop{background:transparent;pointer-events:none}
 #interface-tour h2{margin:2px 0 8px;padding:0;font:600 18px/1.25 system-ui,sans-serif;color:#f3fff7;white-space:normal}
@@ -9,7 +15,7 @@
 #interface-tour-status:empty{display:none}
 #interface-tour-status{font-size:13px;color:#f2d9a4}
 .interface-tour-buttons,.interface-tour-choices{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
-.interface-tour-buttons{flex:0 0 auto}
+#interface-tour .interface-tour-buttons{box-sizing:border-box;flex:0 0 auto;min-width:0;margin:0;padding:10px 14px 14px}
 #interface-tour button{box-sizing:border-box;min-height:44px;min-width:44px;padding:8px 12px;border:1px solid #6f9d8a;border-radius:5px;background:#223b31;color:#eef8f2;font:inherit;white-space:normal;cursor:pointer;touch-action:manipulation}
 #interface-tour button:focus-visible,#interface-guide-open:focus-visible{outline:3px solid #f4dc92;outline-offset:2px}
 #interface-tour button:disabled{opacity:.65;cursor:wait}
@@ -38,4 +44,4 @@
 #quest-offers-status:empty{display:none}
 #quest-offers[data-guided=true] .source-quest-offer p{max-height:180px;max-height:min(24dvh,180px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:6px}
 #quest-offers[data-guided=true] .source-quest-accept{position:sticky;bottom:0;z-index:1;box-shadow:0 -5px 10px #1c2028}
-@media(max-width:680px){#interface-tour{font-size:15px;padding:11px}#interface-tour h2{font-size:16px}.interface-tour-buttons{gap:5px}#interface-tour button{padding:7px 10px}}
+@media(max-width:680px){#interface-tour{font-size:15px}#interface-tour-content{padding-left:11px;padding-right:11px}#interface-tour h2{font-size:16px}#interface-tour .interface-tour-buttons{gap:5px;padding:10px 11px 11px}#interface-tour button{padding:7px 10px}}

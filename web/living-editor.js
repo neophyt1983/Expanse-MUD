@@ -34,6 +34,112 @@
  function el(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
  function picker(type,val){const s=el('select');s.append(new Option('Choose…',''));for(const o of ed.entriesCache[type]||[])s.append(new Option(o.name||o.id,o.id));if(val&&!Array.from(s.options).some(o=>o.value===val))s.append(new Option(val,val));s.value=val||'';return s;}
  function jsonField(key,val){const box=el('div'),hint=el('small','Advanced structured field: valid JSON is required. Changes apply only after Save field.'),ta=el('textarea');ta.dataset.creatorJson=key;ta.dataset.creatorType=ed.type;ta.dataset.creatorWorld=ed.gameSlug;ta.dataset.creatorEntry=String(ed.entryId);ta.dataset.creatorVersion=String(ed.selectionVersion||0);ta.rows=6;ta.value=JSON.stringify(val??{},null,2);const b=el('button','Save field');b.type='button';b.className='ed-btn';b.onclick=()=>{if(ta.dataset.creatorWorld!==ed.gameSlug||ta.dataset.creatorType!==ed.type||ta.dataset.creatorEntry!==String(ed.entryId)||ta.dataset.creatorVersion!==String(ed.selectionVersion||0)){setStatus('Selection changed. Reopen this JSON field before staging it.','warn');return;}try{const v=JSON.parse(ta.value);saveField(key,v);}catch(e){setStatus('Invalid JSON: '+e.message,'warn');}};box.append(hint,ta,b);return box;}
+ function singingField(key,val){
+  const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x),strings=x=>Array.isArray(x)&&x.every(v=>typeof v==='string');
+  const type=ed.type,source=val??{},kind=key==='song'?'song':key==='instrument'?'instrument':type;
+  let supported=object(source)&&(source.version===undefined||source.version===1);
+  for(const name of ['tradition','style','voice','tag'])if(source?.[name]!==undefined&&typeof source[name]!=='string')supported=false;
+  for(const name of ['songs','preferred_instruments','contexts'])if(source?.[name]!==undefined&&!strings(source[name]))supported=false;
+  if(Array.isArray(source?.contexts)&&source.contexts.some(context=>!['work','leisure','performance'].includes(context)))supported=false;
+  if(source?.respond!==undefined&&typeof source.respond!=='boolean')supported=false;
+  if(source?.interval_minutes!==undefined&&(!Number.isInteger(source.interval_minutes)||source.interval_minutes<1||source.interval_minutes>1500))supported=false;
+  if(source?.voices!==undefined&&(!Array.isArray(source.voices)||source.voices.some(v=>!object(v)||typeof v.id!=='string'||typeof v.label!=='string'||(v.transpose!==undefined&&!Number.isInteger(v.transpose)))))supported=false;
+  if(source?.form!==undefined&&!['solo','call_response','relay'].includes(source.form))supported=false;
+  if(source?.verses!==undefined&&(!Array.isArray(source.verses)||source.verses.some(v=>!object(v)||typeof v.call!=='string'||(v.response!==undefined&&typeof v.response!=='string')||(v.relay!==undefined&&!strings(v.relay)))))supported=false;
+  if(Array.isArray(source?.verses)&&source.verses.some(v=>object(v)&&(((source.form||'solo')==='solo'&&(v.response!==undefined||v.relay!==undefined))||(source.form==='call_response'&&v.relay!==undefined)||(source.form==='relay'&&(v.response!==undefined||(Array.isArray(v.relay)&&v.relay.length>3))))))supported=false;
+  if(source?.score!==undefined&&!object(source.score))supported=false;
+  if(!supported){const raw=jsonField(key,val);raw.prepend(el('p','This singing record needs advanced editing. Its original JSON is preserved. Supported singing, song and instrument fields are described in the Creator guide; Validate checks their meanings and references.'));return raw;}
+  const draft=structuredClone(source),context={world:ed.gameSlug,type:ed.type,id:String(ed.entryId),version:String(ed.selectionVersion||0)};
+  const box=el('div'),section=el('fieldset'),fields=el('fieldset');box.className='singing-editor';section.style.minWidth=fields.style.minWidth='0';box.append(section);
+  const title=kind==='song'?'Songbook':kind==='instrument'?'Musical instrument':kind==='race'?'Singing tradition and voices':'Individual singing';section.append(el('legend',title));
+  const enabled=el('input');enabled.type='checkbox';enabled.checked=Object.keys(draft).length>0;enabled.dataset.musicField='enabled';
+  const enabledLabel=el('label',' Include '+title.toLowerCase());enabledLabel.prepend(enabled);section.append(enabledLabel,fields);
+  const changed=()=>section.dispatchEvent(new Event('input',{bubbles:true}));
+  const button=(parent,label,action)=>{const b=el('button',label);b.type='button';b.className='ed-btn';b.onclick=action;parent.append(b);return b;};
+  function field(parent,label,name,value='',tag='input'){
+   const row=el('label',label),input=el(tag);row.style.display='block';row.style.margin='8px 0';input.style.display='block';input.style.width='100%';input.style.boxSizing='border-box';input.style.minWidth='0';
+   if(tag==='input')input.type='text';if(tag==='textarea')input.rows=3;input.value=value;input.dataset.musicField=name;input.setAttribute('aria-label',label);row.append(input);parent.append(row);return input;
+  }
+  function numberField(parent,label,name,value,min,max){const input=field(parent,label,name,value??'');input.type='number';input.min=min;input.max=max;input.step=1;return input;}
+  const lines=input=>input.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+  function set(value,name,next,empty=''){if(Object.hasOwn(value,name)||JSON.stringify(next)!==JSON.stringify(empty))value[name]=next;}
+  function songList(){
+   const input=field(fields,'Known songbook item IDs (one per line)','songs',(draft.songs||[]).join('\n'),'textarea');
+   const select=picker('item','');select.dataset.musicField='add_song';select.setAttribute('aria-label','Existing songbook item');select.style.maxWidth='100%';fields.append(select);
+   button(fields,'Append selected songbook',()=>{if(!select.value)return;const ids=lines(input);if(ids.includes(select.value)){setStatus('That item is already in this repertoire.','warn');return;}input.value=[...ids,select.value].join('\n');input.dispatchEvent(new Event('input',{bubbles:true}));});
+   fields.append(el('small','Choose a readable item with its own song field. Any race may learn another songbook by reading it. Validate checks these IDs.'));return input;
+  }
+  let collect;
+  if(kind==='race'){
+   fields.append(el('p','Author this tradition here. Each person receives a stable individual voice from this pool, independent of sex or gender. Leaving the pool empty does not borrow another tradition.'));
+   const tradition=field(fields,'Tradition ID (optional)','tradition',draft.tradition||''),style=field(fields,'Performance style','style',draft.style||'','textarea'),songs=songList();
+   const instruments=field(fields,'Preferred instrument tags (one per line)','preferred_instruments',(draft.preferred_instruments||[]).join('\n'),'textarea');
+   const voiceHost=el('div');fields.append(voiceHost);const voices=(draft.voices||[]).map(v=>({...v}));let voiceRows=[];
+   function drawVoices(){voiceHost.replaceChildren();voiceRows=voices.map((voice,index)=>{
+    const row=el('fieldset');row.style.minWidth='0';row.dataset.musicVoice=String(index);row.append(el('legend','Voice '+(index+1)));voiceHost.append(row);
+    const id=field(row,'Stable voice ID','voice_id',voice.id),label=field(row,'Voice label','voice_label',voice.label),transpose=numberField(row,'Semitone transposition (−36 to 36)','transpose',voice.transpose??0,-36,36);
+    id.oninput=()=>{voice.id=id.value;};label.oninput=()=>{voice.label=label.value;};transpose.oninput=()=>{voice.transpose=transpose.value===''?null:Number(transpose.value);};
+    button(row,'Remove voice',()=>{voices.splice(index,1);drawVoices();changed();});return {voice,id,label,transpose};
+   });}
+   drawVoices();button(fields,'Add voice',()=>{voices.push({id:'',label:'',transpose:0});drawVoices();changed();});
+   fields.append(el('small','Transpose shifts the authored voice notes by semitones. Validate checks every song against every available voice; the engine never clamps an out-of-range melody.'));
+   collect=value=>{
+    const pool=voiceRows.map(({voice,id,label,transpose})=>{const result={...voice,id:id.value,label:label.value};set(result,'transpose',Number(transpose.value),0);return result;});
+    if(pool.some((v,i)=>!v.id.trim()||!v.label.trim()||voiceRows[i].transpose.value===''||!Number.isInteger(v.transpose??0)||(v.transpose??0)<-36||(v.transpose??0)>36)||new Set(pool.map(v=>v.id)).size!==pool.length)throw Error('Use unique voice IDs, nonempty labels and integer transpositions from −36 to 36.');
+    set(value,'tradition',tradition.value);set(value,'style',style.value);set(value,'songs',lines(songs),[]);set(value,'preferred_instruments',lines(instruments),[]);set(value,'voices',pool,[]);
+   };
+  }else if(kind==='npc'){
+   fields.append(el('p','Repertoire adds to this person’s race songs. Only selected contexts allow spontaneous singing. Responses and relays require an actual local, awake, cooperative NPC who knows the song. Other players never answer automatically.'));
+   const voice=field(fields,'Voice ID from this person’s race pool (optional)','voice',draft.voice||''),songs=songList(),interval=numberField(fields,'Minutes between spontaneous performances (blank uses world setting)','interval_minutes',draft.interval_minutes,1,1500);
+   const contexts={};for(const name of ['work','leisure','performance']){const label=el('label',' Sing during '+name),input=el('input');input.type='checkbox';input.checked=(draft.contexts||[]).includes(name);input.dataset.musicContext=name;label.prepend(input);label.style.display='block';fields.append(label);contexts[name]=input;}
+   const respond=el('input');respond.type='checkbox';respond.checked=draft.respond===true;respond.dataset.musicField='respond';const responseLabel=el('label',' Willing to answer or pass along a known song');responseLabel.prepend(respond);fields.append(responseLabel);
+   collect=value=>{
+    if(interval.value!==''&&(!Number.isInteger(Number(interval.value))||Number(interval.value)<1||Number(interval.value)>1500))throw Error('The singing interval must be a whole number from 1 to 1500 minutes, or blank.');
+    const selected=(draft.contexts||[]).filter(name=>contexts[name].checked);for(const name of Object.keys(contexts))if(contexts[name].checked&&!selected.includes(name))selected.push(name);
+    set(value,'voice',voice.value);set(value,'songs',lines(songs),[]);set(value,'contexts',selected,[]);set(value,'respond',respond.checked,false);if(interval.value!=='')value.interval_minutes=Number(interval.value);else delete value.interval_minutes;
+   };
+  }else if(kind==='instrument'){
+   fields.append(el('p','This tag identifies a real playable instrument. Accompaniment is available only when an actual participant carries an item with the score’s matching tag. Singing never creates or replenishes items.'));
+   const tag=field(fields,'Instrument tag','tag',draft.tag||'');
+   fields.append(el('small','Use normal item descriptions, recipes, ingredients and workshop stock to author construction and trade. Set producers’ recipes, work location and finite supplies separately.'));
+   collect=value=>{if(!tag.value.trim())throw Error('Enter the instrument tag used by accompaniment tracks.');value.tag=tag.value;};
+  }else{
+   fields.append(el('p','Use this field on an ordinary readable item. Its name, read_text, publication and physical location remain separate. One authored verse is performed at a time; no lyrics or musical style are generated by the engine.'));
+   const tradition=field(fields,'Tradition ID (optional)','tradition',draft.tradition||''),style=field(fields,'Performance style','style',draft.style||'','textarea'),form=field(fields,'Song form','form','','select');
+   for(const [id,label] of [['solo','Solo'],['call_response','Call and response'],['relay','Relay between actual singers']])form.append(new Option(label,id));form.value=draft.form||'solo';
+   const verses=(draft.verses||[]).map(v=>structuredClone(v)),verseHost=el('div');fields.append(verseHost);let verseRows=[];
+   function drawVerses(){verseHost.replaceChildren();verseRows=verses.map((verse,index)=>{
+    const row=el('fieldset');row.style.minWidth='0';row.dataset.musicVerse=String(index);row.append(el('legend','Verse '+(index+1)));verseHost.append(row);
+    const call=field(row,'Lead line (up to 240 characters)','call',verse.call||'','textarea');call.maxLength=240;call.oninput=()=>{verse.call=call.value;};let response=null,relay=null;
+    if(form.value==='call_response'){response=field(row,'Answering line (up to 240 characters)','response',verse.response||'','textarea');response.maxLength=240;response.oninput=()=>{verse.response=response.value;};}
+    if(form.value==='relay'){relay=[];for(let next=0;next<3;next++){const line=field(row,'Relay singer '+(next+2)+' line (up to 240 characters; later singers optional)','relay_'+(next+1),verse.relay?.[next]||'','textarea');line.maxLength=240;line.oninput=()=>{verse.relay=relay.map(input=>input.value);while(verse.relay.at(-1)==='')verse.relay.pop();};relay.push(line);}}
+    for(const [label,delta] of [['Move verse up',-1],['Move verse down',1]]){const move=button(row,label,()=>{const next=index+delta;if(next<0||next>=verses.length)return;[verses[index],verses[next]]=[verses[next],verses[index]];drawVerses();changed();});move.disabled=index+delta<0||index+delta>=verses.length;}
+    button(row,'Remove verse',()=>{verses.splice(index,1);drawVerses();changed();});return {verse,call,response,relay};
+   });}
+   drawVerses();form.onchange=()=>{drawVerses();changed();};button(fields,'Add verse',()=>{if(verses.length>=16){setStatus('A song supports at most 16 verses.','warn');return;}verses.push({call:''});drawVerses();changed();});
+   fields.append(el('small','Changing the form removes incompatible response or relay lines only when you Save songbook. Each relay successor needs a different willing local NPC; absent singers and their tracks are omitted.'));
+   const score=field(fields,'Optional synthesized score (JSON; blank means text only)','score',draft.score===undefined?'':JSON.stringify(draft.score,null,2),'textarea');score.rows=12;score.spellcheck=false;
+   fields.append(el('small','Score version 1: tempo 40–240; at most 8 tracks, 128 notes and 20 seconds including releases. Notes are [MIDI pitch, start beats, duration beats, velocity]. Voice tracks use periodic harmonics; accompaniment requires an instrument tag and periodic or noise timbre. Relay tracks also specify participant 1–3. See the Creator guide for gain and envelope ranges. These are musical tones; lyrics remain in Conversation.'));
+   collect=value=>{
+    if(verseRows.length<1||verseRows.length>16)throw Error('A song needs 1–16 authored verses.');
+    const result=verseRows.map(({verse,call,response,relay})=>{
+     const entry={...verse,call:call.value};if(!entry.call.trim()||entry.call.length>240)throw Error('Every verse needs a lead line of 1–240 characters.');
+     if(form.value==='call_response'){entry.response=response.value;delete entry.relay;if(!entry.response.trim()||entry.response.length>240)throw Error('Every call-and-response verse needs an answering line of 1–240 characters.');}
+     else if(form.value==='relay'){entry.relay=relay.map(input=>input.value);while(entry.relay.at(-1)==='')entry.relay.pop();delete entry.response;if(entry.relay.length<1||entry.relay.length>3||entry.relay.some(line=>!line.trim()||line.length>240))throw Error('Every relay verse needs 1–3 consecutive successor lines of 1–240 characters each.');}
+     else{delete entry.response;delete entry.relay;}return entry;
+    });
+    set(value,'tradition',tradition.value);set(value,'style',style.value);set(value,'form',form.value,'solo');value.verses=result;
+    if(score.value.trim()){const parsed=JSON.parse(score.value);if(!object(parsed))throw Error('The score must be a JSON object.');value.score=parsed;}else delete value.score;
+   };
+  }
+  function toggle(){fields.disabled=!enabled.checked;}enabled.onchange=toggle;toggle();
+  section.append(el('p','Save this field stages the selected record only. Then Save draft, Validate and export the complete .expanse file. Unknown fields are preserved; complete records and metadata.singing remain editable in World files.'));
+  const commit=button(section,'Save '+title.toLowerCase(),()=>{
+   if(context.world!==ed.gameSlug||context.type!==ed.type||context.id!==String(ed.entryId)||context.version!==String(ed.selectionVersion||0)){setStatus('Selection changed. Reopen this singing field before saving it.','warn');return;}
+   if(!enabled.checked){saveField(key,{});return;}
+   try{const value=structuredClone(draft);collect(value);if(value.songs&&new Set(value.songs).size!==value.songs.length)throw Error('Choose each songbook only once.');saveField(key,value);}catch(error){setStatus('Cannot stage '+key+': '+error.message,'warn');}
+  });commit.dataset.saveMusicField=key;return box;
+ }
  function questChainField(key,val){
   const object=val&&typeof val==='object'&&!Array.isArray(val);
   if(val&&(!object||(val.version!==undefined&&val.version!==1)||(val.stages!==undefined&&(!Array.isArray(val.stages)||val.stages.some(id=>typeof id!=='string'))))){
@@ -141,6 +247,7 @@
   box.append(el('p','Save interface lesson stages only this field on the selected quest. Validate and export the complete world through the usual Creator workflow.'),commit);return box;
  }
  buildFieldWidget=function(key,kind,val,objId){
+  if((key==='singing'&&['race','npc'].includes(ed.type))||(['song','instrument'].includes(key)&&ed.type==='item'))return singingField(key,val);
   if(key==='quest_chain'&&ed.type==='quest')return questChainField(key,val);
   if(key==='quest_split_migration'&&ed.type==='quest'){
    const box=el('div'),details=el('details');details.append(el('summary','Original quest preserved for existing saves'));
