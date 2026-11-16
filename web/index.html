@@ -394,6 +394,7 @@ function connect() {
     if(connection!==ws)return;
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
+    if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit')window.ExpanseMapEffects?.reset();
     if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit'||(msg.type==='system'&&/^Resumed as /.test(msg.text||'')))window.ExpanseSoundscape?.disconnect();
     window.ExpanseSourceQuests?.receive(msg);
     if(msg.type!=='map'&&window.ExpanseInterfaceTour?.receive(msg))return;
@@ -409,6 +410,7 @@ function connect() {
       if(msg.position_revision<positionRevision)return;
       positionRevision=msg.position_revision;
     }
+    if(window.ExpanseMapEffects?.receive(msg))return;
     if(msg.type==='map')window.ExpanseInterfaceTour?.receive(msg);
     if(window.ExpanseResidentWatch?.receive(msg))return;
     if(msg.event==='character_entered'||msg.type==='saved_exit')window.ExpanseResidentWatch?.close();
@@ -1919,8 +1921,8 @@ updateToolbar();
     </div>
   </div>
 </div>
-<script src="/living-defaults.js?v=1.9.12"></script>
-<script src="/living-editor.js?v=1.9.12"></script>
+<script src="/living-defaults.js?v=1.9.15"></script>
+<script src="/living-editor.js?v=1.9.15"></script>
 <script src="/geology-editor.js"></script>
 <link rel="stylesheet" href="/editor-files.css">
 <script src="/editor-files.js"></script>
@@ -1949,14 +1951,15 @@ updateToolbar();
 <script src="/fighting-poses.js"></script>
 <script src="/world-assets.js"></script><script src="/world-audio.js?v=1.9.12"></script><script src="/character-sheets.js?v=1.9.10"></script>
 <script src="/sky-weather.js"></script>
-<script src="/visual-map.js?v=1.9.10"></script><script src="/travel-viewport.js"></script><script src="/country-view.js"></script>
+<script src="/map-effects.js?v=1.9.15"></script>
+<script src="/visual-map.js?v=1.9.15"></script><script src="/travel-viewport.js"></script><script src="/country-view.js"></script>
 <link rel="stylesheet" href="/world-atlas.css?v=1.9.8">
 <script src="/planet-globe.js"></script>
 <script src="/world-atlas.js?v=1.9.8"></script>
 <link rel="stylesheet" href="/player-lists.css">
-<script src="/player-lists.js?v=1.9.9"></script>
+<script src="/player-lists.js?v=1.9.14"></script>
 <script src="/resident-watch.js"></script>
-<script src="/source-quests.js?v=1.9.9"></script>
+<script src="/source-quests.js?v=1.9.14"></script>
 <script>
 window.expanseAssetSend=body=>{if(!ws||ws.readyState!==1)return false;ws.send(JSON.stringify(body));return true;};
 window.expanseAtlasSend=command=>{if(!ws||ws.readyState!==WebSocket.OPEN)return false;ws.send(JSON.stringify({command}));return true;};
@@ -1967,7 +1970,7 @@ document.getElementById('open-world-atlas').onclick=()=>ExpanseWorldAtlas.openPl
 document.getElementById('open-host-atlas').onclick=()=>ExpanseWorldAtlas.openCreator({slug:ed.gameSlug,room:document.getElementById('map-center').value||ed.entryId||''});
 </script>
 <link rel="stylesheet" href="/player-controls.css">
-<script src="/player-controls.js?v=1.9.8"></script>
+<script src="/player-controls.js?v=1.9.15"></script>
 <link rel="stylesheet" href="/player-calendar.css">
 <script src="/player-calendar.js"></script>
 <link rel="stylesheet" href="/pixel-studio.css">
@@ -1989,7 +1992,7 @@ window.expansePixelRequest=async(body)=>{if(!ed.gameSlug)throw Error('Select a C
 <link rel="stylesheet" href="/game-settings.css">
 <script src="/game-settings.js"></script>
 <link rel="stylesheet" href="/creator-guide.css">
-<script src="/creator-guide-data.js?v=1.9.12"></script>
+<script src="/creator-guide-data.js?v=1.9.15"></script>
 <script src="/creator-guide.js"></script>
 <link rel="stylesheet" href="/creator-assist.css">
 <script src="/creator-assist.js"></script>
@@ -2001,7 +2004,7 @@ window.expansePixelRequest=async(body)=>{if(!ed.gameSlug)throw Error('Select a C
 <link rel="stylesheet" href="/mobile-layout.css">
 <script src="/street-actions.js?v=1.9.8"></script><script src="/pet-union.js"></script><script src="/soundscape.js?v=1.9.12"></script><script src="/music-editor.js"></script>
 <script src="/local-quests.js"></script>
-<link rel="stylesheet" href="/interface-tour.css?v=1.9.13">
-<script src="/interface-tour.js?v=1.9.13"></script>
+<link rel="stylesheet" href="/interface-tour.css?v=1.9.14">
+<script src="/interface-tour.js?v=1.9.14"></script>
 </body>
 </html>

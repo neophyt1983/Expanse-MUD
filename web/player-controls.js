@@ -46,9 +46,9 @@
   if(!held||held.id!==message.movement_id)return;
   if(!message.step_taken||!holdAllowed()){stopHold();return;}
   const intent=held,delay=Math.max(0,(intent.first?350:140)/travelSpeed()-(performance.now()-intent.started));
-  intent.first=false;
+  intent.first=false;intent.origin=window.latestMap?.location?.id;
   repeatTimer=setTimeout(()=>{
-   if(intent!==held||ws!==intent.socket||!holdAllowed()||!move('go '+intent.direction)){stopHold();return;}
+   if(intent!==held||ws!==intent.socket||intent.origin!==window.latestMap?.location?.id||!holdAllowed()||!move('go '+intent.direction)){stopHold();return;}
    intent.id=pendingMove.id;intent.started=performance.now();
   },delay);
  }
@@ -68,7 +68,7 @@
      stopWalk.hidden=false;return;
    }
    if(window.latestMap?.location?.id===destination){movementStatus.textContent='Arrived.';return;}
-   const id='route-'+(++sequence);walk={id,socket:ws,destination,steps:[],index:0};stopWalk.hidden=false;window.dispatchEvent(new CustomEvent('expanse:walking',{detail:true}));movementStatus.textContent='Finding a route…';
+   const id='route-'+(++sequence);walk={id,socket:ws,origin:window.latestMap?.location?.id,destination,steps:[],index:0};stopWalk.hidden=false;window.dispatchEvent(new CustomEvent('expanse:walking',{detail:true}));movementStatus.textContent='Finding a route…';
    planTimer=setTimeout(()=>{if(walk?.id===id)cancelWalk('The route has not been confirmed. Choose a destination to try again.');},15000);
    try{ws.send(JSON.stringify({command:'walk to tile',request_id:id,destination,...(options||window.ExpanseCountryView?.walkOptions(destination))}));}
    catch{cancelWalk('The route could not be sent. Choose a destination after reconnecting.');}
@@ -76,6 +76,7 @@
  function nextStep(){
    if(!walk||walk.socket!==ws||ws.readyState!==1){cancelWalk();return;}
    const edge=walk.steps[walk.index];if(!edge){cancelWalk('Arrived.');return;}
+   if(window.latestMap?.location?.id!==edge[0]){cancelWalk('Your location changed. Choose a destination again.');return;}
    if(!move('go '+edge[1],edge))cancelWalk('Walking stopped.');
  }
 
@@ -90,7 +91,10 @@
   if(pendingMove){movementStatus.textContent='Waiting for your previous step. No extra moves are queued.';return false;}
   const id='move-'+(++sequence);
   if(edge)walk.sentAt=performance.now();
-  pendingMove={id,socket:ws,route:edge?walk.id:null};movementStatus.textContent='Moving…';
+  const exits=window.latestMap?.visual?.exits||[],direction=command.startsWith('go ')?command.slice(3):'';
+  const targets=exits.filter(exit=>exit.direction===direction&&typeof exit.target==='string');
+  pendingMove={id,socket:ws,route:edge?walk.id:null,origin:window.latestMap?.location?.id,
+   destination:edge?.[2]||(targets.length===1?targets[0].target:null)};movementStatus.textContent='Moving…';
   clearTimeout(ackTimer);
   ackTimer=setTimeout(()=>{
    if(pendingMove?.id!==id)return;
@@ -101,6 +105,22 @@
   return true;
  }
  function receive(message){
+  if(message.type==='map'&&typeof message.location?.id==='string'){
+   const here=message.location.id,prior=window.latestMap;
+   const changedCharacter=prior?.character?.id&&message.character?.id&&prior.character.id!==message.character.id;
+   const expected=pendingMove?.socket===ws?pendingMove:null;
+   const routeOrigin=walk?.steps[walk.index]?.[0]||walk?.origin||prior?.location?.id;
+   // A normal step's map arrives before its acknowledgement. Permit its real
+   // origin/target, but stop buffered intent after an unrelated relocation.
+   let relocated=changedCharacter||!!(expected&&expected.destination&&here!==expected.origin&&here!==expected.destination);
+   if(!expected&&(walk||held||queuedDestination)&&routeOrigin&&here!==routeOrigin)relocated=true;
+   if(expected&&!expected.destination&&held&&here!==expected.origin){
+    const old=prior?.visual,next=message.visual,a=old?.tiles?.find(tile=>tile.id===old.center),b=next?.tiles?.find(tile=>tile.id===next.center);
+    if(a&&b&&old.context?.id===next.context?.id&&old.floor===next.floor
+     &&(Math.abs(b.x-a.x)>1||Math.abs(b.y-a.y)>1))relocated=true;
+   }
+   if(relocated){resetMovement();movementStatus.textContent='Your location changed. Choose a destination again.';}
+  }
   if(message.type==='walk_plan'){
    if(walk?.id===message.request_id&&walk.socket===ws){
     clearTimeout(planTimer);

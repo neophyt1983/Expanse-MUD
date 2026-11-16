@@ -888,7 +888,9 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
    if(!groups.has(room))groups.set(room,[]);
    groups.get(room).push(actor);
   }
-  let speaker=null;
+  // A single placement pass keeps spell cues on the exact sprite, including
+  // other players and the self sprite held steady during terrain interpolation.
+  const placements=[];let speaker=null;
   for(const [room,group] of groups){
    const tile=coords.get(room);if(!tile)continue;
    const self=group.find(a=>a.self||a.kind==='self'||a.id&&a.id===s.packet?.character?.id);
@@ -899,11 +901,20 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
    for(const actor of others){
     if(self&&index===Math.floor(side/2)*side+Math.floor(side/2))index++;
     const x=tile.x-tileSize/2+(index%side+.5)*cell,y=tile.y-tileSize/2+(Math.floor(index/side)+.5)*cell;
-    drawActor(c,actor,x,y,Math.min(cell,16*s.zoom),false);if(actor.speech_bubble)speaker={actor,x,y};index++;
+    placements.push({actor,room,x,y,size:Math.min(cell,16*s.zoom),self:false});index++;
    }
-   if(self){const x=Math.round(width/2+s.offset.x),y=Math.round(height/2+s.offset.y);drawActor(c,self,x,y,Math.min(16*s.zoom,others.length?cell:tileSize),true);campMarker(c,self.actions,x,y,s.zoom);if(self.speech_bubble)speaker={actor:self,x,y};}
+   if(self){const x=Math.round(width/2+s.offset.x),y=Math.round(height/2+s.offset.y);placements.push({actor:self,room,x,y,size:Math.min(16*s.zoom,others.length?cell:tileSize),self:true});}
+  }
+  const magic=window.ExpanseMapEffects?.begin(s,placements,coords);
+  window.ExpanseMapEffects?.ground(magic);
+  for(const point of placements){
+   const {actor,x,y,size,self}=point;
+   if(!window.ExpanseMapEffects?.actor(magic,point,drawActor))drawActor(c,actor,x,y,size,self);
+   if(self)campMarker(c,actor.actions,x,y,s.zoom);
+   if(actor.speech_bubble)speaker={actor,x,y};
   }
   window.ExpanseStreet?.draw(s,coords.get(center.id));
+  window.ExpanseMapEffects?.front(magic);
   for(const p of s.positions){drawNpcCount(c,p,tileSize);drawImpactMarker(c,p,tileSize);}
   window.ExpanseDamage?.draw(s,coords,coords.get(center.id));
   if(speaker&&!s.options.designer&&speaker.x>=0&&speaker.x<width&&speaker.y>=0&&speaker.y<height){
@@ -922,7 +933,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
  function render(packet,options={}){
   loadPixelAssets(packet?.visual?.pixel_assets);
   const id=options.hostId||'player-visual-map',host=document.getElementById(id);
-  if(id==='player-visual-map'&&!options.designer){window.ExpanseActorRenderer.latestPacket=packet;window.dispatchEvent(new CustomEvent('expanse:player-map',{detail:packet}));}
+  if(id==='player-visual-map'&&!options.designer){window.ExpanseMapEffects?.context(packet);window.ExpanseActorRenderer.latestPacket=packet;window.dispatchEvent(new CustomEvent('expanse:player-map',{detail:packet}));}
   if(!host)return;
   const s=views.get(id)||build(host,options);s.packet=packet;const v=packet.visual;
   if(!v||v.version!==1||(!Array.isArray(v.tiles)||!v.tiles.some(t=>t.id===v.center))){s.empty.hidden=false;s.empty.textContent='Terrain view unavailable for this host. Check the Location page for details.';s.data=null;s.motion=null;s.locations.replaceChildren();s.locationSignature=null;s.hideTip();s.arrival.hidden=true;s.lastCenter=null;s.lastContext=null;s.sightBadge.hidden=true;s.sightBadge.textContent='';s.locationStatus.hidden=s.sightStatus.hidden=true;s.locationStatus.textContent=s.sightStatus.textContent='';s.coordinateStatus.hidden=true;s.coordinateStatus.textContent='';s.actors.replaceChildren();s.accessible.textContent='';s.impactStatus.hidden=true;s.impactKey.hidden=true;s.schedule();return;}
@@ -987,7 +998,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
  window.ExpanseActorRenderer={drawActor,playerActor,latestPacket:window.latestMap||null};
  window.dispatchEvent(new Event('expanse:actor-renderer-ready'));
  // Read-only cached terrain artwork for the full-window room atlas.
- function reset(){window.ExpanseCountryView?.reset();for(const s of views.values()){if(s.options.designer)continue;if(s.frame)cancelAnimationFrame(s.frame);s.frame=0;s.motion=null;s.data=null;s.packet=null;s.lastCenter=null;s.lastContext=null;s.lastCharacter=null;s.arrival.hidden=true;s.arrival.textContent='';s.sightBadge.hidden=true;s.sightBadge.textContent='';s.locationStatus.hidden=s.sightStatus.hidden=true;s.actors.replaceChildren();s.accessible.textContent='';s.tip.hidden=true;s.tipId=null;s.locations.replaceChildren();s.locationSignature=null;s.selected=null;s.drag=null;s.schedule();}}
+ function reset(){window.ExpanseMapEffects?.reset();window.ExpanseCountryView?.reset();for(const s of views.values()){if(s.options.designer)continue;if(s.frame)cancelAnimationFrame(s.frame);s.frame=0;s.motion=null;s.data=null;s.packet=null;s.lastCenter=null;s.lastContext=null;s.lastCharacter=null;s.arrival.hidden=true;s.arrival.textContent='';s.sightBadge.hidden=true;s.sightBadge.textContent='';s.locationStatus.hidden=s.sightStatus.hidden=true;s.actors.replaceChildren();s.accessible.textContent='';s.tip.hidden=true;s.tipId=null;s.locations.replaceChildren();s.locationSignature=null;s.selected=null;s.drag=null;s.schedule();}}
  window.ExpanseMap={render,reset,drawWatchScene,drawFacility,customArt,loadPixelAssets,pointerPoint,redraw:()=>{for(const s of views.values())s.schedule();},getTerrainTile:(terrain,roomId,route)=>terrainTile(terrain,hash(String(roomId)),route)};
  if(window.latestMap)(window.ExpanseCountryView?.render || render)(window.latestMap);
  else{const host=document.getElementById('player-visual-map');if(host)build(host,{});}

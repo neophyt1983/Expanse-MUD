@@ -30,10 +30,197 @@
  const refs={training_classes:'class',teaches_abilities:'ability',required_abilities:'ability',prey_species:'species',diet:'item',requires_resources:'resource',patrol_route:'room',talk_to:'npc',resources:'resource',encounters:'encounter',members:'npc',drops:'item',reward_items:'item',starting_equipment:'item',starting_abilities:'ability',visit_rooms:'room',prerequisites:'quest',exclusive_with:'quest'};
  const singles={sex:'sex',species:'species',requires_ammo:'item',location:'room',offer_room:'room',turn_in_room:'room',tool:'item',tame_item:'item',harvest_source:'npc',learn_ability:'ability',prepared_ability:'ability',class:'class',race:'race'};
  const counts={requires_species:'species',renewable_products:'item',remains:'item',components:'item',ingredients:'item',outputs:'item',yields:'item',required_items:'item',harvest:'item',kills:'npc',reputation:'group'};
- const choices={progress_scope:['lifetime','accepted'],consumption:['producer','herbivore','omnivore','carnivore'],food_origin:['','plant','animal'],name_mode:['manual','faction'],interaction_effect:['create','damage','heal','repair'],target_kind:['item','npc','self'],scope:['character','world'],station:['hand','forge','kitchen','enchanting','loom','workbench','alchemy','scriptorium','husbandry','construction','shipyard'],kind:['crafting','cooking'],effect:['damage','heal','group_heal','ward','tame','escape','enchant','disenchant'],disposition:['friendly','neutral','hostile'],companion_kind:['pet','familiar']};
+ const choices={progress_scope:['lifetime','accepted'],consumption:['producer','herbivore','omnivore','carnivore'],food_origin:['','plant','animal'],name_mode:['manual','faction'],interaction_effect:['create','damage','heal','repair'],target_kind:['item','npc','self'],scope:['character','world'],station:['hand','forge','kitchen','enchanting','loom','workbench','alchemy','scriptorium','husbandry','construction','shipyard'],kind:['crafting','cooking'],effect:['damage','heal','ally_heal','group_heal','ward','cleanse','guarded_strike','focus','sunder','repair','mana_conversion','raise_dead','summon','resurrection','teleport','light','ally_ward','relief','weather_guard','tame','escape','enchant','disenchant'],disposition:['friendly','neutral','hostile'],companion_kind:['pet','familiar']};
  function el(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
  function picker(type,val){const s=el('select');s.append(new Option('Choose…',''));for(const o of ed.entriesCache[type]||[])s.append(new Option(o.name||o.id,o.id));if(val&&!Array.from(s.options).some(o=>o.value===val))s.append(new Option(val,val));s.value=val||'';return s;}
  function jsonField(key,val){const box=el('div'),hint=el('small','Advanced structured field: valid JSON is required. Changes apply only after Save field.'),ta=el('textarea');ta.dataset.creatorJson=key;ta.dataset.creatorType=ed.type;ta.dataset.creatorWorld=ed.gameSlug;ta.dataset.creatorEntry=String(ed.entryId);ta.dataset.creatorVersion=String(ed.selectionVersion||0);ta.rows=6;ta.value=JSON.stringify(val??{},null,2);const b=el('button','Save field');b.type='button';b.className='ed-btn';b.onclick=()=>{if(ta.dataset.creatorWorld!==ed.gameSlug||ta.dataset.creatorType!==ed.type||ta.dataset.creatorEntry!==String(ed.entryId)||ta.dataset.creatorVersion!==String(ed.selectionVersion||0)){setStatus('Selection changed. Reopen this JSON field before staging it.','warn');return;}try{const v=JSON.parse(ta.value);saveField(key,v);}catch(e){setStatus('Invalid JSON: '+e.message,'warn');}};box.append(hint,ta,b);return box;}
+ function abilityRulesField(val){
+  const box=jsonField('ability_rules',val);box.prepend(el('p','Optional ability family rules. Empty {} preserves legacy behavior. family: mage, class, or race; classes/races: eligible IDs; minimum_level: 1–100; cooldown_minutes: 0–15000; weapon_required: true/false; ward_hits: 1–20; ignore_defense: true/false; components: item ID → quantity. Non-mage abilities must have cost_mp 0. The full JSON field preserves all other rules.'));
+  if(val&&(!val||typeof val!=='object'||Array.isArray(val))){return box;}
+  const draft=structuredClone(val||{}),object=v=>v&&typeof v==='object'&&!Array.isArray(v);
+  if(['summon','resurrection','teleport','utility'].some(key=>draft[key]!==undefined&&(!object(draft[key])||draft[key].version!==1))
+   ||(draft.utility?.conditions!==undefined&&!object(draft.utility.conditions))){box.prepend(el('p','Repair unsupported spell settings in the full JSON field before using structured controls. Validate checks the complete ability.'));return box;}
+  const selection={world:ed.gameSlug,type:ed.type,id:String(ed.entryId),version:String(ed.selectionVersion||0)};
+  const advanced=el('details');advanced.append(el('summary','Spell mechanics controls'));box.append(advanced);
+  advanced.append(el('p','Enable only the settings matching this ability’s effect. Raising an undead creature uses raise_dead; restoring the same fallen person uses resurrection. Summoning needs a real NPC template. Teleport destinations must be authored rooms the traveler has already visited.'));
+  function field(parent,label,node,name){const row=el('label',label);row.style.display='block';row.style.margin='8px 0';node.style.maxWidth='100%';node.style.boxSizing='border-box';node.dataset.spellRule=name;node.setAttribute('aria-label',label);row.append(node);parent.append(row);return node;}
+  function number(parent,label,name,value,min,max){const n=el('input');n.type='number';n.min=min;n.max=max;n.step=1;n.value=value;return field(parent,label+' ',n,name);}
+  function boolean(parent,label,name,value){const n=el('input');n.type='checkbox';n.checked=value===true;return field(parent,label+' ',n,name);}
+  function searchPicker(parent,label,type,value,name){
+   const search=el('input');search.type='search';search.placeholder='Find by name or ID';search.dataset.spellSearch=name;field(parent,'Find '+type+' ',search,name+'_search');
+   const select=field(parent,label,el('select'),name);let selected=value||'';
+   const draw=()=>{selected=select.value||selected;const query=search.value.trim().toLocaleLowerCase(),rows=ed.entriesCache[type]||[];
+    const found=rows.filter(row=>!query||String(row.id+' '+(row.name||'')).toLocaleLowerCase().includes(query)).slice(0,50);
+    select.replaceChildren(new Option('Choose…',''));if(selected&&!found.some(row=>row.id===selected)){const row=rows.find(row=>row.id===selected);select.append(new Option(row?.name||selected,selected));}
+    for(const row of found)select.append(new Option(row.name||row.id,row.id));select.value=selected;
+   };
+   select.onchange=()=>{selected=select.value;};search.oninput=draw;draw();parent.append(el('small',' Up to 50 matches. Type part of a name or ID to narrow the list.'));return select;
+  }
+  function section(name,label){const outer=el('fieldset');outer.style.minWidth='0';outer.append(el('legend',label));advanced.append(outer);const enabled=boolean(outer,'Use these settings',name+'_enabled',draft[name]!==undefined),fields=el('fieldset');fields.style.minWidth='0';outer.append(fields);enabled.onchange=()=>{fields.disabled=!enabled.checked;};enabled.onchange();return {enabled,fields};}
+  const family=field(advanced,'Ability family ',el('select'),'family');for(const name of ['mage','class','race'])family.append(new Option(name,name));family.value=draft.family||'class';
+  const allies=boolean(advanced,'Allow ally_heal to target other living players here','ally_players',draft.ally_players);
+  const summon=section('summon','Finite summoned or raised creatures'),sc=draft.summon||{};
+  const template=searchPicker(summon.fields,'NPC template (summon only; leave blank for raise_dead) ','npc',sc.npc||'','summon_npc');
+  const summonDuration=number(summon.fields,'Lifetime in game minutes','summon_duration',sc.duration_minutes??30,1,1440);
+  const summonCap=number(summon.fields,'Maximum active creatures','summon_max_active',sc.max_active??1,1,8);
+  const summonLevel=number(summon.fields,'Maximum target/template level','summon_max_level',sc.max_level??5,1,100);
+  const resurrection=section('resurrection','Restore a fallen person'),rc=draft.resurrection||{};
+  const players=boolean(resurrection.fields,'Allow fallen players','resurrection_players',rc.players);
+  const companions=boolean(resurrection.fields,'Allow owned fallen companions','resurrection_companions',rc.companions);
+  const health=number(resurrection.fields,'Health restored, percent','resurrection_health',rc.health_percent??25,1,100);
+  const recovery=number(resurrection.fields,'Recovery in game minutes','resurrection_recovery',rc.recovery_minutes??60,1,1440);
+  const injury=number(resurrection.fields,'Injury on revival','resurrection_injury',rc.injury??20,0,100);
+  const teleport=section('teleport','Travel to a visited waypoint'),tc=draft.teleport||{};
+  const destinations=field(teleport.fields,'Destination room IDs (one per line) ',el('textarea'),'teleport_destinations');destinations.rows=5;destinations.style.display='block';destinations.style.width='100%';destinations.value=Array.isArray(tc.destinations)?tc.destinations.join('\n'):'';
+  const destination=searchPicker(teleport.fields,'Add an existing room ','room','','teleport_add');
+  const add=el('button','Append selected room');add.type='button';add.onclick=()=>{if(!destination.value)return;const values=destinations.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(!values.includes(destination.value)){destinations.value=[...values,destination.value].join('\n');destinations.dispatchEvent(new Event('input',{bubbles:true}));}};teleport.fields.append(add,el('small',' Only these rooms can be offered, and the traveler must have visited them. require_visited is always true; access and travel restrictions are checked again by the server.'));
+  const utility=section('utility','Light, protection and relief'),uc=draft.utility||{};
+  const utilityEffect=field(utility.fields,'Utility settings for effect ',el('select'),'utility_effect');
+  for(const [id,label] of [['light','light — temporary illumination'],['ally_ward','ally_ward — limited protective hits'],['relief','relief — reduce named conditions'],['weather_guard','weather_guard — reduce weather exposure']])utilityEffect.append(new Option(label,id));
+  utilityEffect.value=uc.conditions!==undefined?'relief':uc.hits!==undefined?'ally_ward':uc.reduction_percent!==undefined?'weather_guard':'light';
+  utility.fields.append(el('small',' Match this choice to the ability’s effect field. Saving these settings does not change the effect. Self is always eligible; other recipients must be present and permitted by the server.'));
+  const utilityPlayers=boolean(utility.fields,'Allow other players here','utility_players',uc.players),utilityCompanions=boolean(utility.fields,'Allow owned companions here','utility_companions',uc.companions);
+  const durationFields=el('div'),wardFields=el('div'),reliefFields=el('div'),weatherFields=el('div');utility.fields.append(durationFields,wardFields,reliefFields,weatherFields);
+  const utilityDuration=number(durationFields,'Duration in game minutes','utility_duration',uc.duration_minutes??30,1,1440);
+  const utilityHits=number(wardFields,'Protected incoming hits','utility_hits',uc.hits??5,1,64);wardFields.append(el('small',' Set the ability’s power field from 1 to 100 for the protection strength.'));
+  const conditionInputs={};for(const [name,label] of [['injury','Injury'],['disease','Disease'],['intoxication','Intoxication']]){const input=number(reliefFields,label+' reduction (blank omits)','utility_'+name,uc.conditions?.[name]??'',1,100);conditionInputs[name]=input;}
+  reliefFields.append(el('small',' Include at least one reduction from 1 to 100. Blank conditions are not affected.'));
+  const weatherReduction=number(weatherFields,'Weather exposure reduction, percent','utility_reduction',uc.reduction_percent??25,1,75);
+  utilityEffect.onchange=()=>{durationFields.hidden=!['light','weather_guard'].includes(utilityEffect.value);wardFields.hidden=utilityEffect.value!=='ally_ward';reliefFields.hidden=utilityEffect.value!=='relief';weatherFields.hidden=utilityEffect.value!=='weather_guard';};utilityEffect.onchange();
+  const save=el('button','Save spell settings');save.type='button';save.className='ed-btn';save.dataset.saveSpellRules='true';
+  save.onclick=()=>{
+   if(selection.world!==ed.gameSlug||selection.type!==ed.type||selection.id!==String(ed.entryId)||selection.version!==String(ed.selectionVersion||0)){setStatus('Selection changed. Reopen ability rules before saving them.','warn');return;}
+   const value=structuredClone(draft);
+   try{
+    const whole=(input,min,max)=>{const n=Number(input.value);if(input.value===''||!Number.isInteger(n)||n<min||n>max)throw Error(input.getAttribute('aria-label')+'must be a whole number from '+min+' to '+max+'.');return n;};
+    if(!['mage','class','race'].includes(family.value))throw Error('Choose a supported ability family.');
+    if(Object.hasOwn(value,'family')||summon.enabled.checked||resurrection.enabled.checked||teleport.enabled.checked||utility.enabled.checked||allies.checked)value.family=family.value;
+    if(Object.hasOwn(value,'ally_players')||allies.checked)value.ally_players=allies.checked;
+    if(summon.enabled.checked){
+     value.summon={...sc,version:1,duration_minutes:whole(summonDuration,1,1440),max_active:whole(summonCap,1,8),max_level:whole(summonLevel,1,100)};
+     if(template.value){if(!(ed.entriesCache.npc||[]).some(row=>row.id===template.value))throw Error('Choose an existing NPC template.');value.summon.npc=template.value;}else delete value.summon.npc;
+    }else delete value.summon;
+    if(resurrection.enabled.checked){
+     if(!players.checked&&!companions.checked)throw Error('Allow at least one eligible resurrection target category.');
+     value.resurrection={...rc,version:1,players:players.checked,companions:companions.checked,health_percent:whole(health,1,100),recovery_minutes:whole(recovery,1,1440),injury:whole(injury,0,100)};
+    }else delete value.resurrection;
+    if(teleport.enabled.checked){
+     const ids=destinations.value.split(/\r?\n/).map(id=>id.trim()).filter(Boolean);
+     if(ids.length<1||ids.length>128||new Set(ids).size!==ids.length||ids.some(id=>!(ed.entriesCache.room||[]).some(row=>row.id===id)))throw Error('Choose 1–128 unique existing destination rooms.');
+     value.teleport={...tc,version:1,destinations:ids,require_visited:true};
+    }else delete value.teleport;
+    if(utility.enabled.checked){
+     const cfg={...uc,version:1,players:utilityPlayers.checked,companions:utilityCompanions.checked};
+     for(const key of ['duration_minutes','hits','conditions','reduction_percent'])delete cfg[key];
+     if(utilityEffect.value==='light'||utilityEffect.value==='weather_guard')cfg.duration_minutes=whole(utilityDuration,1,1440);
+     if(utilityEffect.value==='ally_ward')cfg.hits=whole(utilityHits,1,64);
+     else if(utilityEffect.value==='relief'){
+      cfg.conditions={...(uc.conditions||{})};let count=0;
+      for(const [name,input] of Object.entries(conditionInputs)){if(input.value==='')delete cfg.conditions[name];else{cfg.conditions[name]=whole(input,1,100);count++;}}
+      if(!count)throw Error('Include at least one condition reduction from 1 to 100.');
+     }else if(utilityEffect.value==='weather_guard')cfg.reduction_percent=whole(weatherReduction,1,75);
+     else if(utilityEffect.value!=='light')throw Error('Choose a supported utility effect.');
+     value.utility=cfg;
+    }else delete value.utility;
+    saveField('ability_rules',value);
+   }catch(error){setStatus('Cannot stage spell settings: '+error.message,'warn');}
+  };
+  advanced.append(el('p','Save spell settings stages these controls while retaining family eligibility, components, costs and additional JSON fields. Use the full JSON field above for other ability rules. Validate checks that the settings and effect agree.'),save);return box;
+ }
+ function presentationField(key,val){
+  const styles={glow:'Glow around the recipient',ground_rise:'Crawl up from the ground',portal_rise:'Emerge through a ground portal',projectile:'Travel from caster to recipient',ward:'Protective shield',burst:'Brief radial burst',fade:'Departure or arrival ring'};
+  const object=val&&typeof val==='object'&&!Array.isArray(val);
+  if(val&&(!object||(val.version!==undefined&&val.version!==1)
+   ||(val.style!==undefined&&!Object.hasOwn(styles,val.style))
+   ||(val.colors!==undefined&&(!Array.isArray(val.colors)||val.colors.some(c=>typeof c!=='string'))))){
+   const raw=jsonField(key,val);raw.prepend(el('p','This presentation needs advanced editing. The original fields are preserved. Supported presentations use version 1 and the bounded settings described in the Creator guide; Validate must pass before export or play.'));return raw;
+  }
+  const draft=structuredClone(val||{}),selection={world:ed.gameSlug,type:ed.type,id:String(ed.entryId),version:String(ed.selectionVersion||0)};
+  const box=el('div'),section=el('fieldset');section.style.minWidth='0';box.append(section);section.append(el('legend','Visible magic'));
+  section.append(el('p','Presentation describes a successful server-confirmed action. It does not grant an ability, heal, move, revive or summon anyone. Ground and portal emergence reveal the actual creature created by the corresponding mechanic.'));
+  const enabled=el('input');enabled.type='checkbox';enabled.checked=Object.keys(draft).length>0;enabled.dataset.presentationField='enabled';
+  const include=el('label',' Use this presentation');include.prepend(enabled);section.append(include);
+  const fields=el('fieldset');fields.style.minWidth='0';section.append(fields);
+  function field(label,node,name){const row=el('label',label);row.style.display='block';row.style.margin='8px 0';node.style.display='block';node.style.width='100%';node.style.boxSizing='border-box';node.style.minWidth='0';node.dataset.presentationField=name;node.setAttribute('aria-label',label);row.append(node);fields.append(row);return node;}
+  const style=field('Visual style',el('select'),'style');for(const [id,label] of Object.entries(styles))style.append(new Option(label,id));style.value=draft.style||'glow';
+  const colors=field('One to three colors (#RRGGBB, one per line)',el('textarea'),'colors');colors.rows=3;colors.value=(draft.colors||['#B1E4E8']).join('\n');
+  function number(label,name,value,min,max,step){const input=field(label,el('input'),name);input.type='number';input.min=min;input.max=max;input.step=step;input.value=value;return input;}
+  const duration=number('Duration in milliseconds (300–5000)','duration_ms',draft.duration_ms??1800,300,5000,1);
+  const scale=number('Size relative to the actor (0.5–2)','scale',draft.scale??1,.5,2,.1);
+  const particles=number('Particles (0–24)','particles',draft.particles??12,0,24,1);
+  enabled.onchange=()=>{fields.disabled=!enabled.checked;};enabled.onchange();
+  fields.append(el('small','Reduced-motion mode keeps the actor fully visible and uses a brief static indicator. Effects end quickly and do not replay after leaving the game.'));
+  const commit=el('button','Save presentation');commit.type='button';commit.className='ed-btn';commit.dataset.savePresentation=key;
+  commit.onclick=()=>{
+   if(selection.world!==ed.gameSlug||selection.type!==ed.type||selection.id!==String(ed.entryId)||selection.version!==String(ed.selectionVersion||0)){setStatus('Selection changed. Reopen this presentation before saving it.','warn');return;}
+   if(!enabled.checked){saveField(key,{});return;}
+   const palette=colors.value.split(/\r?\n/).map(c=>c.trim()).filter(Boolean);
+   if(!Object.hasOwn(styles,style.value)||palette.length<1||palette.length>3||palette.some(c=>!/^#[0-9a-f]{6}$/i.test(c))){setStatus('Choose a supported style and one to three colors in #RRGGBB format.','warn');return;}
+   const values={duration_ms:Number(duration.value),scale:Number(scale.value),particles:Number(particles.value)};
+   if(!duration.value||!scale.value||!particles.value||!Number.isInteger(values.duration_ms)||values.duration_ms<300||values.duration_ms>5000
+    ||!Number.isFinite(values.scale)||values.scale<.5||values.scale>2||!Number.isInteger(values.particles)||values.particles<0||values.particles>24){setStatus('Use a duration of 300–5000 whole milliseconds, size 0.5–2 and 0–24 whole particles.','warn');return;}
+   saveField(key,{...draft,version:1,style:style.value,colors:palette,...values});
+  };
+  section.append(el('p','Save presentation stages this field only. Save draft, Validate and export the complete .expanse file to publish the authored settings. Additional custom fields are preserved.'),commit);return box;
+ }
+ function npcSpellcastingField(val){
+  const key='spellcasting',object=val&&typeof val==='object'&&!Array.isArray(val),box=jsonField(key,val);
+  if(val!==undefined&&(!object||(val.version!==undefined&&val.version!==1)
+   ||(val.abilities!==undefined&&(!Array.isArray(val.abilities)||val.abilities.some(id=>typeof id!=='string'))))){box.querySelector('textarea').value=JSON.stringify(val,null,2);box.prepend(el('p','Unsupported NPC spellcasting metadata is preserved in the full JSON field. Repair it, then Validate before export.'));return box;}
+  const draft=structuredClone(val||{}),selection={world:ed.gameSlug,type:ed.type,id:String(ed.entryId),version:String(ed.selectionVersion||0)};
+  const current=()=>selection.world===ed.gameSlug&&selection.type===ed.type&&selection.id===String(ed.entryId)&&selection.version===String(ed.selectionVersion||0);
+  const outer=el('fieldset');outer.style.minWidth='0';outer.append(el('legend','NPC combat spellcasting'));box.prepend(outer);
+  outer.append(el('p','This policy grants a chosen NPC a finite combat spell repertoire. Casting discipline and level do not change their primary class, profession, identity, equipment or physical statistics. Ordinary spell costs, components, recovery and target rules still apply.'));
+  const enabled=el('input');enabled.type='checkbox';enabled.checked=Object.keys(draft).length>0;enabled.dataset.npcSpellcastingField='enabled';const enabledLabel=el('label',' Use this NPC casting policy');enabledLabel.prepend(enabled);outer.append(enabledLabel);
+  const fields=el('fieldset');fields.style.minWidth='0';outer.append(fields);
+  function field(label,node,name){const row=el('label',label);row.style.display='block';row.style.margin='8px 0';node.style.display='block';node.style.width='100%';node.style.boxSizing='border-box';node.style.minWidth='0';node.dataset.npcSpellcastingField=name;node.setAttribute('aria-label',label);row.append(node);fields.append(row);return node;}
+  function number(label,name,value,min,max){const node=field(label,el('input'),name);node.type='number';node.step=1;node.min=min;node.max=max;node.value=value;return node;}
+  const discipline=field('Casting discipline',picker('class',draft.class),'class');
+  const level=number('Casting level (1–100)','level',draft.level??1,1,100);
+  const abilities=field('Spell IDs, one per line (1–8 unique spells)',el('textarea'),'abilities');abilities.rows=5;abilities.value=(draft.abilities||[]).join('\n');
+  const search=field('Find a combat spell',el('input'),'search');search.type='search';search.placeholder='Name or ID';
+  const choice=field('Add a configured spell',el('select'),'add');
+  const supported=new Set(['damage','heal','ally_heal','ward','ally_ward']);
+  function draw(){const selected=choice.value||'',query=search.value.trim().toLocaleLowerCase();const rows=(ed.entriesCache.ability||[]).filter(a=>a.ability_rules?.family==='mage'&&supported.has(a.effect)&&(!query||String(a.id+' '+(a.name||'')).toLocaleLowerCase().includes(query))).slice(0,50);choice.replaceChildren(new Option('Choose…',''));if(selected&&!rows.some(a=>a.id===selected))choice.append(new Option(selected,selected));for(const a of rows)choice.append(new Option(a.name||a.id,a.id));choice.value=selected;}
+  search.oninput=draw;draw();fields.append(el('small',' Up to 50 matches. Only configured mage damage, heal, ally_heal, ward and ally_ward effects are supported. Class, explicit NPC race and level eligibility are checked against the current draft when saved.'));
+  const add=el('button','Append selected spell');add.type='button';add.onclick=()=>{if(!choice.value)return;const ids=abilities.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);if(ids.includes(choice.value))return;if(ids.length>=8){setStatus('An NPC casting policy can contain at most eight spells.','warn');return;}abilities.value=[...ids,choice.value].join('\n');};fields.append(add);
+  const maxMana=number('Maximum mana (1–500)','max_mana',draft.max_mana??24,1,500);
+  const startingMana=number('Starting mana (0 to maximum mana)','starting_mana',draft.starting_mana??24,0,500);
+  const regen=number('Mana recovered per game minute (0–10)','regen_per_minute',draft.regen_per_minute??1,0,10);
+  const delay=number('Delay before mana recovery, game minutes (1–1440)','regen_delay_minutes',draft.regen_delay_minutes??10,1,1440);
+  const interval=number('Minimum interval between casts, game minutes (1–60)','cast_interval_minutes',draft.cast_interval_minutes??2,1,60);
+  const heal=number('Heal below health percent (1–99)','heal_below_percent',draft.heal_below_percent??40,1,99);
+  enabled.onchange=()=>{fields.disabled=!enabled.checked;};enabled.onchange();
+  outer.append(el('p','The NPC casts only during an authorized combat turn. Healing applies to itself or actual friendly NPC responders in the same fight; this policy does not supply passive healing or teach players spells. Empty {} disables it.'));
+  const save=el('button','Save NPC spellcasting');save.type='button';save.className='ed-btn';save.dataset.saveNpcSpellcasting='true';let pending=false;
+  save.onclick=async()=>{
+   if(pending)return;
+   if(!current()){setStatus('Selection changed. Reopen this NPC before saving its spellcasting policy.','warn');return;}
+   if(!enabled.checked){saveField(key,{});return;}
+   try{
+    const whole=(node,min,max)=>{const n=Number(node.value);if(node.value===''||!Number.isInteger(n)||n<min||n>max)throw Error(node.getAttribute('aria-label')+' must be a whole number from '+min+' to '+max+'.');return n;};
+    const maximum=whole(maxMana,1,500),ids=abilities.value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    if(!discipline.value)throw Error('Choose an existing casting discipline.');
+    if(ids.length<1||ids.length>8||new Set(ids).size!==ids.length)throw Error('Choose one to eight unique configured spell IDs.');
+    const value={...draft,version:1,class:discipline.value,level:whole(level,1,100),abilities:ids,max_mana:maximum,starting_mana:whole(startingMana,0,maximum),regen_per_minute:whole(regen,0,10),regen_delay_minutes:whole(delay,1,1440),cast_interval_minutes:whole(interval,1,60),heal_below_percent:whole(heal,1,99)};
+    pending=true;save.disabled=true;
+    const [npc,spellList,classList]=await Promise.all([apiGet(gpath('show/npc/'+encodeURIComponent(selection.id))),apiGet(gpath('entries/ability')),apiGet(gpath('entries/class'))]);
+    if(!current())throw Error('Selection changed. Reopen this NPC before saving its spellcasting policy.');
+    if(npc?.error||spellList?.error||classList?.error||npc?.id!==selection.id||!Array.isArray(spellList?.entries)||!Array.isArray(classList?.entries))throw Error('Could not read the current NPC and spell definitions. Reopen this field and try again.');
+    if(!classList.entries.some(c=>c.id===value.class))throw Error('Choose an existing casting discipline.');
+    for(const id of ids){
+     const a=spellList.entries.find(a=>a.id===id),rules=a?.ability_rules;
+     if(!a||!rules||rules.family!=='mage'||!supported.has(a.effect))throw Error('Spell '+id+' must be a configured mage damage, heal, ally_heal, ward or ally_ward ability.');
+     if(!Array.isArray(rules.classes)||!rules.classes.includes(value.class))throw Error((a.name||id)+' does not allow this casting discipline.');
+     if(rules.races!==undefined&&(!Array.isArray(rules.races)||(rules.races.length&&!rules.races.includes(npc.race))))throw Error((a.name||id)+' does not allow this NPC’s explicit race.');
+     const minimum=rules.minimum_level??1;if(!Number.isInteger(minimum)||minimum<1||minimum>value.level)throw Error((a.name||id)+' requires a higher or valid casting level.');
+    }
+    await saveField(key,value);
+   }catch(error){setStatus('Cannot stage NPC spellcasting: '+error.message,'warn');}
+   finally{pending=false;save.disabled=false;}
+  };
+  outer.append(save,el('p','This stages only the spellcasting field. Save the draft, Validate, then export or Apply through the normal Creator workflow.'));return box;
+ }
  function singingField(key,val){
   const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x),strings=x=>Array.isArray(x)&&x.every(v=>typeof v==='string');
   const type=ed.type,source=val??{},kind=key==='song'?'song':key==='instrument'?'instrument':type;
@@ -193,7 +380,7 @@
   section.append(el('small','Save quest chain stages only this field. Create or update the other quest records and their prerequisites separately, then Save draft, Validate and export the complete .expanse file.'),commit);return box;
  }
  function interfaceTourField(key,val){
-  if(val&&(typeof val!=='object'||Array.isArray(val)||(val.version&&val.version!==1)||(Array.isArray(val.steps)&&val.steps.some(step=>!step||typeof step!=='object'||Array.isArray(step)))))return jsonField(key,val);
+  if(val&&(typeof val!=='object'||Array.isArray(val)||(val.version&&val.version!==1)||(val.alternative_quest!==undefined&&typeof val.alternative_quest!=='string')||(Array.isArray(val.steps)&&val.steps.some(step=>!step||typeof step!=='object'||Array.isArray(step)))))return jsonField(key,val);
   const draft=structuredClone(val||{}),context={world:ed.gameSlug,type:ed.type,id:String(ed.entryId),version:String(ed.selectionVersion||0)};
   const targets={conversation:'Conversation',command:'Command input',actions:'Actions menu',quests:'Quests',map:'Terrain map',compass:'Quest compass',location:'Location and nearby people',books:'Bookshelves',inventory:'Inventory',status:'Character status',condition:'Condition',save:'Save',save_quit:'Save & quit',panels:'Panels and restoring windows',help:'Help'};
   const box=el('fieldset');box.className='interface-tour-editor';box.append(el('legend','Interface lesson'));
@@ -206,6 +393,8 @@
   const completion=el('textarea');completion.rows=3;completion.maxLength=1200;completion.value=draft.completion_text||'';completion.setAttribute('aria-label','Interface lesson completion guidance');
   const completionLabel=el('label','After the lesson — next quest guidance');completionLabel.append(completion);fields.append(completionLabel);
   fields.append(el('small','Leave completion guidance blank to use the quest description. The actual quest objectives and rewards remain separate.'));
+  const alternative=picker('quest',draft.alternative_quest),alternativeLabel=el('label','Alternative starting quest (optional)');alternative.dataset.tourField='alternative_quest';alternative.setAttribute('aria-label','Alternative starting quest');alternativeLabel.append(alternative);fields.append(alternativeLabel);
+  fields.append(el('small','Choose one ordinary quest that can replace this lesson quest. Its explicit XP, gold and item rewards must match exactly. Choosing it only accepts work; it never grants a reward. Effect, reputation and flag rewards are not supported for these pairs. Keep shared later quests separate; Validate checks the route and its references.'));
   const rows=el('div');rows.className='tour-editor-steps';fields.append(rows);
   let steps=Array.isArray(draft.steps)?draft.steps.map(step=>({...step})):[];
   const add=el('button','Add step');add.type='button';add.className='ed-btn';fields.append(add);
@@ -240,13 +429,17 @@
     if(!Object.hasOwn(targets,step.target)||typeof step.title!=='string'||!step.title.trim()||step.title.trim().length>120||typeof step.text!=='string'||!step.text.trim()||step.text.trim().length>1200){setStatus('Step '+(index+1)+' needs a supported control, a short title (up to 120 characters), and text (up to 1200 characters).','warn');return;}
    }
    if(completion.value.trim().length>1200){setStatus('Completion guidance is limited to 1200 characters.','warn');return;}
+   if(alternative.value===context.id){setStatus('Choose a different ordinary quest as the alternative.','warn');return;}
    const value={...draft,version:1,title:title.value.trim(),steps:steps.map(step=>({...step,title:step.title.trim(),text:step.text.trim()}))};
    if(completion.value.trim())value.completion_text=completion.value.trim();else delete value.completion_text;
+   if(alternative.value)value.alternative_quest=alternative.value;else delete value.alternative_quest;
    saveField(key,value);
   };
   box.append(el('p','Save interface lesson stages only this field on the selected quest. Validate and export the complete world through the usual Creator workflow.'),commit);return box;
  }
  buildFieldWidget=function(key,kind,val,objId){
+  if(key==='spellcasting'&&ed.type==='npc')return npcSpellcastingField(val);
+  if((key==='presentation'&&ed.type==='ability')||(key==='summon_presentation'&&ed.type==='npc'))return presentationField(key,val);
   if((key==='singing'&&['race','npc'].includes(ed.type))||(['song','instrument'].includes(key)&&ed.type==='item'))return singingField(key,val);
   if(key==='quest_chain'&&ed.type==='quest')return questChainField(key,val);
   if(key==='quest_split_migration'&&ed.type==='quest'){
@@ -287,7 +480,7 @@
    const save=()=>{axis.disabled=!surface.value;saveField(key,surface.value?{kind:surface.value,axis:axis.value}:{});};surface.onchange=axis.onchange=save;
    box.append(surface,axis,el('small',' Tile artwork only. Add or edit actual exits separately; this never creates a route.'));return box;
   }
-  if(key==='ability_rules'){const box=jsonField(key,val);box.prepend(el('p','Optional ability family rules. Empty {} preserves legacy behavior. family: mage, class, or race; classes/races: eligible IDs; minimum_level: 1–100; cooldown_minutes: 0–15000; weapon_required: true/false; ward_hits: 1–20; ignore_defense: true/false; components: item ID → quantity. Non-mage abilities must have cost_mp 0. See ABILITY-FRAMEWORK.txt for examples.'));return box;}
+  if(key==='ability_rules')return abilityRulesField(val);
   if(['life_stages','population_health','population_profile'].includes(key))return jsonField(key,val);
   if(['gift_preferences','companion_care','relationship_quest'].includes(key)){
    const box=el('div'),data=structuredClone(val||{});

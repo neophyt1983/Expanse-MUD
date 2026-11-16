@@ -35,3 +35,8 @@ window.LIVING_DEFAULTS.race.singing={};
 window.LIVING_DEFAULTS.npc.singing={};
 window.LIVING_DEFAULTS.item.song={};
 window.LIVING_DEFAULTS.item.instrument={};
+// Presentation decorates real successful actions; it never supplies mechanics.
+window.LIVING_DEFAULTS.ability.presentation={};
+window.LIVING_DEFAULTS.npc.summon_presentation={};
+// An explicit casting discipline does not replace the NPC's ordinary identity.
+window.LIVING_DEFAULTS.npc.spellcasting={};
