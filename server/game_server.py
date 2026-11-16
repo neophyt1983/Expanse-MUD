@@ -704,6 +704,8 @@ class GameServer(SocietyServer):
         packet['visual']['passages']=streets.doorways(self.world,player,packet['visual'],blocked_exits)
         packet['music_cue']=soundtrack.cue(self.world,player)
         packet['soundtrack']=packet['music_cue']['track']
+        from engine import singing
+        packet['singing']=singing.view(self.world,player) if singing.enabled(self.world) else None
         if living.enabled(self.world):
             packet['location']['gathering']=gathering.listing(self.world,player)
             packet['location']['services']=civic_program.view(self.world,player)
@@ -1510,7 +1512,7 @@ class GameServer(SocietyServer):
                 if websocket in getattr(self, 'atlas_subscribers', ()):
                     await self.send_atlas(websocket)
                 ent = self.world.entities.get(player_id)
-                readonly={'look','map','inventory','score','status','help','standing','workshop','provenance','survey','recipes','catalog','wardrobe','materials','quests','adventures','market','journal','condition','time','inspect','spells','companions','services','route','guide','interface'}
+                readonly={'look','map','inventory','score','status','help','standing','workshop','provenance','survey','recipes','catalog','wardrobe','materials','quests','adventures','market','journal','condition','time','inspect','spells','companions','services','route','guide','interface','songs'}
                 if self.mode!='host' and not society.enabled(self.world) and cmd.split()[0].lower() not in readonly:
                     self._stage_players_and_world()
                 else:self._save_dirty_players()

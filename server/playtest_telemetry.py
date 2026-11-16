@@ -36,10 +36,10 @@ MOVEMENT = frozenset(('go', 'north', 'south', 'east', 'west', 'northeast',
     'n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw', 'u', 'd'))
 INTERACTIONS = frozenset(('talk', 'ask', 'attack', 'hit', 'give', 'feed', 'treat',
     'pet', 'play', 'companion', 'friend', 'trade', 'buy', 'sell', 'inspect',
-    'observe', 'wake', 'social', 'cast', 'challenge', 'tame', 'heal'))
+    'observe', 'wake', 'social', 'cast', 'challenge', 'tame', 'heal', 'sing'))
 READING = frozenset(('look', 'read', 'bookshelves', 'chronicles', 'newspaper',
     'guide', 'help', 'journal', 'quests', 'adventures', 'catalog', 'survey',
-    'condition', 'status', 'score', 'inventory', 'recipes', 'wardrobe', 'abilities'))
+    'condition', 'status', 'score', 'inventory', 'recipes', 'wardrobe', 'abilities', 'songs'))
 KNOWN = MOVEMENT | INTERACTIONS | READING | frozenset(('save', 'save_exit', 'resume',
     'accept', 'complete', 'quest', 'use', 'eat', 'drink', 'equip', 'unequip', 'take',
     'drop', 'get', 'rest', 'sleep', 'revive', 'flee', 'run', 'craft', 'gather',
@@ -49,7 +49,7 @@ BACKGROUND = ('map', 'world asset', 'public chart', 'travel map window',
               'atlas refresh', 'atlas open', 'atlas close')
 TOPICS = frozenset(('work', 'activities', 'plans', 'news', 'relationships',
     'feelings', 'quest', 'quests', 'stories', 'memories', 'gossip', 'history',
-    'family', 'weather', 'trade', 'health'))
+    'family', 'weather', 'trade', 'health', 'music'))
 
 
 def _json(value):
