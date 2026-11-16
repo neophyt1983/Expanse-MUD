@@ -1,20 +1,18 @@
-# Expanse server 1.9.13 on Render
+# Expanse server 1.9.15 on Render
 
-## Interface-guide popup repair
+## Visible magic, expanded spell learning and city defenders
 
-**This is a server/browser update only. No new `.expanse` file or world-update pin is required for the popup repair.** Keep playing through the same imported entry and character. Expected server build: **2026-11-16-guide-popup-1.9.13**.
+**Use both the 1.9.15 server update and Expanse-Wild-Lands-1.9.15.expanse.** Expected build: **2026-11-16-visible-magic-1.9.15**.
 
-The interface guide now has a movable title bar. Its position and size account for the game's display scale and the visible browser viewport. The instruction text scrolls inside the card while the title bar and action buttons remain accessible; very short viewports allow the whole card to scroll. Moving or resizing the guide does not send a gameplay action or save the game.
+The `.expanse` contains 36 shared curriculum spells, five ancestry-specific spells for each of six races, their teaching sources, costs, target rules and visual settings. All eight cities offer the curriculum. The engine interprets generic mechanics and displays effects confirmed by the server. Healing affects the actual recipient; creatures emerge from the ground or an ember portal; resurrection and permitted waypoint travel have visible results.
 
-Have players **Save & quit**, upload the supplied `github-upload` contents to the existing repository root, deploy the complete commit through Render, then refresh the game page. The guide's script and stylesheet URLs carry the new version so a refreshed page requests the repaired files. Detailed steps are under **Update the existing GitHub repository** below and in **GUIDE-POPUP-FIX.txt**. No live service was changed while preparing this package.
+The authored guard roster has **16 of 322** magic users; the military has **51 of 1,024**. Whole-person rounding gives each city two guard casters and six or seven military casters. Existing identities, professions, statistics, equipment and shifts remain. Shared Mending, Lantern Ward and Cinder Spear use finite mana and cooldowns during actual authorized combat turns. Normal attacks remain available when a spell cannot be used. They are not invincible.
 
-## Optional music and world-content upgrade: 1.9.12
+Magic cannot manufacture summon loot or XP, repeat consumed corpse rewards, revive permanent deaths, bypass current travel permissions, or substitute client packets for server checks. Learned class/race/level gates, components, mana and cooldowns apply. The complete spell catalogue and NPC training are editable in the Creator; the exported file contains the finished content.
 
-The already released 1.9.12 game file adds authored singing traditions for all six races, local solo/call-response/relay performances, and finite player/NPC instrument production. If you also want to add that content to an older adventure, use the current server code and the separately supplied **Expanse-Wild-Lands-1.9.12.expanse**. The engine supplies generic mechanics; the game file contains every style, individual voice pool, lyric, score, instrument recipe, repertoire and placement. This separate content upgrade is not needed to repair the popup.
+World SHA-256: **b4ceb676d0eebcce77d0394e6375cd5e65800eab5c0b8a44c1356cabfe5c76c6**. Follow **VISIBLE-MAGIC.txt** for the concise installation and **SPELL-CATALOG.txt** for all 66 definitions. Upload code, deploy, import the world as owner, then set the full update pin. Continuing characters use their original imported entry. The update preserves all 2,584 quest records, optional tutorial alternatives and the movable guide popup.
 
-World SHA-256 for that optional content upgrade: **22211ad9e8e3d910a6c85634614acacdfbf7d4673968242ed1623ddebfc5f1e6**. Keep the original imported entries and manual saves; continuing characters use their original entry with the compatible update pin.
-
-The world adds 48 regional songbooks, 8 making manuals, 64 named musicians/workers and 7 instruments/recipes, while preserving the existing lute. All eight cities are covered. The 1.9.11 linked quests, rounded rewards, contextual containers and route corrections remain included. No live deployment was performed while preparing this release.
+**Save** and **Save & quit** remain the only gameplay checkpoint actions. Spell visuals, polling, reconnecting and disconnecting never auto-save. No live GitHub repository or Render service was changed while preparing this release. Local renderer fixtures and native Canvas frames are not a physical-browser or live capacity certification.
 
 ## Singing and instrument making
 
@@ -28,7 +26,7 @@ Read local instrument-making notes at the library or workshop. The existing craf
 
 This repository runs the Expanse Python engine and browser player. The complete `.expanse` file supplies the authored world: its rooms, characters, creatures, quests, books, media and gameplay settings. Render runs the simulation and game clock; the browser displays the world and sends player actions over a WebSocket.
 
-The package is cumulative over the published 1.9.6, 1.9.7, 1.9.8, 1.9.9, 1.9.10, 1.9.11 or 1.9.12 server. It includes the separate character first/last name fix, correct world-version labels, conversation scrolling repair, compact translucent map tooltips, dependable map-click destinations, world-authored faster travel and the first-quest interface guide. Existing imported entries and manual saves retain their identities. An installation older than 1.9.6 needs the previously supplied 1.9.6 foundation update first; this package does not claim to replace that foundation or independently edited main-line files.
+The package is cumulative over the published 1.9.6, 1.9.7, 1.9.8, 1.9.9, 1.9.10, 1.9.11, 1.9.12, 1.9.13 or 1.9.14 server. It includes the separate character first/last name fix, correct world-version labels, conversation scrolling repair, compact translucent map tooltips, dependable map-click destinations, world-authored faster travel and the first-quest interface guide. Existing imported entries and manual saves retain their identities. An installation older than 1.9.6 needs the previously supplied 1.9.6 foundation update first; this package does not claim to replace that foundation or independently edited main-line files.
 
 The normal deployment, account setup, play and editing workflows use GitHub, Render and the game in your browser. A terminal is optional.
 
@@ -45,11 +43,11 @@ Unless a request names a location or clearly describes a local exception, apply 
 
 ## Update the existing GitHub repository
 
-1. Download and extract the supplied **server update ZIP** on your computer. The 1.9.13 cumulative update applies to an installed 1.9.6, 1.9.7, 1.9.8, 1.9.9, 1.9.10, 1.9.11 or 1.9.12 server. Keep the original imported entries, saves and world-update pin. Use the deployment repository linked to your existing Render service, keeping this server project separate from the desktop/main-line project.
+1. Download and extract the supplied **server update ZIP** on your computer. The 1.9.15 cumulative update applies to an installed 1.9.6, 1.9.7, 1.9.8, 1.9.9, 1.9.10, 1.9.11, 1.9.12, 1.9.13 or 1.9.14 server. Keep the original imported entries and saves; update the world pin only after the new file is imported successfully. Use the deployment repository linked to your existing Render service, keeping this server project separate from the desktop/main-line project.
 2. In that GitHub repository, select the branch Render deploys. At the repository root, choose **Add file → Upload files**.
 3. Open the extracted release's **`github-upload`** folder and upload its contents, preserving their paths. For example, `render_server.py` and `private_game.py` go at the repository root; a file supplied as `engine/starter_safety.py` goes inside `engine/`; files under `server/`, `web/` and `editor/` keep those folders. Upload the contents of `github-upload`, without adding that enclosing folder, the ZIP, or the release-name folder to the repository.
 4. Review the files GitHub will replace and commit the update. Keep the other existing engine files: an update package supplies replacements and additions to the existing application. GitHub's browser uploader accepts up to **100 files per upload**; split larger uploads into batches while preserving their paths. Finish all batches before deploying. If the branch requires a pull request, merge it before deploying that branch.
-5. Open the existing Render service and choose **Manual Deploy → Deploy latest commit**. Keep its existing persistent disk. Wait for **Live**, then refresh the game page. Resume the same character and open **Actions → Interface guide** to check the repaired popup. Installation of this popup fix is complete; importing a different game file or changing `EXPANSE_UPDATE_WORLD_SHA256` is not part of this repair.
+5. Open the existing Render service and choose **Manual Deploy → Deploy latest commit**. Keep its existing persistent disk. Wait for **Live**, then refresh the game page. Continue with the game-file import and compatible-update steps below. Afterward, resume the same character through its original imported entry and check the new tutorial choice.
 
 Source code and browser assets belong in this repository. Import the `.expanse` file through the game website. Enter account passwords only in Render's environment settings; keep saves outside GitHub.
 
@@ -65,18 +63,15 @@ To control when GitHub changes go live, set Render's **Settings → Auto-Deploy*
 
 The release also includes **SERVER-TESTING-AND-FEEDBACK.txt**, a short owner guide to testing comfortable player capacity and retrieving testers' questionnaire notes. These operational notes do not add automatic announcements, scheduled deployments or gameplay autosaving.
 
-## First quest: learn the interface
+## First quest: choose a guide or local work
 
-Each city's first lesson now has its own interface quest at the starting inn. Its completion introduces the separate local travel quest. The Welcome Letter and welcome guides explain the two acceptance steps:
+Each city's first quest starts at its inn. In **Conversation**, click or tap **Open quest offers**. Choose **Accept quest & start guide**, or choose **Take another quest…** to preview the local alternative and confirm **Accept this quest**. An unfinished guide has **Skip guide…** for the same choice. A failed or stale request keeps the preview available with an explanation; the browser waits for the server's accepted response.
 
-1. In **Conversation**, click or tap **Open quest offers**.
-2. In the popup, choose **Accept quest & start guide**. The server confirms acceptance before the walkthrough begins. If acceptance fails, the offer remains available to retry.
+The guide explains Conversation, the command line, Actions, Quests, Terrain Map, Quest compass, Location, reading, Inventory, Status, Condition, Panels, Help, Save and Save & quit. **Next** acknowledges the current card without performing that action. **Later** pauses it, while **Actions → Interface guide** resumes it or offers optional replay.
 
-The walkthrough explains Conversation, the command line, Actions, Quests, Terrain Map, Quest compass, Location, reading, Inventory, Status, Condition, Panels, Help, Save and Save & quit. **Next** acknowledges the current card; it does not perform that action. **Later** hides the guide; **Actions → Interface guide** resumes it or offers replay. Layout, movement, items and saving remain under the player's control.
+The alternative is a real local task: read the inn's work ledger and record the relevant guide's account, or read the fixed filed statement. Both objectives count after accepting. There is no combat, purchase or return journey. Complete the quest at the inn to receive its 25 XP; then read the named linked-request note or speak to the guide for the separate First Bearings journey. That next stage still pays its own 25 XP and original supplies. Only one path can pay the first stage's reward.
 
-Finish the guide and complete that introductory quest at the inn, then follow its named local source to accept the next quest. Each destination has a separate quest entry, clear completion, and its own rounded reward. An older accepted First Bearings retains its acceptance and objective baselines; unfinished guide acknowledgements move to the introductory stage. Legacy characters without a required guide remain exempt. Previously completed quests never reopen or pay again merely because the world was updated.
-
-Guide and chain progress remain live until an explicit **Save** or successful **Save & quit**. The Creator exposes ordered interface cards, ordered chain stages, destinations, readable sources and the original-quest migration snapshot. **World files** preserves the complete authored JSON. Text clients can use `interface guide`, `interface next`, `interface later` and `interface resume`.
+Guide choice and quest progress remain live until explicit **Save** or successful **Save & quit**. Older completed or credited tutorial stages cannot be claimed again. Unfinished legacy quests retain their accepted progress and deferred reward accounting. The Creator's **Interface lesson** form selects the ordinary alternative quest by ID; validation checks references, supported exact payouts and usable accepted objectives. The quest records own all content and rewards. **World files** preserves the complete authored JSON. Text clients preview with `interface alternative <guide quest ID>` and confirm using the exact `interface choose <guide quest ID> <revision>` command returned by that preview.
 
 ## Conversation and map readability
 
@@ -92,7 +87,7 @@ The player route planner now chooses the fewest legal steps and, among equally s
 
 The server still validates every edge. Locks, missing connections, injuries and unconsciousness stop travel normally. Shift-click inspects, dragging pans, and Stop walking cancels the remaining route. A pending route that cannot be confirmed reports that state instead of remaining silently stuck.
 
-The 1.9.12 world retains `metadata.travel_speed_multiplier: 2`. The generic engine halves travel time between locations, and the client shortens walking intervals and map transitions proportionally. Fractional game minutes accumulate across successful moves, so fast travel still advances the world. Terrain and weather retain their relative costs. The setting is editable through **Creator → World rules → Travel pace**, or the complete metadata file. Unconfigured worlds retain normal speed. This setting does not accelerate the shared real-time clock.
+The 1.9.15 world retains `metadata.travel_speed_multiplier: 2`. The generic engine halves travel time between locations, and the client shortens walking intervals and map transitions proportionally. Fractional game minutes accumulate across successful moves, so fast travel still advances the world. Terrain and weather retain their relative costs. The setting is editable through **Creator → World rules → Travel pace**, or the complete metadata file. Unconfigured worlds retain normal speed. This setting does not accelerate the shared real-time clock.
 
 At that pace, some moves accumulate half a game minute and the following move advances a whole minute. That whole-minute step also runs the NPC simulation. The retained server 1.9.10 improvements avoid repeating identical physical route searches within one NPC quest plan, repeat geography checks only when their relevant cache changes, and construct fewer temporary relationship profiles. They also avoid doomed sleeping-NPC conversation attempts and share temporary merchant demographic/workshop lookups within one synchronous transfer phase. Stocks, transaction prices and actor order remain live. It still runs the same simulation and validates each route against current permissions. A paired 31-move replay against 1.9.9 preserved complete gameplay state, messages, random-number state, travel-time fractions and explicit Save/resume results.
 
@@ -100,7 +95,7 @@ The map animates confirmed movement over the existing `95 / travel_speed_multipl
 
 ## Cities, quest progression and books
 
-All eight cities have comparable authored quest catalogues, now with 304–341 quest records each after destination splitting. Choices and class restrictions make those different from simultaneously available jobs; the compatible branch totals are comparable too. The new local casebooks use existing citizens, workplaces, public reading copies and concrete evidence or crafting tasks. NPCs and books introduce work through the normal discovery and prerequisite rules.
+All eight cities have comparable authored quest catalogues, now with 305–342 quest records each after destination splitting. Choices and class restrictions make those different from simultaneously available jobs; the compatible branch totals are comparable too. The new local casebooks use existing citizens, workplaces, public reading copies and concrete evidence or crafting tasks. NPCs and books introduce work through the normal discovery and prerequisite rules.
 
 Each starting location has a local introduction to navigation, Quests, cooking, food, rest and explicit saving. The interface lesson, separate navigation quest and local practical lessons lead into work in that city. The separate Iven story remains optional; Hearthmere's introduction correctly describes its school as local. Welcome letters and travel notes provide a readable alternative when a tutor is asleep or absent.
 
@@ -114,14 +109,14 @@ The fresh-world census counts living sentient residents assigned to each city-st
 
 | City-state | Living residents | Watch | Military | Quest records |
 |---|---:|---:|---:|---:|
-| Dawnwatch | 384 | 42 | 128 | 335 |
-| Hollowcrown | 350 | 40 | 128 | 341 |
-| Hearthmere | 350 | 40 | 128 | 328 |
-| Reedwater | 350 | 40 | 128 | 304 |
-| Cinderhold | 350 | 40 | 128 | 309 |
-| Glassreach | 350 | 40 | 128 | 312 |
-| Pinewatch | 350 | 40 | 128 | 313 |
-| Starfall | 350 | 40 | 128 | 334 |
+| Dawnwatch | 384 | 42 | 128 | 336 |
+| Hollowcrown | 350 | 40 | 128 | 342 |
+| Hearthmere | 350 | 40 | 128 | 329 |
+| Reedwater | 350 | 40 | 128 | 305 |
+| Cinderhold | 350 | 40 | 128 | 310 |
+| Glassreach | 350 | 40 | 128 | 313 |
+| Pinewatch | 350 | 40 | 128 | 314 |
+| Starfall | 350 | 40 | 128 | 335 |
 
 The retained population update adds 204 finite, named civilian residents and assigns 34 previously unreferenced adult residents to needed local jobs. Existing names and home locations survive those job changes; their authored work descriptions and schedules identify their updated workplaces. New households use existing multi-room dwellings with bounded occupancy and short local commutes. Guards and military are retained at their existing counts.
 
@@ -189,38 +184,38 @@ Review Render's current price and resource choices before creating or changing a
 2. Select its deployment branch and leave **Blueprint Path** as `render.yaml`. The Blueprint defines one Python web service named `expanse-private` and its persistent disk.
 3. Set `EXPANSE_OWNER_NAME` to your owner login name and `EXPANSE_OWNER_PASSWORD` to a new password of **15–128 characters**. Additional accounts default to an empty list. The owner has no expiration unless you set one. Character names are chosen separately after signing in.
 4. Review the service and disk settings, then deploy. Wait for **Live** and open the service's HTTPS `onrender.com` address.
-5. Sign in as the owner. Under **Import a game**, select **Expanse-Wild-Lands-1.9.12.expanse**, then choose **Import world**. Select **Play Expanse** beside that imported entry and create a character.
+5. Sign in as the owner. Under **Import a game**, select **Expanse-Wild-Lands-1.9.15.expanse**, then choose **Import world**. Select **Play Expanse** beside that imported entry and create a character.
 6. Use **Save** for a checkpoint while continuing to play, or **Saves → Create save** for a named checkpoint. Use **Save & quit** to save, end the play session and answer or skip the questionnaire.
 
 The sign-in page is public. Imported game data, play and downloads require a provisioned account. Render supplies HTTPS; the WebSocket uses the same public origin and port. Imported worlds, manual saves, owner drafts and playtest records live on the configured persistent disk.
 
-## Optional: upgrade an existing adventure to game content 1.9.12
+## Upgrade an existing adventure to game content 1.9.15
 
-These steps apply only when deliberately installing the separately released music/world-content upgrade. Skip this section when installing just the 1.9.13 popup repair.
+These steps install the authored tutorial alternatives in an existing supported adventure. The new server code and game file are both required for this release.
 
 Keep the original imported entry and its saves. A different `.expanse` file has a different storage identity even when it contains the same internal world name. Opening the new entry starts a separate adventure; it does not move an old save into that entry.
 
-The 1.9.12 world contains the authored compatibility update used by the engine when loading supported older adventures:
+The 1.9.15 world contains the authored compatibility update used by the engine when loading supported older adventures:
 
 1. Have all testers **Save & quit**. Download the original imported world and your manual saves from **World & saves** as a backup. Each tester can download their own saves.
-2. Upload the cumulative server code (1.9.13 in this package) to the linked GitHub repository and deploy that commit on the existing Render service as described above. Preserve the disk and account names.
-3. Sign in as the owner and **import Expanse-Wild-Lands-1.9.12.expanse**. Leave the original imported entry in place. The newly imported entry supplies the update template; you do not need to create a new character in it to upgrade an old adventure.
+2. Upload the cumulative server code (1.9.15 in this package) to the linked GitHub repository and deploy that commit on the existing Render service as described above. Preserve the disk and account names.
+3. Sign in as the owner and **import Expanse-Wild-Lands-1.9.15.expanse**. Leave the original imported entry in place. The newly imported entry supplies the update template; you do not need to create a new character in it to upgrade an old adventure.
 4. After that import succeeds, open the existing Render service's **Environment** page and add or update:
 
    | Key | Value |
    |---|---|
-   | `EXPANSE_UPDATE_WORLD_SHA256` | `22211ad9e8e3d910a6c85634614acacdfbf7d4673968242ed1623ddebfc5f1e6` |
+   | `EXPANSE_UPDATE_WORLD_SHA256` | `b4ceb676d0eebcce77d0394e6375cd5e65800eab5c0b8a44c1356cabfe5c76c6` |
    | `EXPANSE_MAX_ACTIVE_GAMES` | `1` for initial playtests on the existing one-CPU service |
 
-   This is the **complete SHA-256 of the released Expanse-Wild-Lands-1.9.12.expanse file**. Paste the whole value, not the filename or the shortened identifier shown on the game shelf. The selected file must already be imported before this setting is enabled.
+   This is the **complete SHA-256 of the released Expanse-Wild-Lands-1.9.15.expanse file**. Paste the whole value, not the filename or the shortened identifier shown on the game shelf. The selected file must already be imported before this setting is enabled.
 
 5. Use the dropdown beside **Save only** and choose **Save and deploy** to activate the new value. This restarts the service, so testers must have saved first. **Save only** stores the change for a later deployment; **Restart service** uses the already-deployed environment values.
 6. Sign in again. Continue through **Play Expanse on the original imported entry**, then load your existing character or named save. Use the shortened **File ID** on the shelf to identify that original entry, even when a newer version is listed first. Keep using the original entry for that continuing adventure.
 7. Check your character, location, inventory and quests, then use **Save** to checkpoint the updated session. Loading the compatibility update does not silently overwrite the existing checkpoint.
 
-The new content revision is applied atomically only when its authored record guards match the supported prior content. A Creator-edited objective, source, container room, colliding new ID or customized XP configuration causes that revision to remain unapplied, preserving the custom content. A cosmetic world title can remain customized. Use a fresh 1.9.12 import or deliberately reconcile a customized world in the editor; never overwrite it just to force a guard to pass. Shared update assets are pinned by SHA-256, and the exported world stays inside the existing import-size limit.
+The new content revision is applied atomically only when its authored record guards match the supported prior content. A Creator-edited objective, source, container room, colliding new ID or customized XP configuration causes that revision to remain unapplied, preserving the custom content. A cosmetic world title can remain customized. Use a fresh 1.9.15 import or deliberately reconcile a customized world in the editor; never overwrite it just to force a guard to pass. Shared update assets are pinned by SHA-256, and the exported world stays inside the existing import-size limit.
 
-For a completely new adventure, play the newly imported 1.9.12 entry instead. Importing identical file bytes again reuses the existing entry. Importing a different file normally creates an independent entry; the explicit update-template setting above is the supported bridge for this release, not a general save transfer between arbitrary worlds.
+For a completely new adventure, play the newly imported 1.9.15 entry instead. Importing identical file bytes again reuses the existing entry. Importing a different file normally creates an independent entry; the explicit update-template setting above is the supported bridge for this release, not a general save transfer between arbitrary worlds.
 
 For later code-only fixes, upload their source changes and use **Manual Deploy → Deploy latest commit**. A later authored-content change also requires its `.expanse` file and the matching compatibility instructions. A revised export has a different digest; retain the pin to the released file until a compatible replacement is intentionally selected.
 
@@ -283,7 +278,7 @@ These prior-release measurements support an **invited private playtest with a kn
 
 From **World & saves**, the owner can choose **Edit a draft** beside an imported world. The editor opens a separate persistent draft. Testers do not have editor access, and editing the draft does not modify a running player's session or saved game.
 
-To edit the complete 1.9.12 content, create that draft from the **new 1.9.12 imported entry**. An older imported entry remains the original source file even when its running adventure receives a supported compatibility update.
+To edit the complete 1.9.15 content, create that draft from the **new 1.9.15 imported entry**. An older imported entry remains the original source file even when its running adventure receives a supported compatibility update.
 
 1. Use the structured Creator tools for records such as rooms, NPCs, items and quests. Use **World files** to inspect and edit the world's authored JSON, including world settings, and to upload, replace or download supported media.
 2. Save your changes explicitly with **Save draft** or the relevant world-file save control. Text left unsaved in a form is not a saved draft. There is no gameplay autosave as a consequence of editing.
