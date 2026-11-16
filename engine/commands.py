@@ -1671,6 +1671,8 @@ def build_registry() -> CommandRegistry:
     from engine import social,companions
     social.register(reg)
     companions.register(reg)
+    from engine import singing
+    singing.register(reg)
     from engine import locks
     locks.register(reg)
     from engine.interactions import combine
@@ -1731,7 +1733,7 @@ def process_command(registry: CommandRegistry, world: World,
     except ValueError as exc:
         return str(exc)
     if living.enabled(world):
-        if not ctx.time_accounted and cmd.name not in ("rest", "sleep", "wait", "help", "look", "map", "survey", "recipes", "catalog", "wardrobe", "materials", "market", "adventures", "quests", "journal", "condition", "inventory", "time", "inspect", "spells", "companions", "services", "route", "guide", "interface", "track", "untrack", "waypoint"):
+        if not ctx.time_accounted and cmd.name not in ("rest", "sleep", "wait", "help", "look", "map", "survey", "recipes", "songs", "catalog", "wardrobe", "materials", "market", "adventures", "quests", "journal", "condition", "inventory", "time", "inspect", "spells", "companions", "services", "route", "guide", "interface", "track", "untrack", "waypoint"):
             living.advance(world, 1)
         if player.alive and (old_location != player.location or first == "look"):
             event = living.on_entry(world, player)

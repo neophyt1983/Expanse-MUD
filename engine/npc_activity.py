@@ -27,7 +27,7 @@ def activity(w,actor):
         (('travell','returning home','commut','walking','driving','viewing a home'),'walk'),
         (('buy','trad','market','shop','sell'),'trade'),(('forag','harvest','gather','tend'),'harvest'),
         (('hunt','stalk'),'hunt'),(('patrol','guard'),'patrol'),(('study','learn','read','school','teach'),'study'),
-        (('perform','entertain','music','tavern','leisure'),'music'),(('cook','eat','feed','drink','meal'),'meal'),
+        (('perform','sing','entertain','music','tavern','leisure'),'music'),(('cook','eat','feed','drink','meal'),'meal'),
         (('talk','social','family','friend','play','visiting'),'social'),(('seek','search'),'search'),
         (('rest','home','relax'),'rest'),(('work','produc','repair','craft','farm'),'work')]:
         if any(token in low for token in tokens):

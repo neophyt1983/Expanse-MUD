@@ -298,6 +298,9 @@ def work_activity(w,n):
     target=workplace(w,n)
     if not room_open(w,target):return False
     move_towards(w,n,target);n.activity='performing' if role=='entertainer' else 'teaching'
+    if role=='entertainer' and n.location==target:
+        from engine import singing
+        singing.npc_step(w,n,'performance')
     if n.location==target and now>=n.progress.get('next_public_service',0):
         n.progress['next_public_service']=now+30
         attendees=[p for p in w.entities_in_room(target) if p.id!=n.id and p.alive and relationships.profile(w,p)['sentient'] and society.friendliness(w,p,n)>50]
@@ -342,7 +345,12 @@ def routine(w,n):
         if supplies(w,n):return True
         if work_activity(w,n):return True
         # Return occupational workers to the authored workplace, independent of old overlong schedules.
-        if definition(w,n).get('profession')=='producer':move_towards(w,n,workplace(w,n));n.activity='working';return True
+        if definition(w,n).get('profession')=='producer':
+            target=workplace(w,n);move_towards(w,n,target);n.activity='working'
+            if n.location==target:
+                from engine import singing
+                singing.npc_step(w,n,'work')
+            return True
         return False
     if awake(w,n):
         from engine import settlements
@@ -355,7 +363,10 @@ def routine(w,n):
         if venue and room_open(w,venue):
             move_towards(w,n,venue)
             n.activity='enjoying entertainment' if n.location==venue else 'travelling to entertainment'
-            if n.location==venue:needs_market.relieve(n,'fulfillment',2)
+            if n.location==venue:
+                needs_market.relieve(n,'fulfillment',2)
+                from engine import singing
+                singing.npc_step(w,n,'leisure')
             return True
     move_towards(w,n,home)
     if n.location!=home:n.activity='returning home';return True

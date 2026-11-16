@@ -173,6 +173,11 @@ def build_world(game_dir=None) -> World:
     chain_errors=quest_chains.validate({'quest':list(world.quests.values()),
         'room':list(world.room_details.values()),'item':list(world.items.values())})
     if chain_errors:raise ValueError('Quest chain content: '+'; '.join(chain_errors))
+    from engine import singing
+    singing_errors=singing.validate({'race':list(world.races.values()),
+        'npc':list(world.npcs.values()),'item':list(world.items.values()),
+        'room':list(world.room_details.values()),'recipe':list(world.recipes.values())},world.metadata)
+    if singing_errors:raise ValueError('Music content: '+'; '.join(singing_errors))
     world.start_room = world.metadata.get("start_room")
     world.abilities = {a["id"]: a for a in read_records("abilities.json", target_dir)}
     world.shortcuts = load_shortcuts(target_dir)
@@ -220,6 +225,10 @@ def validate_world(world: World):
     from engine import quest_chains
     errors.extend(quest_chains.validate({'quest':list(world.quests.values()),
         'room':list(world.room_details.values()),'item':list(world.items.values())}))
+    from engine import singing
+    errors.extend(singing.validate({'race':list(world.races.values()),
+        'npc':list(world.npcs.values()),'item':list(world.items.values()),
+        'room':list(world.room_details.values()),'recipe':list(world.recipes.values())},world.metadata))
     room_ids = set(world.rooms.keys())
     item_ids = set(world.items.keys())
     npc_ids = set(world.npcs.keys())

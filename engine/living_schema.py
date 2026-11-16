@@ -133,3 +133,9 @@ DEFAULTS["quest"]["escort"]={}
 
 # Optional, explicitly authored linked quests and their original-save snapshot.
 DEFAULTS['quest'].update(quest_chain={},quest_split_migration={})
+
+# Optional authored musical traditions, individual repertoires and instruments.
+# Empty records preserve worlds that do not define musical performances.
+DEFAULTS['race']['singing']={}
+DEFAULTS['npc']['singing']={}
+DEFAULTS['item'].update(song={},instrument={})
