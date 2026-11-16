@@ -1,16 +1,34 @@
-# Expanse server and game file 1.9.11 on Render
+# Expanse server 1.9.13 on Render
 
-This update contains three coordinated changes: straighter player click routes, separate linked quests for objectives at different destinations, and usable regional containers. **Install both the server update and the new `.expanse` file.** The server provides generic mechanics and controls; the game file contains every authored quest, reward, container placement, item list, and regional difference.
+## Interface-guide popup repair
 
-The new authored file is **Expanse-Wild-Lands-1.9.11.expanse**, with full SHA-256 **efd53b9727167463bc276defb2fabdf1acb077a9179f8709f22ffa5169e7f064**. Keep original imported entries and manual saves. Use the compatibility steps below to continue an existing character in its original entry.
+**This is a server/browser update only. No new `.expanse` file or world-update pin is required for the popup repair.** Keep playing through the same imported entry and character. Expected server build: **2026-11-16-guide-popup-1.9.13**.
 
-The world splits 583 original quests into linked stages, adding 709 quest records for 2576 total. Every stage has one destination. XP and gold are divided equally and each share is rounded up; zero remains zero. Items, consumption, reputation, flags and world outcomes stay at the original final quest. The new world also adds 2,709 finite containers across 1,726 appropriate places in all eight city-states and their surroundings.
+The interface guide now has a movable title bar. Its position and size account for the game's display scale and the visible browser viewport. The instruction text scrolls inside the card while the title bar and action buttons remain accessible; very short viewports allow the whole card to scroll. Moving or resizing the guide does not send a gameplay action or save the game.
 
-The cumulative code retains the prior movement timing, sprite-color, scrolling, map-input, first/last-name, world-version, and playtest-report repairs. No live Render deployment or live repository comparison was performed while preparing this package.
+Have players **Save & quit**, upload the supplied `github-upload` contents to the existing repository root, deploy the complete commit through Render, then refresh the game page. The guide's script and stylesheet URLs carry the new version so a refreshed page requests the repaired files. Detailed steps are under **Update the existing GitHub repository** below and in **GUIDE-POPUP-FIX.txt**. No live service was changed while preparing this package.
+
+## Optional music and world-content upgrade: 1.9.12
+
+The already released 1.9.12 game file adds authored singing traditions for all six races, local solo/call-response/relay performances, and finite player/NPC instrument production. If you also want to add that content to an older adventure, use the current server code and the separately supplied **Expanse-Wild-Lands-1.9.12.expanse**. The engine supplies generic mechanics; the game file contains every style, individual voice pool, lyric, score, instrument recipe, repertoire and placement. This separate content upgrade is not needed to repair the popup.
+
+World SHA-256 for that optional content upgrade: **22211ad9e8e3d910a6c85634614acacdfbf7d4673968242ed1623ddebfc5f1e6**. Keep the original imported entries and manual saves; continuing characters use their original entry with the compatible update pin.
+
+The world adds 48 regional songbooks, 8 making manuals, 64 named musicians/workers and 7 instruments/recipes, while preserving the existing lute. All eight cities are covered. The 1.9.11 linked quests, rounded rewards, contextual containers and route corrections remain included. No live deployment was performed while preparing this release.
+
+## Singing and instrument making
+
+Use **Actions → Songs** to see accessible or learned songs, then **Actions → Sing** or `sing <song title>`. Read a local songbook to remember its music after leaving. Characters may learn other cultures' songs. Halfling answers and Gnome relays use actual willing local NPCs; the engine never fabricates missing partners or makes another player respond automatically.
+
+Lyrics appear in Conversation. Music-volume controls govern short synthesized musical excerpts authored as numeric scores; these are not recordings of people pronouncing the lyrics. Audio starts after a browser gesture and stops on visibility, room, session and connection changes. Repeated map snapshots do not replay a cue.
+
+Read local instrument-making notes at the library or workshop. The existing crafting system consumes materials at the listed station; staffed NPC workshops produce finite stock and purchase resupply from the local economy. Singing itself never creates instruments, refills inventories or awards money/XP. Explicit Save preserves the musical progress and finite world together.
+
+**MUSIC-AND-VALIDATION.txt** lists all six traditions, instruments and the actual workshops/venues in each city, plus complete validation limits. Creator race/NPC/item forms and World files can edit the finished content and export it again.
 
 This repository runs the Expanse Python engine and browser player. The complete `.expanse` file supplies the authored world: its rooms, characters, creatures, quests, books, media and gameplay settings. Render runs the simulation and game clock; the browser displays the world and sends player actions over a WebSocket.
 
-The package is cumulative over the published 1.9.6, 1.9.7, 1.9.8, 1.9.9 or 1.9.10 server. It includes the separate character first/last name fix, correct world-version labels, conversation scrolling repair, compact translucent map tooltips, dependable map-click destinations, world-authored faster travel and the first-quest interface guide. Existing imported entries and manual saves retain their identities. An installation older than 1.9.6 needs the previously supplied 1.9.6 foundation update first; this package does not claim to replace that foundation or independently edited main-line files.
+The package is cumulative over the published 1.9.6, 1.9.7, 1.9.8, 1.9.9, 1.9.10, 1.9.11 or 1.9.12 server. It includes the separate character first/last name fix, correct world-version labels, conversation scrolling repair, compact translucent map tooltips, dependable map-click destinations, world-authored faster travel and the first-quest interface guide. Existing imported entries and manual saves retain their identities. An installation older than 1.9.6 needs the previously supplied 1.9.6 foundation update first; this package does not claim to replace that foundation or independently edited main-line files.
 
 The normal deployment, account setup, play and editing workflows use GitHub, Render and the game in your browser. A terminal is optional.
 
@@ -27,11 +45,11 @@ Unless a request names a location or clearly describes a local exception, apply 
 
 ## Update the existing GitHub repository
 
-1. Download and extract the supplied **server update ZIP** on your computer. The 1.9.11 cumulative update applies to an installed 1.9.6, 1.9.7, 1.9.8, 1.9.9 or 1.9.10 server. Keep the original imported entries, saves and world-update pin. Use the deployment repository linked to your existing Render service, keeping this server project separate from the desktop/main-line project.
+1. Download and extract the supplied **server update ZIP** on your computer. The 1.9.13 cumulative update applies to an installed 1.9.6, 1.9.7, 1.9.8, 1.9.9, 1.9.10, 1.9.11 or 1.9.12 server. Keep the original imported entries, saves and world-update pin. Use the deployment repository linked to your existing Render service, keeping this server project separate from the desktop/main-line project.
 2. In that GitHub repository, select the branch Render deploys. At the repository root, choose **Add file → Upload files**.
 3. Open the extracted release's **`github-upload`** folder and upload its contents, preserving their paths. For example, `render_server.py` and `private_game.py` go at the repository root; a file supplied as `engine/starter_safety.py` goes inside `engine/`; files under `server/`, `web/` and `editor/` keep those folders. Upload the contents of `github-upload`, without adding that enclosing folder, the ZIP, or the release-name folder to the repository.
 4. Review the files GitHub will replace and commit the update. Keep the other existing engine files: an update package supplies replacements and additions to the existing application. GitHub's browser uploader accepts up to **100 files per upload**; split larger uploads into batches while preserving their paths. Finish all batches before deploying. If the branch requires a pull request, merge it before deploying that branch.
-5. Open the existing Render service and choose **Manual Deploy → Deploy latest commit**. Keep its existing persistent disk. Wait for **Live**, then refresh the game page. Continue with the 1.9.11 game-file import and update-template steps below; the new quests and containers are authored there.
+5. Open the existing Render service and choose **Manual Deploy → Deploy latest commit**. Keep its existing persistent disk. Wait for **Live**, then refresh the game page. Resume the same character and open **Actions → Interface guide** to check the repaired popup. Installation of this popup fix is complete; importing a different game file or changing `EXPANSE_UPDATE_WORLD_SHA256` is not part of this repair.
 
 Source code and browser assets belong in this repository. Import the `.expanse` file through the game website. Enter account passwords only in Render's environment settings; keep saves outside GitHub.
 
@@ -74,7 +92,7 @@ The player route planner now chooses the fewest legal steps and, among equally s
 
 The server still validates every edge. Locks, missing connections, injuries and unconsciousness stop travel normally. Shift-click inspects, dragging pans, and Stop walking cancels the remaining route. A pending route that cannot be confirmed reports that state instead of remaining silently stuck.
 
-The 1.9.11 world retains `metadata.travel_speed_multiplier: 2`. The generic engine halves travel time between locations, and the client shortens walking intervals and map transitions proportionally. Fractional game minutes accumulate across successful moves, so fast travel still advances the world. Terrain and weather retain their relative costs. The setting is editable through **Creator → World rules → Travel pace**, or the complete metadata file. Unconfigured worlds retain normal speed. This setting does not accelerate the shared real-time clock.
+The 1.9.12 world retains `metadata.travel_speed_multiplier: 2`. The generic engine halves travel time between locations, and the client shortens walking intervals and map transitions proportionally. Fractional game minutes accumulate across successful moves, so fast travel still advances the world. Terrain and weather retain their relative costs. The setting is editable through **Creator → World rules → Travel pace**, or the complete metadata file. Unconfigured worlds retain normal speed. This setting does not accelerate the shared real-time clock.
 
 At that pace, some moves accumulate half a game minute and the following move advances a whole minute. That whole-minute step also runs the NPC simulation. The retained server 1.9.10 improvements avoid repeating identical physical route searches within one NPC quest plan, repeat geography checks only when their relevant cache changes, and construct fewer temporary relationship profiles. They also avoid doomed sleeping-NPC conversation attempts and share temporary merchant demographic/workshop lookups within one synchronous transfer phase. Stocks, transaction prices and actor order remain live. It still runs the same simulation and validates each route against current permissions. A paired 31-move replay against 1.9.9 preserved complete gameplay state, messages, random-number state, travel-time fractions and explicit Save/resume results.
 
@@ -171,36 +189,38 @@ Review Render's current price and resource choices before creating or changing a
 2. Select its deployment branch and leave **Blueprint Path** as `render.yaml`. The Blueprint defines one Python web service named `expanse-private` and its persistent disk.
 3. Set `EXPANSE_OWNER_NAME` to your owner login name and `EXPANSE_OWNER_PASSWORD` to a new password of **15–128 characters**. Additional accounts default to an empty list. The owner has no expiration unless you set one. Character names are chosen separately after signing in.
 4. Review the service and disk settings, then deploy. Wait for **Live** and open the service's HTTPS `onrender.com` address.
-5. Sign in as the owner. Under **Import a game**, select **Expanse-Wild-Lands-1.9.11.expanse**, then choose **Import world**. Select **Play Expanse** beside that imported entry and create a character.
+5. Sign in as the owner. Under **Import a game**, select **Expanse-Wild-Lands-1.9.12.expanse**, then choose **Import world**. Select **Play Expanse** beside that imported entry and create a character.
 6. Use **Save** for a checkpoint while continuing to play, or **Saves → Create save** for a named checkpoint. Use **Save & quit** to save, end the play session and answer or skip the questionnaire.
 
 The sign-in page is public. Imported game data, play and downloads require a provisioned account. Render supplies HTTPS; the WebSocket uses the same public origin and port. Imported worlds, manual saves, owner drafts and playtest records live on the configured persistent disk.
 
-## Upgrade an existing adventure to 1.9.11
+## Optional: upgrade an existing adventure to game content 1.9.12
+
+These steps apply only when deliberately installing the separately released music/world-content upgrade. Skip this section when installing just the 1.9.13 popup repair.
 
 Keep the original imported entry and its saves. A different `.expanse` file has a different storage identity even when it contains the same internal world name. Opening the new entry starts a separate adventure; it does not move an old save into that entry.
 
-For this release, the new world also contains the authored compatibility update used by the engine when loading supported older adventures:
+The 1.9.12 world contains the authored compatibility update used by the engine when loading supported older adventures:
 
 1. Have all testers **Save & quit**. Download the original imported world and your manual saves from **World & saves** as a backup. Each tester can download their own saves.
-2. Upload the cumulative server code (1.9.11 in this package) to the linked GitHub repository and deploy that commit on the existing Render service as described above. Preserve the disk and account names.
-3. Sign in as the owner and **import Expanse-Wild-Lands-1.9.11.expanse**. Leave the original imported entry in place. The newly imported entry supplies the update template; you do not need to create a new character in it to upgrade an old adventure.
+2. Upload the cumulative server code (1.9.13 in this package) to the linked GitHub repository and deploy that commit on the existing Render service as described above. Preserve the disk and account names.
+3. Sign in as the owner and **import Expanse-Wild-Lands-1.9.12.expanse**. Leave the original imported entry in place. The newly imported entry supplies the update template; you do not need to create a new character in it to upgrade an old adventure.
 4. After that import succeeds, open the existing Render service's **Environment** page and add or update:
 
    | Key | Value |
    |---|---|
-   | `EXPANSE_UPDATE_WORLD_SHA256` | `efd53b9727167463bc276defb2fabdf1acb077a9179f8709f22ffa5169e7f064` |
+   | `EXPANSE_UPDATE_WORLD_SHA256` | `22211ad9e8e3d910a6c85634614acacdfbf7d4673968242ed1623ddebfc5f1e6` |
    | `EXPANSE_MAX_ACTIVE_GAMES` | `1` for initial playtests on the existing one-CPU service |
 
-   This is the **complete SHA-256 of the released Expanse-Wild-Lands-1.9.11.expanse file**. Paste the whole value, not the filename or the shortened identifier shown on the game shelf. The selected file must already be imported before this setting is enabled.
+   This is the **complete SHA-256 of the released Expanse-Wild-Lands-1.9.12.expanse file**. Paste the whole value, not the filename or the shortened identifier shown on the game shelf. The selected file must already be imported before this setting is enabled.
 
 5. Use the dropdown beside **Save only** and choose **Save and deploy** to activate the new value. This restarts the service, so testers must have saved first. **Save only** stores the change for a later deployment; **Restart service** uses the already-deployed environment values.
 6. Sign in again. Continue through **Play Expanse on the original imported entry**, then load your existing character or named save. Use the shortened **File ID** on the shelf to identify that original entry, even when a newer version is listed first. Keep using the original entry for that continuing adventure.
 7. Check your character, location, inventory and quests, then use **Save** to checkpoint the updated session. Loading the compatibility update does not silently overwrite the existing checkpoint.
 
-The new content revision is applied atomically only when its authored record guards match the supported prior content. A Creator-edited objective, source, container room, colliding new ID or customized XP configuration causes that revision to remain unapplied, preserving the custom content. A cosmetic world title can remain customized. Use a fresh 1.9.11 import or deliberately reconcile a customized world in the editor; never overwrite it just to force a guard to pass. Shared update assets are pinned by SHA-256, and the exported world stays inside the existing import-size limit.
+The new content revision is applied atomically only when its authored record guards match the supported prior content. A Creator-edited objective, source, container room, colliding new ID or customized XP configuration causes that revision to remain unapplied, preserving the custom content. A cosmetic world title can remain customized. Use a fresh 1.9.12 import or deliberately reconcile a customized world in the editor; never overwrite it just to force a guard to pass. Shared update assets are pinned by SHA-256, and the exported world stays inside the existing import-size limit.
 
-For a completely new adventure, play the newly imported 1.9.11 entry instead. Importing identical file bytes again reuses the existing entry. Importing a different file normally creates an independent entry; the explicit update-template setting above is the supported bridge for this release, not a general save transfer between arbitrary worlds.
+For a completely new adventure, play the newly imported 1.9.12 entry instead. Importing identical file bytes again reuses the existing entry. Importing a different file normally creates an independent entry; the explicit update-template setting above is the supported bridge for this release, not a general save transfer between arbitrary worlds.
 
 For later code-only fixes, upload their source changes and use **Manual Deploy → Deploy latest commit**. A later authored-content change also requires its `.expanse` file and the matching compatibility instructions. A revised export has a different digest; retain the pin to the released file until a compatible replacement is intentionally selected.
 
@@ -263,7 +283,7 @@ These prior-release measurements support an **invited private playtest with a kn
 
 From **World & saves**, the owner can choose **Edit a draft** beside an imported world. The editor opens a separate persistent draft. Testers do not have editor access, and editing the draft does not modify a running player's session or saved game.
 
-To edit the complete 1.9.11 content, create that draft from the **new 1.9.11 imported entry**. An older imported entry remains the original source file even when its running adventure receives a supported compatibility update.
+To edit the complete 1.9.12 content, create that draft from the **new 1.9.12 imported entry**. An older imported entry remains the original source file even when its running adventure receives a supported compatibility update.
 
 1. Use the structured Creator tools for records such as rooms, NPCs, items and quests. Use **World files** to inspect and edit the world's authored JSON, including world settings, and to upload, replace or download supported media.
 2. Save your changes explicitly with **Save draft** or the relevant world-file save control. Text left unsaved in a form is not a saved draft. There is no gameplay autosave as a consequence of editing.
