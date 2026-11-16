@@ -38,6 +38,8 @@ class GameServer(SocietyServer):
         self.init_society()
         self.closing = False
         self.world = build_world()
+        from engine import magic_visuals
+        magic_visuals.reset(self.world)
         from engine import streets, chronicles
         streets.install(self.world)
         chronicles.attach(self.world)
@@ -215,6 +217,10 @@ class GameServer(SocietyServer):
                     kept.append(item_id)
             room.items = kept
         living.restore(self.world, data.get("living", {}))
+        from engine import magic_visuals
+        from server import magic_delivery
+        magic_visuals.reset(self.world)
+        magic_delivery.reset(self)
 
     @staticmethod
     def _validate_saved_world(data):
@@ -701,6 +707,8 @@ class GameServer(SocietyServer):
             from uuid import uuid4
             self.world.media_session=uuid4().hex
         packet['media_world']=self.world.media_session
+        from engine import magic_visuals
+        packet['magic_visuals']={'session':magic_visuals.cursor(self.world)['session']}
         packet['visual']['passages']=streets.doorways(self.world,player,packet['visual'],blocked_exits)
         packet['music_cue']=soundtrack.cue(self.world,player)
         packet['soundtrack']=packet['music_cue']['track']
@@ -894,9 +902,12 @@ class GameServer(SocietyServer):
             await self.send_atlas(websocket)
 
     async def update_maps(self):
+        from server import magic_delivery
         for ws,pid in list(self.clients.items()):
             if pid not in self.world.entities: continue
-            packet = json.dumps(dict(type='map', **self.map_for(pid)))
+            view = dict(type='map', **self.map_for(pid))
+            magic_delivery.note_map(self,ws,pid,view)
+            packet = json.dumps(view)
             if self.last_maps.get(ws) != packet:
                 try:
                     await ws.send(packet)
@@ -904,6 +915,7 @@ class GameServer(SocietyServer):
                 except websockets.exceptions.ConnectionClosed:
                     pass
 
+        await magic_delivery.flush(self)
         await self.update_atlases()
 
     async def broadcast_room(self, room_id, text, exclude=None, exclude_player=None):
@@ -1127,21 +1139,46 @@ class GameServer(SocietyServer):
                                    'quest_accept': {'quest_id': offered_id, 'accepted': False}}
 
                 if cmd == 'interface tour':
-                    from engine import interface_tours
+                    from engine import interface_tours, quest_alternatives
                     actor = self.world.entities.get(player_id)
                     request_id = packet.get('request_id')
                     if not isinstance(request_id, str) or not 1 <= len(request_id) <= 100:
                         request_id = None
+                    action = packet.get('action', 'view')
+                    choice = None
                     try:
-                        if packet.get('action', 'view') != 'view' and (actor is None or packet.get('player_id') != actor.id):
+                        if action != 'view' and (actor is None or packet.get('player_id') != actor.id):
                             raise ValueError('Your character changed. Reopen the interface guide.')
-                        state = interface_tours.handle(self.world, actor, packet)
-                        if packet.get('action', 'view') != 'view':
+                        if action == 'preview_alternative':
+                            preview = quest_alternatives.preview(self.world, actor, packet.get('quest_id'))
+                            reply = {'alternative_preview': preview,
+                                     'interface_tour': interface_tours.projection(self.world, actor)}
+                        elif action == 'choose_alternative':
+                            choice = quest_alternatives.choose(self.world, actor, packet.get('quest_id'), packet.get('revision'))
+                            reply = {'alternative_choice': choice,
+                                     'interface_tour': interface_tours.projection(self.world, actor)}
+                        else:
+                            reply = {'interface_tour': interface_tours.handle(self.world, actor, packet)}
+                        if action not in ('view', 'preview_alternative'):
                             self._save_dirty_players()
-                        reply = {'interface_tour': state}
                     except ValueError as exc:
+                        choice = None
                         reply = {'error': str(exc), 'interface_tour': interface_tours.projection(self.world, actor)}
                     await websocket.send(json.dumps({'type': 'interface_tour', 'request_id': request_id, **reply}))
+                    if choice and choice.get('accepted'):
+                        replacement = self.world.quests[choice['alternative_quest_id']]
+                        if choice.get('already_selected'):
+                            notice = 'You already chose ' + replacement['name'] + '. Your progress is unchanged.'
+                        else:
+                            notice = ('Quest accepted: ' + replacement['name'] + '.\n'
+                                      + replacement.get('description', '')
+                                      + '\nComplete this quest to earn the tutorial’s reward. '
+                                        'Choosing it pays nothing immediately. '
+                                        'Actions → Interface guide remains available for reference.')
+                        await websocket.send(json.dumps({'type': 'response', 'text': notice}))
+                        map_packet = json.dumps(dict(type='map', **self.map_for(player_id)))
+                        await websocket.send(map_packet)
+                        self.last_maps[websocket] = map_packet
                     continue
 
                 if cmd == 'world asset':
@@ -1375,6 +1412,8 @@ class GameServer(SocietyServer):
                     trade_ui.disconnect(self,websocket)
                     player_id = new_pid
                     self.clients[websocket] = player_id
+                    from server import magic_delivery
+                    magic_delivery.bind(self,websocket,player_id)
                     if websocket in self.host_sockets:self.local_save_player=player_id
                     dm_console.record_activity(self,player_id,'resume')
                     room = self.world.rooms[target.location]
@@ -1496,6 +1535,10 @@ class GameServer(SocietyServer):
                 if quest_reply:
                     status = mover.progress.get('quests', {}).get(offered_id, 'available')
                     quest_reply['quest_accept'].update(accepted=status == 'active', status=status)
+                # Confirm actual actors/locations before showing a spell. The
+                # stream is connection-scoped and never survives Save/resume.
+                from server import magic_delivery
+                await magic_delivery.flush(self,refresh=True)
                 # A tagged UI step gets its authoritative map immediately,
                 # before its acknowledgement permits the next input. No world
                 # mutation is moved to a thread or skipped for responsiveness.
@@ -1558,6 +1601,8 @@ class GameServer(SocietyServer):
             getattr(self,'account_connections',{}).pop(websocket,None)
             self.host_sockets.discard(websocket)
             self.clients.pop(websocket,None);self.last_maps.pop(websocket,None)
+            from server import magic_delivery
+            magic_delivery.forget(self,websocket)
             self.creator_roles.discard(player_id)
             for oid,offer in list(self.offers.items()):
                 if player_id in (offer['sender'],offer['recipient']):self.offers.pop(oid,None)
@@ -1590,6 +1635,10 @@ class GameServer(SocietyServer):
                 raise RuntimeError("Disconnect players before switching to another world.")
             self._stage_players_and_world()
             self.world = build_world()
+            from engine import magic_visuals
+            from server import magic_delivery
+            magic_visuals.reset(self.world)
+            magic_delivery.reset(self)
             from engine import streets
             streets.install(self.world)
             self.world.realtime = (self.mode == 'host')
@@ -1682,6 +1731,10 @@ class GameServer(SocietyServer):
         spawn_npcs(new_world)
         living.restore(new_world, living_saved)
         self.world = new_world
+        from engine import magic_visuals
+        from server import magic_delivery
+        magic_visuals.reset(self.world)
+        magic_delivery.reset(self)
         start_room = start_room_for(self.world)
 
         # 8. Restore players

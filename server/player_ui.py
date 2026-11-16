@@ -28,7 +28,22 @@ def _quests(w,p,kind,query):
             children.append(dict(id='action:'+key,label=label,detail=f"{quest_progress.count(p,q,'actions',key)} / {n}"))
         for nid in q.get('talk_to',[]):
             if nid in w.npcs:children.append(dict(id='talk:'+nid,label='Speak to '+w.npcs[nid]['name'],detail='Spoken' if quest_progress.count(p,q,'talks',nid) else 'Waiting'))
+        for index,witness in enumerate(q.get('witnesses',[])):
+            npc=w.npcs.get(witness['npc'],{});item=w.items.get(witness['read_item'],{})
+            who=npc.get('title') or npc.get('name') or 'the required witness'
+            text=item.get('name') or 'the filed statement'
+            children.append(dict(id='witness:'+str(index),label='Speak to '+who+' OR read '+text,
+                                 detail='Recorded' if quest_progress.witnessed(p,q,witness) else 'Waiting'))
+        from engine import quest_alternatives
+        alternative=quest_alternatives.selected(p,q['id'])
+        replacement=w.quests.get(alternative.get('quest_id'),{}) if alternative else {}
+        replaced=bool(alternative and status in ('replaced','complete'))
         row=dict(id=q['id'],label=q['name'],detail=status.title()+'. '+q.get('description',''),children=children,actions=[])
+        if replaced:
+            children.clear()
+            name=replacement.get('name','your alternative quest')
+            row['detail']=(f'Fulfilled through {name}. Its reward was earned there; this guide does not pay again.' if status=='complete'
+                           else f'Following {name} instead. Complete that quest to earn the reward and continue. This guide is an optional reference.')
         if status=='offered':
             # Offer summaries do not give away objectives before acceptance.
             row['children']=[];row['actions']=[action('Accept','accept '+q['id'])]
@@ -36,12 +51,15 @@ def _quests(w,p,kind,query):
         from engine import interface_tours
         guide=interface_tours.summary(p,q)
         if guide is not None:
-            if not guide['started']:detail='Optional interface guide available.'
+            if replaced:detail='Optional reference; reviewing these controls does not change your chosen quest or award another reward.'
+            elif not guide['started']:detail='Optional interface guide available.'
             elif guide['completed']:detail='Guide finished. Continue your quest objectives.'
             else:detail=('Required guide: ' if guide['required'] else 'Optional review: ')+str(guide['index'])+' / '+str(guide['total'])+' steps acknowledged.'+(' Paused; resume when ready.' if guide['paused'] else '')
             children.insert(0,dict(id='interface-guide',label=q['interface_tour']['title'],detail=detail))
             row['actions'].append(action('Interface guide','interface resume '+q['id']))
-        if q.get('escort') and status!='offered':
+            if quest_alternatives.affordance(w,p,q).get('alternative_available'):
+                row['actions'].append(action('Other starting quest…','interface alternative '+q['id']))
+        if q.get('escort') and status!='offered' and not replaced:
             spec=q['escort'];done=p.progress.get('escort_arrivals',{}).get(q['id'])
             who=w.npcs[spec['npc']]['name'];where=w.rooms[spec['destination']].name
             children.append(dict(id='escort',label=spec['mode'].title()+' '+who+' to '+where,detail='Arrived together' if done else 'Meet '+who+' and travel together.',location=location(w,spec['destination'])))
@@ -61,9 +79,9 @@ def _quests(w,p,kind,query):
                     if not joined and person.location==p.location:row['actions'].append(action(spec['mode'].title()+' '+who,spec['mode']+' '+q['id']))
 
         rid=q.get('turn_in_room') or q.get('offer_room')
-        if rid in known_rooms:row['location']=location(w,rid)
+        if rid in known_rooms and not replaced:row['location']=location(w,rid)
         from engine import progression
-        if progression.config(w)['enabled']:
+        if progression.config(w)['enabled'] and not replaced:
             reward=q.get('reward_xp',progression.config(w)['quest_xp'])
             row['detail']+=f' First completion: {reward} XP.'
             if q.get('repeatable'):row['detail']+=' Repeat practice XP requires fresh objectives or newly supplied goods, within your daily budget.'
@@ -77,9 +95,16 @@ def list_packet(w,p,kind,query=''):
     knowledge.sync(w,p,observe=True)
     rows=[];pagination=None;note='Only your own knowledge is shown. Names are displayed; internal references are not labels.'
     if kind=='abilities':
+        import re
         from engine import ability_rules
+        page=1;match=re.search(r'(?:^|\s)page(?::|\s+)([0-9]{1,6})$',query,re.IGNORECASE)
+        if match:
+            page=max(1,int(match.group(1)));query=query[:match.start()].strip()
         rows=ability_rules.rows(w,p,query)+ability_rules.scroll_rows(w,p,query)
-        note='Your learned abilities and eligible lessons at this school. Requirements are checked again when you act; recovery uses game time.'
+        total=len(rows);pages=max(1,(total+24)//25);page=min(page,pages)
+        pagination=dict(page=page,pages=pages,total=total,page_size=25)
+        rows=rows[(page-1)*25:page*25]
+        note=f'Page {page} of {pages} · {total} matching entries. Your learned abilities, carried spell scrolls and eligible lessons at this school. Requirements are checked again when you act; recovery uses game time.'
     elif kind in ('quests','journal','adventures'):
         import re
         page=1;match=re.search(r'(?:^|\s)page(?::|\s+)([0-9]{1,6})$',query)
