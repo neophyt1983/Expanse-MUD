@@ -131,7 +131,8 @@ def quest(w,p,q):
     fresh=q.get('progress_scope')=='accepted' and fresh_objectives
     repeat=bool(q.get('repeatable') and (consumed or fresh))
     from engine.quest_chains import definition
-    return award(w,p,'quest',q['id'],q.get('reward_xp',config(w)['quest_xp']),repeat=repeat,
+    from engine.quest_alternatives import reward_id
+    return award(w,p,'quest',reward_id(w,q),q.get('reward_xp',config(w)['quest_xp']),repeat=repeat,
                  round_up=bool(definition(q)))
 
 
@@ -150,7 +151,8 @@ def discovery(w,p,rid):
 
 
 def combat(w,p,target):
-    from engine import loot_tables
+    from engine import loot_tables, spell_life
+    if spell_life.no_rewards(target):return ''
     definition=w.npcs.get(target.source_def,{})
     if (target.is_player or target.progress.get('companion_owner') or target.progress.get('zoo_exhibit')
             or definition.get('zoo_exhibit')

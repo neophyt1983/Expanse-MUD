@@ -51,6 +51,8 @@ def participants(world, dead, killer, credit=None):
 
 
 def settle(world, dead, killer, credit=None, *, rng=None):
+    from engine import spell_life
+    if spell_life.no_rewards(dead):return ''
     if (dead.alive or dead.is_player or dead.progress.get('combat_rewards_settled_v1')
             or dead.progress.get('combat_drops_distributed') or dead.progress.get('zoo_exhibit')
             or world.npcs.get(dead.source_def, {}).get('zoo_exhibit')):

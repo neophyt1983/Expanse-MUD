@@ -47,6 +47,8 @@ def check_space(w, p, *, new=False):
 
 
 def preserve_death(w, e):
+    from engine import spell_life
+    if spell_life.magical(e):return False
     if not rules(w) or not e.progress.get('companion_owner'):
         return False
     owner=w.entities.get(e.progress['companion_owner'])
@@ -158,6 +160,9 @@ def command(ctx, args):
     e = w.entities.get(eid)
     reserve = companions.reserve(w)
     saved = reserve.get(eid)
+    from engine import spell_life
+    if (e and spell_life.magical(e)) or (saved and saved.get('progress',{}).get(spell_life.KEY)):
+        raise ValueError('Temporary magical companions cannot use permanent stable or resurrection services.')
     if (e and e.progress.get('companion_owner')!=p.id) or (saved and saved['progress'].get('companion_owner')!=p.id):
         raise ValueError('This companion belongs to another handler.')
     if not e and not saved:

@@ -18,6 +18,10 @@ def player_death_mode(w):
 
 def record_death(w, e, cause='injury', attacker=None):
     if e.alive: return
+    from engine import spell_life
+    if spell_life.magical(e):
+        spell_life.retire(w,e.id)
+        return
     s=state(w)
     if getattr(w,'living_state',{}).get('resident_watches'):
         from engine import resident_watch
@@ -68,7 +72,8 @@ def environmental_damage(w,actor,amount,cause,event_id=None):
         if not actor.is_player and not actor.progress.get('_environmental_death_resolved'):
             actor.progress['_environmental_death_resolved']=True
             from engine import commands as cmd
-            if actor.source_def and not actor.spawner_key:w.killed_npcs.add(actor.source_def)
+            from engine import spell_life
+            if actor.source_def and not actor.spawner_key and not spell_life.magical(actor):w.killed_npcs.add(actor.source_def)
             room=w.rooms.get(actor.location)
             if room:
                 cmd._on_npc_death(w,room,actor,defer=True)
@@ -187,7 +192,8 @@ def advance(w, rng=random.random):
             if not victim.is_player:
                 from engine.commands import _on_npc_death
                 _on_npc_death(w,w.rooms[room],victim)
-                if victim.source_def and not victim.spawner_key:w.killed_npcs.add(victim.source_def)
+                from engine import spell_life
+                if victim.source_def and not victim.spawner_key and not spell_life.magical(victim):w.killed_npcs.add(victim.source_def)
     for e in list(w.entities.values()):
         if not e.alive:record_death(w,e)
     return messages

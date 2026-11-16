@@ -31,8 +31,10 @@ def validate(data):
         label = str(quest.get('id', 'quest')) + ': interface_tour '
         if not isinstance(tour, dict):
             issues.append(label + 'must be an object'); continue
-        if set(tour) - {'version', 'title', 'steps', 'completion_text'}:
+        if set(tour) - {'version', 'title', 'steps', 'completion_text', 'alternative_quest'}:
             issues.append(label + 'contains unsupported fields')
+        if 'alternative_quest' in tour and not _text(tour['alternative_quest'], 240):
+            issues.append(label + 'alternative_quest must be a nonempty quest ID')
         if type(tour.get('version')) is not int or tour['version'] != 1:
             issues.append(label + 'version must be 1')
         if not _text(tour.get('title'), 120):
@@ -138,7 +140,7 @@ def _learned(world, player):
         return []
     statuses = player.progress.get('quests', {})
     return [world.quests[qid] for qid, status in statuses.items()
-            if status in ('active', 'complete') and qid in world.quests
+            if status in ('active', 'complete', 'replaced') and qid in world.quests
             and definition(world.quests[qid])]
 
 
@@ -155,14 +157,16 @@ def projection(world, player):
         selected_quest = next((quest for quest in quests if _saved(player, quest['id']) is not None), None)
     current = None
     for quest in quests:
+        from engine import quest_alternatives
         tour = quest['interface_tour']
         row = _saved(player, quest['id'])
         index = _index(tour, row) if row else 0
         completed = row is not None and index == len(tour['steps'])
+        alternative = quest_alternatives.affordance(world, player, quest)
         choices.append({'quest_id': quest['id'], 'quest_name': quest['name'],
                         'title': tour['title'], 'quest_status': player.progress['quests'][quest['id']],
                         'completed': completed, 'required': blocked(player, quest),
-                        'paused': bool(row and row.get('paused'))})
+                        'paused': bool(row and row.get('paused')), **alternative})
         if selected_quest is not quest:
             continue
         step = tour['steps'][index] if not completed else None
@@ -174,7 +178,7 @@ def projection(world, player):
                    'step_title': step['title'] if step else 'Guide finished',
                    'text': step['text'] if step else tour.get('completion_text', quest.get('description', '')),
                    'paused': bool(row.get('paused')), 'completed': completed,
-                   'required': blocked(player, quest)}
+                   'required': blocked(player, quest), **alternative}
     return {'player_id': player.id, 'choices': choices, 'current': current}
 
 
@@ -256,10 +260,23 @@ def command(world, player, args):
     words = args.strip().split(maxsplit=1)
     verb = words[0].lower() if words else 'guide'
     qid = words[1].strip() if len(words) == 2 else None
+    if verb in ('alternative', 'choose'):
+        from engine import quest_alternatives
+        if verb == 'alternative':
+            if not qid:
+                current = projection(world, player)['current']
+                qid = current['quest_id'] if current else None
+            return quest_alternatives.describe(quest_alternatives.preview(world, player, qid))
+        selection = qid.split() if qid else []
+        if len(selection) != 2:
+            return 'Review interface alternative <quest ID> first, then confirm with interface choose <quest ID> <revision>.'
+        choice = quest_alternatives.choose(world, player, selection[0], selection[1])
+        replacement = world.quests[choice['alternative_quest_id']]
+        return ('Already chosen. ' if choice['already_selected'] else 'Replacement quest accepted. ') + replacement['name'] + '\n' + replacement.get('description', '') + '\nNo reward is paid for choosing. Complete its objectives and turn it in normally. Actions → Interface guide remains available for reference.'
     action = {'guide': 'view', 'next': 'next', 'later': 'pause',
               'resume': 'resume', 'restart': 'restart'}.get(verb)
     if action is None:
-        return 'Use interface guide, interface next, interface later, interface resume [quest ID], or interface restart [quest ID].'
+        return 'Use interface guide, interface next, interface later, interface resume [quest ID], interface restart [quest ID], or interface alternative <quest ID>. Review an alternative before confirming interface choose <quest ID> <revision>.'
     packet = {'action': action}
     if qid:
         packet['quest_id'] = qid

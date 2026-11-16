@@ -40,6 +40,9 @@ class Entity:
     def take_damage(self, amount: int, defense: Optional[int] = None, *, source=None, cause=None, kind='injury') -> int:
         world_ref = getattr(self, '_world_ref', None)
         world = world_ref() if world_ref else None
+        if world is not None and kind == 'environment':
+            from engine import spell_utility
+            amount = spell_utility.mitigate(world, self, amount, kind)
         if world is not None and source is not None and kind == 'combat':
             from engine import starter_safety
             # Direct attack paths also honor the refuge. Automatic counters
@@ -126,6 +129,10 @@ class World:
         entity._world_ref = weakref.ref(self)
         from engine import quest_chains
         quest_chains.migrate(self, entity)
+        from engine import spell_life
+        spell_life.track(self, entity)
+        from engine import npc_spellcasting
+        npc_spellcasting.bind(self, entity)
 
     def add_entity(self, entity: Entity, room_id: str):
         self.bind_entity(entity)

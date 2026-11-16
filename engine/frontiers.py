@@ -314,6 +314,11 @@ def audit(data,metadata,rules=None):
             if other not in group_ids|{'unaffiliated','*'}:issues.append(group['id']+': unknown relationship faction '+other)
             if value not in ('allied','tolerated','neutral','hostile'):issues.append(group['id']+': unknown relationship state '+str(value))
     managed={s.get('npc') for r in rooms.values() for s in r.get('spawners',[])}
+    for ability in data.get('ability',[]):
+        settings=ability.get('ability_rules',{})
+        summon=settings.get('summon',{}) if isinstance(settings,dict) else {}
+        if ability.get('effect')=='summon' and isinstance(summon,dict) and isinstance(summon.get('npc'),str):
+            managed.add(summon['npc'])
     if rules:
         from engine import regional_rules
         managed.update(regional_rules.managed_npcs(rules,rooms))

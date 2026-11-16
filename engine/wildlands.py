@@ -158,6 +158,9 @@ def summon(w,i,now):
     w.killed_npcs.discard(key)
     w.add_entity(creature,summoner.location);state[key]=now
     summoner.activity='calling '+creature.name
+    from engine import magic_visuals
+    magic_visuals.record(w,w.npcs.get(summoner.source_def,{}).get('summon_presentation'),
+                         summoner,[creature],spawned=creature)
     return True
 
 def entered(w,actor,old):

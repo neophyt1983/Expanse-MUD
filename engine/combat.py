@@ -17,10 +17,16 @@ def target(w,actor,query,players=True):
     if not exact:raise ValueError('No living target matching '+query+' is here.')
     return exact[0]
 
-def validate(w,actor,victim,controller=None,*,check_starter=True):
+def validate(w,actor,victim,controller=None,*,check_starter=True,check_controller_restraint=True):
     from engine import regional_world
     regional_world.validate_combat(w,actor,victim)
     owner=controller or actor
+    if owner is not actor:
+        regional_world.validate_combat(w,owner,victim)
+        from engine import spell_life
+        reason=spell_life.control_restriction(w,owner)
+        if reason and (check_controller_restraint or getattr(w,'living_state',{}).get('city_justice_v1',{}).get('cases',{}).get(owner.id,{}).get('status') in ('awaiting_hearing','sentenced')):
+            raise ValueError(reason)
     if not actor.alive or not owner.alive or not victim.alive:raise ValueError('Combat requires living participants.')
     if actor.location!=victim.location or owner.location!=actor.location:raise ValueError('The target is no longer here.')
     if victim.id in (actor.id,owner.id) or victim.progress.get('companion_owner')==owner.id:raise ValueError('You cannot attack yourself or your own companion.')
@@ -56,6 +62,9 @@ def npc_attack(w,actor,victim,*,counter=False):
     if actor.is_player or actor.progress.get('companion_owner'):
         raise ValueError('An autonomous attack requires an unowned NPC.')
     validate(w,actor,victim,check_starter=False)
+    from engine import npc_spellcasting
+    spell=npc_spellcasting.try_cast(w,actor,victim,counter=counter)
+    if spell is not None:return spell
     ammunition(w,actor,consume=False)
     from engine import starter_safety
     if not starter_safety.blocked(w,actor,victim):
@@ -64,6 +73,10 @@ def npc_attack(w,actor,victim,*,counter=False):
 
 def finish(w,dead,killer,credit=None):
     from engine import commands as cmd,mortality
+    from engine import spell_life
+    if spell_life.magical(dead):
+        spell_life.retire(w,dead.id)
+        return dead.name+' dies; the temporary magical body fades.'
     if getattr(w,'living_state',{}).get('resident_watches'):
         from engine import resident_watch
         resident_watch.death(w,dead,'combat',killer)

@@ -39,7 +39,7 @@ def accepted(world, player):
     from engine import quest_chains
     quest_chains.migrate(world, player)
     return {qid for qid, status in player.progress.get('quests', {}).items()
-            if status in ('active', 'complete') and qid in world.quests}
+            if status in ('active', 'complete', 'replaced') and qid in world.quests}
 
 
 def quest(world, player, q):

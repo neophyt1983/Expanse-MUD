@@ -6,6 +6,8 @@ from engine import frontiers, worldtime, locks, geology_impacts
 
 
 def has_light(world,player):
+    from engine import spell_utility
+    if spell_utility.light(world,player):return True
     durability=player.progress.get('durability',{})
     for iid in set(player.inventory)|set(player.equipped.values()):
         item=world.items.get(iid,{})

@@ -168,11 +168,12 @@ def migrate(world, player):
         _dirty(world, player)
 
 
-def blocked(world, player, quest):
+def blocked(world, player, quest, *, migrate_player=True):
     chain = definition(quest)
     if not chain:
         return ''
-    migrate(world, player)
+    if migrate_player:
+        migrate(world, player)
     final = world.quests[chain['id']]
     if final.get('scope') == 'world' and chain['id'] in getattr(world, 'living_state', {}).get('completed_world', []):
         return 'This shared-world outcome has already been completed.'

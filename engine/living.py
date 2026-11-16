@@ -65,6 +65,8 @@ def advance(world,minutes=1):
     from engine import population
     population.ensure(world)
     s=state(world);s['minute']+=minutes;now=s['minute'];clock=now%worldtime.MINUTES_PER_DAY;hour=clock//60
+    from engine import spell_life
+    spell_life.advance(world)
     from engine import escorts
     escorts.advance(world)
     from engine import civic_program
@@ -92,6 +94,11 @@ def advance(world,minutes=1):
     from engine import community_quests
     community_quests.advance(world)
     for e in list(world.entities.values()):
+        if spell_life.magical(e):
+            if e.alive:
+                from engine import companions
+                companions.follow(world,e)
+            continue
         if e.progress.get('zoo_exhibit'):
             continue
         from engine import sleep_movement
@@ -210,6 +217,8 @@ def on_entry(world,p):
 
 def on_kill(world,p,target,*,grant_drops=True):
     if not enabled(world):return
+    from engine import spell_life
+    if spell_life.no_rewards(target):return
     if world.npcs.get(target.source_def,{}).get('expedition_role')=='quarry':
         state(world).setdefault('field_hunts',{})[target.source_def]=state(world)['minute']+360
     pr=progress(p);pr['kills'][target.source_def]=pr['kills'].get(target.source_def,0)+1
@@ -426,7 +435,9 @@ def command(ctx,args,name):
         return resting.command(w,p,args,name)
     if name in ('condition','companions'):
         if name=='companions':return '\n'.join(c['name']+' ('+c['kind']+')' for c in pr['companions']) or 'No companions.'
-        return f'Mana {pr["mana"]}/{pr["max_mana"]}; intoxication {pr["intoxication"]}/100; injury {pr["injury"]}/100; disease {pr["disease"]}/100. Hair: {pr["hair"]}.'
+        from engine import spell_utility
+        status=spell_utility.describe(w,p)
+        return f'Mana {pr["mana"]}/{pr["max_mana"]}; intoxication {pr["intoxication"]}/100; injury {pr["injury"]}/100; disease {pr["disease"]}/100. Hair: {pr["hair"]}.'+('\n'+status if status else '')
     if name=='tame':
         from engine import taming, society, relationships
         if not args.strip():return taming.advice(w,p)
@@ -450,8 +461,12 @@ def command(ctx,args,name):
     if name=='dismiss':
         from engine import society,companions
         if society.enabled(w):return companions.command(ctx,'dismiss '+args)
-        obj=choose(pr['companions'],args);pr['companions'].remove(obj)
+        obj=choose(pr['companions'],args)
         companion=w.entities.get(obj['id'])
+        from engine import spell_life
+        if (companion and spell_life.magical(companion)) or obj.get(spell_life.KEY):
+            return companions.dismiss(w,p,obj,companion)
+        pr['companions'].remove(obj)
         if companion:
             companion.progress.pop('companion_owner',None)
             from engine import relationships
@@ -466,31 +481,7 @@ def command(ctx,args,name):
         spell,_,target=args.partition(' at ');a=choose([w.abilities[i] for i in p.abilities if i in w.abilities],spell)
         from engine import ability_rules
         if ability_rules.config(a):return ability_rules.cast(w,p,a,target)
-        cost=a.get('cost_mp',0)
-        if pr['mana']<cost:return 'Not enough mana. Rest at an inn or camp.'
-        effect=a.get('effect')
-        if effect=='heal':heal(w,p,a.get('power',5));pr['mana']-=cost;return 'Healing magic restores you.'
-        if effect=='ward':pr['ward']=a.get('power',3);pr['ward_turns']=5;pr['mana']-=cost;return 'A protective ward strengthens your defence for five incoming hits.'
-        if effect=='group_heal':
-            for e in w.entities_in_room(r.id):
-                if e.is_player:heal(w,e,a.get('power',10))
-            pr['mana']-=cost;return 'Your song restores health to the players gathered here.'
-        if effect=='tame':return command(ctx,target,'tame')
-        if effect=='escape':
-            from engine import frontiers
-            destination=frontiers.home(w,p)
-            if destination is None:return 'No safe recovery location is available yet. Wait for repairs to finish.'
-            pr['mana']-=cost;w.move_entity(p.id,destination);return 'You slip away and return to a safe settlement.'
-        if effect=='enchant':return command(ctx,target,'enchant')
-        if effect=='disenchant':
-            obj=choose([w.items[i] for i in p.inventory if i in pr['enchants']],target)
-            del pr['enchants'][obj['id']];return 'The enchantment is removed; the sigil is not recovered.'
-        if effect!='damage':return 'This ability has no implemented effect. Ask the creator to choose an effect.'
-        from engine import combat
-        e=combat.target(w,p,target)
-        combat.validate(w,p,e)
-        pr['mana']-=cost
-        return a['name']+': '+combat.strike(w,p,e,power=a.get('power',5),ignore_defense=True,wear=False)
+        return ability_rules.cast_legacy(ctx,a,target)
     if name=='enchant':
         if 'enchanting' not in facilities:return 'Use an enchanting desk.'
         target,sep,sigil=args.partition(' with ')
@@ -661,6 +652,8 @@ def restore(world,saved):
     restore_public_reading(world)
     from engine import dynamic_diplomacy
     dynamic_diplomacy.ensure(world)
+    from engine import spell_life
+    spell_life.restore(world)
     for qid in state(world).get('completed_world',[]):
         q=world.quests.get(qid,{})
         apply_effects(world,q)
@@ -695,13 +688,17 @@ def apply_effects(world,q):
     if changed and hasattr(world,'_compiled_map'):del world._compiled_map
 
 
-def quest_blocked(world,player,quest):
+def quest_blocked(world,player,quest,*,alternatives=True,readonly=False):
     """One eligibility rule for acceptance, turn-in, and quest browsers."""
     from engine import quest_progress as qp, quest_chains
     def completed(qid):return qp.status(world,player,qid)=='complete'
-    q=quest;p=player;pr=progress(p);s=state(world)
-    chain_block=quest_chains.blocked(world,player,quest)
+    q=quest;p=player;pr=p.progress if readonly else progress(p);s=getattr(world,'living_state',{}) if readonly else state(world)
+    chain_block=quest_chains.blocked(world,player,quest,migrate_player=not readonly)
     if chain_block:return chain_block
+    if alternatives:
+        from engine import quest_alternatives
+        alternative_block=quest_alternatives.blocked(world,player,quest)
+        if alternative_block:return alternative_block
     if any(not completed(i) for i in q.get('prerequisites',[])):return 'Complete the prerequisite quests first.'
     if any(completed(i) for i in q.get('exclusive_with',[])):return 'Another outcome has already been chosen.'
     if any(s.get('flags',{}).get(k)!=v for k,v in q.get('requires_world_flags',{}).items()):return 'World conditions do not permit this quest yet.'
@@ -744,6 +741,11 @@ def quest_command(ctx,args,name):
             status=qp.status(w,p,q['id'])
             why=blocked(q)
             rows.append(f"{q['name']} — {status}"+(' (locked)' if why else '')+'\n'+q.get('description',''))
+            from engine import quest_alternatives
+            replacement=quest_alternatives.selected(p,q['id'])
+            if replacement:
+                replacement_name=w.quests.get(replacement['quest_id'],{}).get('name','your replacement quest')
+                rows.append(('Fulfilled through ' if replacement.get('completed') else 'Continuing with ')+replacement_name+'. The interface guide is optional; its reward is earned through the replacement.')
             if status=='active' or query:
                 from engine import interface_tours
                 if interface_tours.blocked(p,q):rows.append('Interface guide: finish the introductory steps through Actions → Interface guide, or interface resume.')
@@ -763,7 +765,7 @@ def quest_command(ctx,args,name):
                 rewards=([str(q['reward_gold'])+' gold'] if q.get('reward_gold') else [])+reward_items+[w.groups.get(g,{}).get('name',g)+' standing '+str(n) for g,n in q.get('reputation',{}).items()]
                 from engine import progression
                 if progression.config(w)['enabled']:rewards.append(str(q.get('reward_xp',progression.config(w)['quest_xp']))+' XP on first completion'+('; repeat XP requires fresh objectives or supplied goods' if q.get('repeatable') else ''))
-                rows.append('Rewards: '+(', '.join(rewards) or 'completion recorded'))
+                if not replacement:rows.append('Rewards: '+(', '.join(rewards) or 'completion recorded'))
         return '\n'.join(rows) or 'No matching quests.'
     from engine import knowledge
     allowed=knowledge.accepted(w,p) | ({q['id'] for q in knowledge.local_offers(w,p)} if name=='accept' else set())
@@ -813,6 +815,9 @@ def quest_command(ctx,args,name):
     from engine import progression
     advancement=progression.quest(w,p,q)
     chain_notice=quest_chains.completed(w,p,q)
+    from engine import quest_alternatives
+    alternative_notice=quest_alternatives.completed(w,p,q)
+    if alternative_notice:chain_notice+='\n'+alternative_notice if chain_notice else alternative_notice
     return 'Quest complete. '+q.get('completion_text','Your contribution is recorded.').replace('Nearby quest offers','Local people and request ledgers')+' Rewards received.'+('\n'+advancement if advancement else '')+('\n'+chain_notice if chain_notice else '')
 
 # One dispatcher also records successful activities for demonstration and profession quests.
@@ -863,7 +868,7 @@ def command(ctx,args,name):
             key='harvest:'+enc['id'];actions[key]=actions.get(key,0)+1
     return result
 COMMANDS.update(adventures=('Browse long story adventures by region','adventures [region] [page 2]'),market=('Find reachable rotating provision counters','market [item]'),marketbuy=('Buy from a local staffed provision counter','marketbuy <item>'),journal=('Review quest objectives','journal'), route=('Find the next direction to a named place','route adventurers school'),guide=('Read the demonstration guide','guide'),revive=('Recover after defeat','revive'))
-COMMANDS['interface']=('Review the interface guide for an accepted quest','interface guide | next | later | resume | restart')
+COMMANDS['interface']=('Review the interface guide or choose its authored alternative','interface guide | next | later | resume | restart | alternative <quest ID> | choose <quest ID> <revision>')
 
 
 def material_index(world,query='',selected_ids=None):
@@ -1023,4 +1028,5 @@ def validate(data):
     from engine import ability_rules
     from engine import interface_tours
     from engine import quest_chains
-    return _knowledge_validate(data)+knowledge.validate(data)+progression.validate(data)+ability_rules.validate(data)+interface_tours.validate(data)+quest_chains.validate(data)
+    from engine import quest_alternatives
+    return _knowledge_validate(data)+knowledge.validate(data)+progression.validate(data)+ability_rules.validate(data)+interface_tours.validate(data)+quest_chains.validate(data)+quest_alternatives.validate(data)

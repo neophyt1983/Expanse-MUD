@@ -190,6 +190,8 @@ def _release(w, incident):
     for ident in incident.get('guards', []) + incident.get('military', []):
         guard = w.entities.get(ident)
         if guard and guard.progress.get('city_defense_target') == incident['actor']:
+            from engine import npc_spellcasting
+            npc_spellcasting.engage(w,guard)
             guard.progress.pop('city_defense_target', None)
             if str(getattr(guard, 'activity', '')).startswith(('responding to ', 'restraining ')):
                 guard.activity = 'returning to watch duties'
@@ -379,6 +381,8 @@ def _assign(w, incident, available, key, wanted, distances):
     candidates = sorted((actor for actor in available if not actor.progress.get('city_defense_target')),
                         key=lambda actor: (distances.get(actor.location, 999), actor.id))
     for actor in candidates[:max(0, wanted - len(assigned))]:
+        from engine import npc_spellcasting
+        npc_spellcasting.engage(w,actor)
         actor.progress['city_defense_target'] = ident
         assigned.append(actor.id)
     incident[key] = assigned
@@ -455,6 +459,8 @@ def advance(w, rng=random.random):
             if gid in acted:
                 continue
             acted.add(gid)
+            from engine import npc_spellcasting
+            npc_spellcasting.engage(w,guard)
             npc_attention.begin(w, guard)
             guard.activity = 'responding to the alarm about ' + target.name
             if guard.location != target.location:
@@ -478,9 +484,12 @@ def advance(w, rng=random.random):
                     break
             try:
                 combat.validate(w, guard, target)
-                combat.ammunition(w, guard)
                 w._city_defense_lawful = (guard.id, target.id)
-                text = combat.strike(w, guard, target, counter=True, lawful=True)
+                helpers=[valid[eid] for eid in list(incident['guards'])+list(incident.get('military',[])) if eid in valid]
+                text=npc_spellcasting.try_cast(w,guard,target,counter=True,lawful=True,allies=helpers)
+                if text is None:
+                    combat.ammunition(w, guard)
+                    text = combat.strike(w, guard, target, counter=True, lawful=True)
             except ValueError:
                 continue
             finally:

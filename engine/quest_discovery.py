@@ -98,5 +98,5 @@ def take_choices(world,player):
     if not ids:return []
     from engine import knowledge
     available={q['id']:q for q in knowledge.local_offers(world,player)}
-    from engine import interface_tours
-    return [dict(id=qid,name=available[qid]['name'],description=available[qid].get('description',''),interface_guide=bool(interface_tours.definition(available[qid]))) for qid in ids if qid in available]
+    from engine import interface_tours,quest_alternatives
+    return [dict(id=qid,name=available[qid]['name'],description=available[qid].get('description',''),interface_guide=bool(interface_tours.definition(available[qid])),**quest_alternatives.affordance(world,player,available[qid])) for qid in ids if qid in available]

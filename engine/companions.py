@@ -30,6 +30,14 @@ def care(w,e):
 
 def dismiss(w,p,record,e):
     if e is None:raise ValueError('That companion is already in the aether.')
+    from engine import spell_life
+    if spell_life.magical(e):
+        # Storing a temporary body does not refresh its clock or move it through
+        # a locked route. Recall checks its saved physical origin again.
+        e.progress['companion_order']='dismissed'
+        reserve(w)[e.id]=asdict(e)
+        w.rooms[e.location].entities.remove(e.id);del w.entities[e.id]
+        return e.name+' is dismissed; its original magical lifetime continues.'
     home=p.progress.get('home_room')
     e.progress['companion_order']='dismissed'
     from engine import geology_impacts
@@ -40,12 +48,27 @@ def dismiss(w,p,record,e):
     return e.name+' waits in the aether until recalled.'
 
 def recall(w,p,record,e):
+    from engine import spell_life
+    now=getattr(w,'living_state',{}).get('minute',0)
+    restriction=spell_life.control_restriction(w,p)
+    if restriction:raise ValueError(restriction)
+    saved=getattr(w,'living_state',{}).get('companion_reserve',{}).get(record['id'])
+    magic=e.progress.get(spell_life.KEY) if e else saved.get('progress',{}).get(spell_life.KEY) if saved else None
+    if magic:
+        if magic['expires_minute']<=now:raise ValueError('That magical companion has expired.')
+        from engine.core import Entity
+        traveller=e or Entity(**saved)
+        from engine import frontiers,regional_world
+        route=frontiers.path(w,traveller.location,p.location,traveller)
+        if regional_world.blocked(w,traveller,p.location) or route is None or any(frontiers.blocked(w,rid,di,traveller) for rid,di,_ in route):
+            raise ValueError('No permitted route lets that magical companion return here.')
     from engine import companion_union
     if record not in companion_union.active(w,p):
         companion_union.check_space(w,p)
     from engine import mortality, geology_impacts
     if not p.alive or geology_impacts.room_unusable(w,p.location):raise ValueError('Recall requires a living caregiver in a safe location.')
-    if record['id'] in mortality.state(w)['deaths']:raise ValueError('A deceased companion cannot be recalled.')
+    if (e is not None and not e.alive) or (e is None and saved is not None and saved.get('hp',0)<=0):raise ValueError('A deceased companion cannot be recalled.')
+    if e is None and saved is None and record['id'] in mortality.state(w)['deaths']:raise ValueError('A deceased companion cannot be recalled.')
     if e is None:
         # Older worlds stored virtual companions by definition ID. Convert once.
         if not record.get('source_def') and record['id'] in w.npcs:
@@ -68,7 +91,7 @@ def recall(w,p,record,e):
         from engine import names
         names.migrate_saved(w,e);record['name']=e.name
         w.add_entity(e,p.location);del reserve(w)[e.id]
-    else:w.move_entity(e.id,p.location)
+    elif not w.move_entity(e.id,p.location):raise ValueError('That companion cannot enter this location.')
     e.progress.pop('union_boarded',None)
     e.progress['companion_order']='follow'
     return e.name+' returns and follows you.'
@@ -81,7 +104,7 @@ def fight(w,p,e,target,defending=False):
     if e.progress.get('companion_mode','defend')=='peaceful':raise ValueError('Set attack or defend mode first.')
     if target.id in (p.id,e.id) or target.progress.get('companion_owner')==p.id:raise ValueError('A companion will not attack its caregiver or fellow companions.')
     from engine import combat
-    combat.validate(w,e,target,controller=p)
+    combat.validate(w,e,target,controller=p,check_controller_restraint=not defending)
     now=living.state(w)['minute']
     if now-e.progress.get('last_companion_attack',-100000)<1:raise ValueError('The companion is recovering from its last attack.')
     combat.ammunition(w,e)

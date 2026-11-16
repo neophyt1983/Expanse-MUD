@@ -1,1 +1,1 @@
-BUILD = '2026-11-16-guide-popup-1.9.13'
+BUILD = '2026-11-16-visible-magic-1.9.15'

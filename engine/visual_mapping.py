@@ -627,6 +627,13 @@ def actor_portrait(world,ent,player_id):
         actor['activity']=activity(world,ent)
         if body:actor['subject']=body
         else:actor['paperdoll']=npc_doll(world,ent,definition,actor['appearance'],_player_equipment(world,ent))
+        # A raised body retains the corpse's actual appearance without copying
+        # its usable equipment, inventory, coins or reward tables.
+        if ent.progress.get('magic_summon_v1'):
+            from copy import deepcopy
+            remembered=ent.progress.get('magic_appearance_v1',{})
+            for key in ('appearance','subject','paperdoll','held_gear'):
+                if key in remembered:actor[key]=deepcopy(remembered[key])
     from engine import fighting_pose
     doll=actor.get('paperdoll',{})
     gear=doll.get('equipment') if doll else _player_equipment(world,ent) if ent.equipped else []

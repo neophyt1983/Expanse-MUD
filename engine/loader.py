@@ -173,6 +173,9 @@ def build_world(game_dir=None) -> World:
     chain_errors=quest_chains.validate({'quest':list(world.quests.values()),
         'room':list(world.room_details.values()),'item':list(world.items.values())})
     if chain_errors:raise ValueError('Quest chain content: '+'; '.join(chain_errors))
+    from engine import quest_alternatives
+    alternative_errors=quest_alternatives.validate({'quest':list(world.quests.values())})
+    if alternative_errors:raise ValueError('Quest alternative content: '+'; '.join(alternative_errors))
     from engine import singing
     singing_errors=singing.validate({'race':list(world.races.values()),
         'npc':list(world.npcs.values()),'item':list(world.items.values()),
@@ -180,6 +183,13 @@ def build_world(game_dir=None) -> World:
     if singing_errors:raise ValueError('Music content: '+'; '.join(singing_errors))
     world.start_room = world.metadata.get("start_room")
     world.abilities = {a["id"]: a for a in read_records("abilities.json", target_dir)}
+    from engine import ability_rules
+    magic_data = {'ability':list(world.abilities.values()), 'npc':list(world.npcs.values()),
+                  'class':list(world.classes.values()), 'race':list(world.races.values()),
+                  'item':list(world.items.values()), 'room':list(world.room_details.values()),
+                  'recipe':list(world.recipes.values()), 'species':list(world.species.values())}
+    magic_errors = ability_rules.validate(magic_data)
+    if magic_errors:raise ValueError('Ability content: '+'; '.join(magic_errors))
     world.shortcuts = load_shortcuts(target_dir)
     # Population authoring is opt-in. Loading does not create residents or
     # anchor their ages before a saved clock and identities have been restored.
@@ -216,12 +226,21 @@ def start_room_for(world: World) -> str:
 def validate_world(world: World):
     errors = []
     warnings = []
+    from engine import ability_rules
+    magic_data = {'ability':list(world.abilities.values()), 'npc':list(world.npcs.values()),
+                  'class':list(world.classes.values()), 'race':list(world.races.values()),
+                  'item':list(world.items.values()), 'room':list(world.room_details.values()),
+                  'recipe':list(getattr(world,'recipes',{}).values()),
+                  'species':list(getattr(world,'species',{}).values())}
+    errors.extend(ability_rules.validate(magic_data))
     from engine import travel_pacing
     errors.extend(travel_pacing.validate(world.metadata))
     from engine import loot_tables
     errors.extend(loot_tables.validate({'npc': list(world.npcs.values()), 'item': list(world.items.values())}))
     from engine import interface_tours
     errors.extend(interface_tours.validate({'quest': list(world.quests.values())}))
+    from engine import quest_alternatives
+    errors.extend(quest_alternatives.validate({'quest':list(world.quests.values())}))
     from engine import quest_chains
     errors.extend(quest_chains.validate({'quest':list(world.quests.values()),
         'room':list(world.room_details.values()),'item':list(world.items.values())}))

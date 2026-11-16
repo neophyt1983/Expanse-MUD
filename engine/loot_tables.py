@@ -39,6 +39,8 @@ def roll(world, victim, *, rng=None):
     Callers own death idempotency and distribution. This function never grants
     goods, alters progression, writes a save, or makes per-participant rolls.
     """
+    from engine import spell_life
+    if spell_life.no_rewards(victim):return None
     definition = world.npcs.get(victim.source_def, {})
     if (not configured(definition) or victim.is_player
             or victim.progress.get('companion_owner')

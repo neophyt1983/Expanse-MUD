@@ -314,6 +314,10 @@ def _try_spawn(world: World, room: Room, spawner: dict,
 def _on_npc_death(world: World, room: Room,
                    entity: Entity, *, defer=False) -> List[str]:
     """Resolve NPC identity/encounter/spawner death once, without kill rewards."""
+    from engine import spell_life
+    if spell_life.magical(entity):
+        spell_life.retire(world,entity.id)
+        return []
     from engine import mortality
     mortality.record_death(world, entity)
     if entity.progress.get('_npc_death_resolved'):return []
