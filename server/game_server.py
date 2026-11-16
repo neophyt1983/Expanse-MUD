@@ -628,6 +628,8 @@ class GameServer(SocietyServer):
         packet['visual']['map_build'] = BUILD
         from engine import travel_pacing
         packet['travel_speed_multiplier'] = travel_pacing.speed(self.world)
+        from engine import interface_tours
+        packet['interface_tour'] = interface_tours.projection(self.world, player)
         # Deliver the measured terrain with the movement itself. Ordinary updates
         # at the same location refresh nearby ground without resending the whole screen.
         extent = getattr(player, '_travel_view_extent', None)
@@ -1110,6 +1112,36 @@ class GameServer(SocietyServer):
                     await websocket.send(json.dumps(error))
                     continue
 
+                # Source-offer buttons wait for authoritative acceptance before
+                # closing. This correlates their request without bypassing the
+                # normal provenance, location and prerequisite checks.
+                quest_reply = {}
+                offer_request = packet.get('request_id')
+                offer_verb, _, offered_id = cmd.partition(' ')
+                offered_id = offered_id.strip()
+                if (offer_verb.lower() == 'accept' and offered_id
+                        and isinstance(offer_request, str) and 1 <= len(offer_request) <= 100):
+                    quest_reply = {'request_id': offer_request,
+                                   'quest_accept': {'quest_id': offered_id, 'accepted': False}}
+
+                if cmd == 'interface tour':
+                    from engine import interface_tours
+                    actor = self.world.entities.get(player_id)
+                    request_id = packet.get('request_id')
+                    if not isinstance(request_id, str) or not 1 <= len(request_id) <= 100:
+                        request_id = None
+                    try:
+                        if packet.get('action', 'view') != 'view' and (actor is None or packet.get('player_id') != actor.id):
+                            raise ValueError('Your character changed. Reopen the interface guide.')
+                        state = interface_tours.handle(self.world, actor, packet)
+                        if packet.get('action', 'view') != 'view':
+                            self._save_dirty_players()
+                        reply = {'interface_tour': state}
+                    except ValueError as exc:
+                        reply = {'error': str(exc), 'interface_tour': interface_tours.projection(self.world, actor)}
+                    await websocket.send(json.dumps({'type': 'interface_tour', 'request_id': request_id, **reply}))
+                    continue
+
                 if cmd == 'world asset':
                     from engine.world_package import asset_packet
                     asset=asset_packet(self.world.game_dir,packet.get('name'),packet.get('offset',0))
@@ -1252,7 +1284,7 @@ class GameServer(SocietyServer):
                 from engine import sleep_movement
                 blocked=sleep_movement.blocked_command(self.world,self.world.entities.get(player_id),cmd,self.registry,resolve_shortcuts=not(equipment_request or rest_ui or lock_ui))
                 if blocked:
-                    reply={'type':'response','text':blocked,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}
+                    reply={'type':'response','text':blocked,**quest_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}
                     if movement_id:reply['movement_id']=movement_id
                     await websocket.send(json.dumps(reply))
                     if equipment_request:await websocket.send(json.dumps(equipment_ui.build(self.world,self.world.entities[player_id],equipment_request)))
@@ -1360,7 +1392,7 @@ class GameServer(SocietyServer):
                     continue
 
                 if player_id is None:
-                    await websocket.send(json.dumps({"type":"character_required", "text":"Create a character or load a save before entering the world."}))
+                    await websocket.send(json.dumps({"type":"character_required", "text":"Create a character or load a save before entering the world.", **quest_reply}))
                     continue
                 if cmd.split()[0].lower() == 'ui':
                     from server import player_ui
@@ -1459,6 +1491,9 @@ class GameServer(SocietyServer):
                     del mover._walking_exact_edge
                 from engine.quest_discovery import take_choices
                 source_choices = take_choices(self.world,self.world.entities[player_id])
+                if quest_reply:
+                    status = mover.progress.get('quests', {}).get(offered_id, 'available')
+                    quest_reply['quest_accept'].update(accepted=status == 'active', status=status)
                 # A tagged UI step gets its authoritative map immediately,
                 # before its acknowledgement permits the next input. No world
                 # mutation is moved to a thread or skipped for responsiveness.
@@ -1469,13 +1504,13 @@ class GameServer(SocietyServer):
                     self.last_maps[websocket]=map_packet
                     await websocket.send(json.dumps({'type':'response','text':response,'source_quests':source_choices,'movement_id':movement_id,'step_taken':mover.location!=origin and mover.alive and mover.hp>=initial_hp,**({'walk_arrived':walker.location==edge[2] and walker.alive and walker.hp>=walk_hp} if 'walk_edge' in packet else {})}))
                 else:
-                    await websocket.send(json.dumps({'type':'response','text':response,'source_quests':source_choices,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}))
+                    await websocket.send(json.dumps({'type':'response','text':response,'source_quests':source_choices,**quest_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}))
 
                 self.mark_explored(player_id)
                 if websocket in getattr(self, 'atlas_subscribers', ()):
                     await self.send_atlas(websocket)
                 ent = self.world.entities.get(player_id)
-                readonly={'look','map','inventory','score','status','help','standing','workshop','provenance','survey','recipes','catalog','wardrobe','materials','quests','adventures','market','journal','condition','time','inspect','spells','companions','services','route','guide'}
+                readonly={'look','map','inventory','score','status','help','standing','workshop','provenance','survey','recipes','catalog','wardrobe','materials','quests','adventures','market','journal','condition','time','inspect','spells','companions','services','route','guide','interface'}
                 if self.mode!='host' and not society.enabled(self.world) and cmd.split()[0].lower() not in readonly:
                     self._stage_players_and_world()
                 else:self._save_dirty_players()

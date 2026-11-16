@@ -33,6 +33,14 @@ def _quests(w,p,kind,query):
             # Offer summaries do not give away objectives before acceptance.
             row['children']=[];row['actions']=[action('Accept','accept '+q['id'])]
         elif status=='active':row['actions']=[action('Untrack' if q['id'] in tracked else 'Track quest',('untrack ' if q['id'] in tracked else 'track ')+q['id']),action('Complete','complete '+q['id'])]
+        from engine import interface_tours
+        guide=interface_tours.summary(p,q)
+        if guide is not None:
+            if not guide['started']:detail='Optional interface guide available.'
+            elif guide['completed']:detail='Guide finished. Continue your quest objectives.'
+            else:detail=('Required guide: ' if guide['required'] else 'Optional review: ')+str(guide['index'])+' / '+str(guide['total'])+' steps acknowledged.'+(' Paused; resume when ready.' if guide['paused'] else '')
+            children.insert(0,dict(id='interface-guide',label=q['interface_tour']['title'],detail=detail))
+            row['actions'].append(action('Interface guide','interface resume '+q['id']))
         if q.get('escort') and status!='offered':
             spec=q['escort'];done=p.progress.get('escort_arrivals',{}).get(q['id'])
             who=w.npcs[spec['npc']]['name'];where=w.rooms[spec['destination']].name
