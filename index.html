@@ -1,0 +1,2010 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/browser-support.js"></script>
+<meta charset="utf-8">
+<title>Expanse</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0d0f14; color: #d8dce4;
+    font: 14px/1.45 "JetBrains Mono", "Fira Code", ui-monospace, monospace; }
+  #app { display: flex; flex-direction: column; height: 100%; max-width: 1300px;
+    margin: 0 auto; border-left: 1px solid #1e2430; border-right: 1px solid #1e2430; }
+  header { display: flex; align-items: stretch; background: #141821;
+    border-bottom: 1px solid #1e2430; }
+  header .brand { padding: 10px 18px; color: #8fa3c8; letter-spacing: 3px;
+    font-size: 12px; text-transform: uppercase; align-self: center; }
+  header nav { display: flex; }
+  header nav button { background: transparent; border: 0; border-bottom: 2px solid transparent;
+    color: #6b7688; padding: 12px 20px; cursor: pointer;
+    font: inherit; letter-spacing: 1px; }
+  header nav button:hover:not(:disabled) { color: #d8dce4; }
+  header nav button.active { color: #7fd1a4; border-bottom-color: #7fd1a4; }
+  header nav button:disabled { color: #3a4250; cursor: not-allowed; }
+  main { flex: 1; display: flex; min-height: 0; }
+  section.tab { flex: 1; display: none; min-height: 0; }
+  section.tab.active { display: flex; }
+  #tab-game { flex-direction: column; }
+  #log { flex: 1; overflow-y: auto; padding: 14px 16px; white-space: pre-wrap;
+    word-wrap: break-word; }
+  .line { margin: 2px 0; }
+  .line.user { color: #7fd1a4; }
+  .line.welcome, .line.system { color: #6b7688; font-style: italic; }
+  .line.response { color: #d8dce4; }
+  .line.error { color: #e07070; }
+  #input-form { display: flex; border-top: 1px solid #1e2430; background: #141821; }
+  #prompt { padding: 12px 0 12px 16px; color: #7fd1a4; }
+  #input { flex: 1; background: transparent; border: 0; outline: 0; color: #d8dce4;
+    font: inherit; padding: 12px 16px 12px 8px; }
+  #tab-editor { flex-direction: column; }
+  #tab-editor.active { display: flex; }
+  #ed-breadcrumb { padding: 8px 16px; background: #141821;
+    border-bottom: 1px solid #1e2430; font-size: 12px;
+    color: #6b7688; min-height: 30px; }
+  #ed-breadcrumb .crumb { color: #8fa3c8; cursor: pointer; }
+  #ed-breadcrumb .crumb:hover { color: #7fd1a4; }
+  #ed-breadcrumb .sep { padding: 0 8px; color: #3a4250; }
+  #ed-breadcrumb .current { color: #d8dce4; }
+  #ed-grid { display: grid; grid-template-columns: 180px 130px 260px 1fr;
+    flex: 1; min-height: 0; }
+  .ed-col { overflow-y: auto; padding: 10px; border-right: 1px solid #1e2430; }
+  .ed-col:last-child { border-right: 0; display: flex; flex-direction: column;
+    padding: 0; }
+  .ed-col h3 { font-size: 11px; color: #6b7688; text-transform: uppercase;
+    letter-spacing: 2px; margin: 4px 0 10px; padding: 0 4px; }
+  .ed-game, .ed-type, .ed-entry { padding: 6px 8px; cursor: pointer;
+    border-radius: 3px; font-size: 13px; }
+  .ed-game:hover, .ed-type:hover, .ed-entry:hover { background: #141821; }
+  .ed-game.active, .ed-type.active, .ed-entry.active {
+    background: #1e2430; color: #7fd1a4; }
+  .ed-game .running-dot { display: inline-block; width: 6px; height: 6px;
+    background: #7fd1a4; border-radius: 50%;
+    margin-right: 6px; vertical-align: middle; }
+  .ed-new-game-wrap { padding: 8px 4px; border-top: 1px solid #1e2430;
+    margin-top: 8px; }
+  .ed-detail { flex: 1; overflow-y: auto; padding: 14px 18px; }
+  .ed-detail label { display: block; font-size: 11px; color: #6b7688;
+    text-transform: uppercase; letter-spacing: 1px;
+    margin: 12px 0 4px; }
+  .ed-detail input[type=text], .ed-detail input[type=number],
+  .ed-detail select, .ed-detail textarea {
+    width: 100%; background: #0d0f14; color: #d8dce4;
+    border: 1px solid #1e2430; border-radius: 3px;
+    padding: 6px 8px; font: inherit; }
+  .ed-detail textarea { min-height: 70px; resize: vertical; }
+  .ed-exit-row { display: flex; gap: 6px; margin-bottom: 4px; }
+  .ed-exit-row input { flex: 1; }
+  .ed-exit-row button, .ed-btn { background: #1e2430; color: #d8dce4;
+    border: 1px solid #2a3342; border-radius: 3px;
+    padding: 5px 10px; cursor: pointer; font: inherit; }
+  .ed-btn:hover, .ed-exit-row button:hover { background: #2a3342; }
+  .ed-btn:disabled { color: #3a4250; cursor: not-allowed; background: #141821; }
+  .ed-btn.primary { background: #1a3b2e; border-color: #2d6a4e; color: #7fd1a4; }
+  .ed-btn.primary:disabled { background: #1e2430; border-color: #2a3342;
+    color: #3a4250; cursor: not-allowed; }
+  .ed-btn.danger { background: #3b1a1a; border-color: #6a2d2d; color: #e07070; }
+  .ed-btn.danger:disabled { background: #1e2430; border-color: #2a3342;
+    color: #3a4250; cursor: not-allowed; }
+  .ed-toolbar { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 16px;
+    border-top: 1px solid #1e2430; background: #141821; }
+  .ed-status { padding: 6px 16px; color: #6b7688; font-size: 12px;
+    border-top: 1px solid #1e2430; min-height: 26px;
+    white-space: pre-wrap; }
+  .ed-status.warn { color: #e0a860; }
+  .ed-status.ok { color: #7fd1a4; }
+  .ed-field-hint {
+    font-size: 11px; color: #4a5263; font-style: italic;
+    margin-bottom: 6px; line-height: 1.3;
+  }
+  .ed-detail select {
+    width: 100%; background: #0d0f14; color: #d8dce4;
+    border: 1px solid #1e2430; border-radius: 3px;
+    padding: 6px 8px; font: inherit;
+  }
+  .ed-empty { color: #4a5263; font-style: italic; padding: 20px;
+    text-align: center; font-size: 12px; }
+  /* Character creation modal */
+  #character-creation {
+    position: fixed; inset: 0; background: rgba(13,15,20,0.94);
+    display: none; align-items: center; justify-content: center;
+    z-index: 200; padding: 20px; overflow-y: auto;
+  }
+  #character-creation.show { display: flex; }
+  #character-creation .cc-panel {
+    background: #141821; border: 1px solid #2a3342; border-radius: 6px;
+    padding: 24px; min-width: 0; max-width: 560px; width: 100%;
+    max-height: calc(100vh - 40px); max-height: calc(var(--expanse-viewport-height, 100dvh) - 40px);
+    overflow-y: auto; overflow-wrap: anywhere; box-sizing: border-box;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+  }
+  .cc-panel h1 {
+    margin: 0 0 18px; color: #7fd1a4; font-size: 16px;
+    text-transform: uppercase; letter-spacing: 3px;
+  }
+  #character-creation .cc-row { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; min-width: 0; }
+  #character-creation .cc-row label {
+    flex: 1 1 140px; min-width: 0; max-width: 100%;
+    display: flex; flex-direction: column; gap: 4px;
+    font-size: 11px; color: #6b7688;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .cc-row input, .cc-row select, .cc-panel textarea {
+    background: #0d0f14; color: #d8dce4;
+    border: 1px solid #1e2430; border-radius: 3px;
+    padding: 6px 8px; font: inherit;
+  }
+  .cc-panel textarea { width: 100%; min-height: 60px; resize: vertical; }
+  #character-creation input, #character-creation select, #character-creation textarea {
+    width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;
+  }
+  #character-creation button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+  #character-creation .cc-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+  #character-creation .cc-row > button, #character-creation .cc-actions > button { flex: 0 1 auto; }
+  #character-creation #cc-style-fields { display: flow-root; min-width: 0; }
+  #character-creation .appearance-grid { min-width: 0; grid-template-columns: repeat(auto-fit, minmax(min(9em, 100%), 1fr)); }
+  #character-creation .appearance-grid label { min-width: 0; }
+  #cc-account-note { margin: 0 0 12px; color: #a9b7ca; font-size: 12px; }
+  .cc-status { color: #e0a860; margin-top: 10px; min-height: 16px; font-size: 12px; }
+  @media (max-width: 480px) {
+    #character-creation { padding: 8px; }
+    #character-creation .cc-panel { padding: 16px; max-height: calc(100vh - 16px); max-height: calc(var(--expanse-viewport-height, 100dvh) - 16px); }
+    #character-creation input, #character-creation select, #character-creation textarea { font-size: 16px; }
+    #character-creation button, #character-creation input, #character-creation select { min-height: 44px; }
+  }
+  #cc-image-wrap { margin-bottom: 16px; text-align: center; display: none; }
+  #cc-image { max-width: 100%; max-height: 200px; border-radius: 4px; border: 1px solid #1e2430; object-fit: cover; }
+  .ed-game .thumb { width: 20px; height: 20px; border-radius: 3px; object-fit: cover; margin-right: 4px; vertical-align: middle; border: 1px solid #2a3342; }
+</style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="/workspace.css">
+
+<link rel="stylesheet" href="/dock-layout.css">
+<link rel="stylesheet" href="/window-controls.css">
+<link rel="stylesheet" href="/character-frame.css">
+<link rel="stylesheet" href="/trade-ui.css">
+<link rel="stylesheet" href="/damage-feedback.css">
+</head>
+<body>
+<div id="app">
+  <header>
+    <span class="brand">Expanse</span>
+    <nav>
+      <button data-tab="game" class="active">Game</button>
+      <button data-tab="editor" hidden disabled>Editor</button><a href="/" style="color:inherit;padding:8px">World &amp; saves</a>
+    </nav>
+  </header>
+  <main>
+    <section id="tab-game" class="tab active">
+      <section id="player-map-panel" aria-label="Terrain map">
+        <div class="map-view-buttons"><button class="ed-btn" id="open-world-atlas" type="button" title="Open the full-window room atlas">Room atlas</button><button class="ed-btn" id="open-planet" type="button">Planet globe</button><button class="ed-btn" hidden id="open-host-planet" type="button">Host globe</button></div><div id="player-visual-map"></div>
+        <div id="map-legend" style="white-space:pre-wrap"></div><div id="map-exits"></div>
+        <div id="map-move"></div>
+      </section>
+      <div id="log"></div>
+      <form id="input-form">
+      <span id="prompt" aria-hidden="true">&gt;</span>
+      <input id="input" aria-label="Command" placeholder="Type a command…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send">
+      <button id="command-done" type="button" aria-label="Dismiss keyboard" hidden>Done</button>
+      <button id="command-send" type="submit">Send</button>
+      <button id="conversation-latest" type="button" aria-label="Jump to the latest messages" hidden>Latest messages ↓</button>
+      </form>
+    </section>
+        <section id="tab-editor" class="tab">
+          <p id="editor-draft-note" hidden>Editing a separate world draft. Save draft keeps your authored changes; Export downloads the complete .expanse file. Import that file from World &amp; saves to add a playable version.</p>
+          <nav id="creator-art-tools" aria-label="Creator tools"></nav>
+      <div id="ed-breadcrumb"></div>
+      <details id="designer-map-panel" style="padding:6px 16px;max-height:45%;overflow:auto">
+        <summary>Creator terrain map and content tools</summary>
+        <button class="ed-btn" id="map-refresh">Refresh preview</button>
+        <button class="ed-btn" id="open-host-atlas" type="button">Open complete host atlas</button>
+        <button class="ed-btn" id="map-place">Auto-place unmapped rooms</button>
+        <span id="creator-sets"></span>
+        <p>Select a game first. Click a room symbol to edit it. Coordinates and symbols are in Rooms. Save, then Apply.</p>
+        <select id="map-center" aria-label="Map center room"></select>
+        <div id="designer-visual-map"></div>
+        <div id="designer-map-status" style="white-space:pre-wrap"></div>
+      </details>
+      <div id="ed-grid">
+        <div class="ed-col">
+          <h3>Games</h3>
+          <div id="ed-games"></div>
+          <div class="ed-new-game-wrap">
+            <button class="ed-btn" id="ed-new-game" style="width:100%;">+ New World Template</button>
+            <button class="ed-btn" id="ed-import" style="width:100%; margin-top:4px;">Import...</button>
+          </div>
+        </div>
+        <div class="ed-col">
+          <h3>Types</h3>
+          <div id="ed-types">
+            <div class="ed-type" data-type="room">Rooms</div>
+            <div class="ed-type" data-type="item">Items</div>
+            <div class="ed-type" data-type="npc">NPCs</div>
+            <div class="ed-type" data-type="quest">Quests</div>
+            <div class="ed-type" data-type="building">Buildings</div>
+            <div class="ed-type" data-type="group">Factions</div>
+            <div class="ed-type" data-type="race">Races</div>
+            <div class="ed-type" data-type="class">Classes</div>
+            <div class="ed-type" data-type="sex">Sexes</div>
+            <div class="ed-type" data-type="ability">Abilities</div>
+<div class="ed-type" data-type="recipe">Recipes</div><div class="ed-type" data-type="resource">Resources</div><div class="ed-type" data-type="encounter">Encounters</div><div class="ed-type" data-type="interaction">Interactions</div><div class="ed-type" data-type="species">Species</div>
+          </div>
+        </div>
+        <div class="ed-col">
+          <h3 id="ed-list-title">&mdash;</h3>
+          <div id="ed-entries"></div>
+        </div>
+        <div class="ed-col">
+          <div class="ed-detail">
+            <div id="ed-empty" class="ed-empty">
+              Select a game, then a type, then an entry.
+            </div>
+            <div id="ed-fields" style="display:none;"></div>
+          </div>
+          <div class="ed-toolbar" id="ed-toolbar">
+            <button class="ed-btn" id="ed-new">+ New</button>
+            <button class="ed-btn" id="ed-save">Save</button>
+            <button class="ed-btn" id="ed-reload">Revert</button>
+            <button class="ed-btn" id="ed-validate">Validate</button>
+            <button class="ed-btn danger" id="ed-delete">Delete</button>
+            <button class="ed-btn" id="ed-duplicate" disabled>Duplicate</button>
+            <button class="ed-btn" id="ed-export" disabled>Export</button>
+            <button class="ed-btn primary" id="ed-apply" disabled>Apply to running game</button>
+          </div>
+          <div class="ed-status" id="ed-status"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+<script src="/damage-feedback.js"></script>
+<script src="/mobile-layout.js?v=1.9.8"></script>
+<script>
+let config = {
+  editor_enabled: false,
+  editor_reason: 'enabled',
+  title: 'Expanse',
+  running_game: 'default',
+};
+const nativeFetch=window.fetch.bind(window);
+const editorBundle = location.pathname === '/editor' ? new URLSearchParams(location.search).get('game') : null;
+const playBundle = location.pathname === '/play' ? new URLSearchParams(location.search).get('game') : null;
+function gameContextURL(value){
+ const url=new URL(value,location.href),ident=playBundle||config.render_game;
+ if(ident&&url.origin===location.origin)url.searchParams.set('game',ident);
+ return url.origin===location.origin?url.pathname+url.search+url.hash:url.href;
+}
+window.fetch=(input,options={})=>{
+ const url=new URL(typeof input==='string'?input:input.url,location.href);
+ if(url.origin===location.origin){const pid=sessionStorage.getItem('expanse.active'),token=pid&&localStorage.getItem('expanse.delete_token.'+pid);if(token){const headers=new Headers(options.headers||{});headers.set('X-Expanse-Player',pid);headers.set('Authorization','Bearer '+token);options={...options,headers};}}
+ if(editorBundle && url.origin===location.origin && url.pathname.startsWith('/api/')){const headers=new Headers(options.headers||{});headers.set('X-Expanse-Editor',editorBundle);options={...options,headers};}
+ else if((playBundle||config.render_game) && url.origin===location.origin && url.pathname.startsWith('/api/')){const headers=new Headers(options.headers||{});headers.set('X-Expanse-Game',playBundle||config.render_game);options={...options,headers};}
+ return nativeFetch(input,options);
+};
+async function fetchConfig() {
+  try {
+    const r = await fetch('/api/config');
+    if(r.status===401 || r.status===409){location.replace('/');return;}
+    if(!r.ok)throw Error('Configuration unavailable');
+    config = await r.json();
+  } catch { delete config.ws_port; config.internet_accounts=false; }
+  const edTab = document.querySelector('header nav button[data-tab="editor"]');
+  const reasonMsg = {
+    launch_flag: 'Editor disabled by launch flag (--no-editor / EXPANSE_EDITOR=0)',
+    not_local: 'Editor available only in local single-player',
+    owner_only: 'World editing is available to the signed-in owner',
+    enabled: 'Edit world content',
+  }[config.editor_reason] || 'Editor unavailable';
+  edTab.disabled = !config.editor_enabled;
+  edTab.hidden = !config.editor_enabled;
+  edTab.title = reasonMsg;
+  document.getElementById('editor-draft-note').hidden = !config.editor_only;
+  document.getElementById('app').dataset.editorOnly = String(!!config.editor_only);
+  if(config.editor_only){
+    document.getElementById('ed-save').textContent='Save draft';
+    document.getElementById('ed-reload').textContent='Revert staged edits';
+    document.getElementById('ed-export').textContent='Export .expanse';
+    document.getElementById('ed-import').textContent='Import a .expanse file…';
+    document.getElementById('ed-import').onclick=()=>{location.href='/';};
+  }
+}
+document.querySelectorAll('header nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (btn.disabled) return;
+    const target = btn.dataset.tab;
+    if(target==='editor' && config.render_web && config.editor_url && !config.editor_only){location.href=config.editor_url;return;}
+    if(target==='game' && config.editor_only){location.href='/';return;}
+    document.querySelectorAll('header nav button').forEach(b =>
+      b.classList.toggle('active', b === btn));
+    document.querySelectorAll('section.tab').forEach(s =>
+      s.classList.toggle('active', s.id === 'tab-' + target));
+    if (target === 'editor') onEditorActivated();
+  });
+});
+let ws;
+let retry = 1000;
+function wsUrl(){
+  if(config.render_web)return (location.protocol==="https:"?"wss://":"ws://")+location.host+gameContextURL('/ws');
+  if(config.internet_accounts && location.protocol==='https:')return `wss://${location.host}/ws`;
+  if(Number.isInteger(config.ws_port)&&config.ws_port>0&&config.ws_port<=65535)return `ws://${location.hostname}:${config.ws_port}`;
+  return null;
+}
+function retryConnection(){
+  if(window.expanseLeaving)return;
+  setTimeout(()=>{if(!window.expanseLeaving)fetchConfig().then(connect);},retry);
+  retry=Math.min(retry*2,10000);
+}
+function append(kind, text) {
+  const log = document.getElementById('log');
+  const position = window.ExpanseTranscript?.beforeAppend(kind === 'user');
+  const div = document.createElement('div');
+  div.className = 'line ' + kind;
+  div.textContent = text;
+  log.appendChild(div);
+  if (window.ExpanseTranscript) window.ExpanseTranscript.afterAppend(position);
+  else log.scrollTop = log.scrollHeight;
+}
+function connect() {
+  if(window.expanseLeaving)return;
+  const address=wsUrl();
+  if(!address){retryConnection();return;}
+  ws = new WebSocket(address);
+  const connection=ws;
+  window.ExpansePlaytest?.bind({
+    send:packet=>{if(connection!==ws||connection.readyState!==WebSocket.OPEN)return false;connection.send(JSON.stringify(packet));return true;},
+    close:()=>connection.close(),
+    leave:()=>{location.href=window.expanseStartingNewGame?'/mode.html#new-game':'/mode.html';},
+    contextURL:gameContextURL,
+    reconnect:()=>retryConnection()
+  });
+  let positionRevision=0;
+  ws.onopen = () => {
+    if(connection!==ws)return;
+    append('system', 'Connected.');
+    retry = 1000;
+    if(config.control_token)ws.send(JSON.stringify({command:'host_auth',control_token:config.control_token}));
+    const isEditMode = new URLSearchParams(location.search).has('editor');
+    if (isEditMode) return;
+    if(!sessionStorage.getItem('expanse.pending-save'))showCreationModal();
+  };
+  ws.onclose = (event) => {
+    if(connection!==ws)return;
+    window.ExpanseSoundscape?.disconnect();
+    window.ExpanseResidentWatch?.close();
+    window.ExpanseGazette?.disconnect();
+    window.ExpanseChronicles?.close();
+    window.ExpanseSourceQuests?.clear();
+    window.ExpanseInterfaceTour?.disconnect();
+    window.ExpansePlayerControls?.disconnect();
+    window.ExpanseDM?.disconnect();
+    window.ExpanseTrade?.disconnect();window.ExpanseCalendar?.disconnect();
+    window.ExpanseWindowControls?.disconnect();
+    window.ExpansePlayerLists?.disconnect();window.ExpanseEquipment?.disconnect();window.ExpanseRestControls?.disconnect();
+    window.ExpanseWorldAtlas?.disconnect();window.ExpanseMap?.reset();
+    if (window.ExpansePlaytest?.disconnected()) return;
+    if (window.expanseLeaving) return;
+    if(window.expanseStartingNewGame){
+      window.expanseStartingNewGame=false;
+      const fresh=document.getElementById('new-game-in-play');if(fresh)fresh.disabled=false;
+    }
+    if(event?.code===1008&&/Dungeon Master|blocked from this world/i.test(event.reason||'')){append('error',(event.reason||'Connection closed by the host.')+' Return to Start before trying to reconnect.');return;}
+    append('system', `Disconnected. Retrying in ${retry / 1000}s…`);
+    retryConnection();
+  };
+  ws.onmessage = (ev) => {
+    if(connection!==ws)return;
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { return; }
+    if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit')window.ExpanseMapEffects?.reset();
+    if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit'||(msg.type==='system'&&/^Resumed as /.test(msg.text||'')))window.ExpanseSoundscape?.disconnect();
+    window.ExpanseSourceQuests?.receive(msg);
+    if(msg.type!=='map'&&window.ExpanseInterfaceTour?.receive(msg))return;
+    if(window.ExpansePlaytest?.receive(msg))return;
+    if(window.ExpanseDamage?.handle(msg))return;
+    if(msg.type==='error'&&window.expanseStartingNewGame&&/^Save failed/i.test(msg.text||'')){
+      window.expanseStartingNewGame=false;
+      const fresh=document.getElementById('new-game-in-play');if(fresh)fresh.disabled=false;
+    }
+    if(window.ExpanseAssets?.receive(msg))return;
+    if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit'){positionRevision=0;window.ExpanseChronicles?.close();}
+    if(msg.type==='map'&&Number.isSafeInteger(msg.position_revision)){
+      if(msg.position_revision<positionRevision)return;
+      positionRevision=msg.position_revision;
+    }
+    if(window.ExpanseMapEffects?.receive(msg))return;
+    if(msg.type==='map')window.ExpanseInterfaceTour?.receive(msg);
+    if(window.ExpanseResidentWatch?.receive(msg))return;
+    if(msg.event==='character_entered'||msg.type==='saved_exit')window.ExpanseResidentWatch?.close();
+    if(window.ExpanseSaveSlots?.receive(msg))return;
+    if(window.ExpanseChronicles?.receive(msg)||window.ExpanseGazette?.receive(msg)||window.ExpanseStyles?.receive(msg))return;
+    if(window.ExpanseCountryView?.receive(msg))return;
+    if(window.ExpanseLocalQuests?.receive(msg))return;
+    if(window.ExpansePlayerControls?.receive(msg))return;
+    if(msg.type==='system'&&/^Resumed as /.test(msg.text||'')){window.ExpanseSourceQuests?.clear();window.ExpanseEquipment?.disconnect();window.ExpanseRestControls?.disconnect();window.ExpansePlayerLists?.disconnect();window.ExpanseWorldAtlas?.disconnect();window.ExpanseMap?.reset();window.ExpanseTrade?.disconnect();}
+    if(window.ExpanseEquipment?.receive(msg))return;
+    if(window.ExpansePlayerLists?.receive(msg))return;
+    if(window.ExpanseWorldAtlas?.receive(msg))return;
+    if(msg.type==='character_required'||msg.type==='saved_exit'){window.ExpanseWorldAtlas?.disconnect();window.ExpanseMap?.reset();}
+    if(window.ExpanseCalendar?.receive(msg))return;
+    if(window.ExpanseTrade?.receive(msg))return;
+    if(window.ExpanseDM?.receive(msg))return;
+    if(window.societyMessage&&window.societyMessage(msg))return;
+    if (msg.type === 'saved' && window.expanseSaveStatus) window.expanseSaveStatus('Saved successfully.');
+    if (msg.type === 'error' && window.expanseSaveStatus) window.expanseSaveStatus(msg.text);
+    if (msg.type === 'saved_exit') { window.expanseLeaving=true; window.location.href=window.expanseStartingNewGame?'/mode.html#new-game':'/mode.html'; return; }
+    if (msg.type === 'character_required') { if(window.expanseSaveStatus)window.expanseSaveStatus(msg.text);showCreationModal(msg.text);return; }
+    if (msg.type === 'system' && /Resumed as/.test(msg.text||'')) { window.expanseCharacterLoaded=true; document.getElementById('character-creation').classList.remove('show'); }
+    if (msg.type === 'error' && /Cannot resume/i.test(msg.text || '')) {
+      localStorage.removeItem(`expanse.player_id.${config.running_game || 'default'}.${config.mode || 'single'}`);
+      if (config.running_game === 'default') localStorage.removeItem(`expanse.player_id.${config.mode || 'single'}`);
+      showCreationModal('Your character no longer exists. Please create a new one.');
+      return;
+    }
+    if(msg.type==='error'&&document.getElementById('character-creation').classList.contains('show'))document.getElementById('cc-status').textContent=msg.text;
+    if (msg.type === 'map') { window.ExpanseSourceQuests?.locationChanged(msg.location?.id);showPlayerMap(msg); return; }
+    let displayText=msg.text;
+    if(msg.event==='character_entered'&&msg.player_id===window.expanseJustCreated){displayText=(msg.text||'').replace(/^Resumed as /,'Started new character as ');window.expanseJustCreated=null;}
+    append(msg.type || 'response', displayText || JSON.stringify(msg));
+    window.ExpanseSourceQuests?.show(msg.source_quests,msg.event!=='character_entered');
+
+  };
+}
+document.getElementById('input-form')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (window.ExpanseMobileLayout?.isComposing()) return;
+  const input = document.getElementById('input');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  if(cmd.toLowerCase()==='map')window.dispatchEvent(new Event('expanse:show-terrain'));
+  if (window.ExpansePlayerControls?.submit(cmd)) { input.value=''; return; }
+  if (!ws || ws.readyState !== WebSocket.OPEN) { append('error', 'Not connected.'); return; }
+  if((/^go(?:\s|$)/i.test(cmd)||/^(?:n|s|e|w|ne|nw|se|sw|u|d|north|south|east|west|northeast|northwest|southeast|southwest|up|down|in|out)$/i.test(cmd))&&window.ExpansePlayerControls){if(!window.ExpansePlayerControls.move(cmd))return;}
+  else ws.send(JSON.stringify({ command: cmd }));
+  append('user', '> ' + cmd);
+  window.ExpansePlayerControls?.remember(cmd);
+  input.value = '';
+});
+fetchConfig().then(() => {
+  if (!editorBundle && !config.editor_only) connect();
+  if (config.editor_only || new URLSearchParams(location.search).get('editor') === '1') {
+    if (config.editor_enabled) {
+      const edBtn = document.querySelector('header nav button[data-tab="editor"]');
+      if (edBtn && !edBtn.disabled) edBtn.click();
+    }
+  }
+});
+
+// --- Host banner (only when opened via ?host= from mode selection) ---
+// The session controls show the actual shared address returned by /api/config.
+
+  const ed = {
+  gameSlug: null,
+  gameName: null,
+  type: null,
+  entryId: null,
+  types: ['misc'],
+  entriesCache: { room: [], item: [], npc: [], quest: [], building: [], group: [] },
+};
+const TYPE_LABEL = { room: 'Rooms', item: 'Items', npc: 'NPCs', quest: 'Quests', building: 'Buildings', group: 'Factions', race: 'Races', class: 'Classes', sex: 'Sexes', ability: 'Abilities', recipe: 'Recipes', resource: 'Resources', encounter: 'Encounters', interaction:'Interactions',species:'Species' };
+const ED_FIELD_ORDER = {
+  room: ['id', 'name', 'map_x', 'map_y', 'map_z', 'map_symbol', 'map_visibility', 'description', 'group', 'spawners', 'description_variants', 'exits', 'items'],
+  item: ['id', 'name', 'read_text', 'description', 'description_variants', 'type', 'value', 'heal', 'attack_bonus', 'defense_bonus', 'slot'],
+  npc: ['id', 'name', 'description', 'role', 'group', 'dialogue', 'greetings', 'stock', 'description_variants', 'hp', 'attack', 'defense', 'gold', 'spawn_room', 'workplace_room', 'workplace_building', 'guard_room', 'guard_building', 'patrol_mode', 'patrol_chance', 'corpse', 'corpse_ttl', 'corpse_name'],
+  quest: ['id', 'name', 'description', 'description_variants'],
+  building: ['id', 'name', 'description', 'group', 'rooms', 'music_venue'],
+  group: ['id', 'name', 'description', 'visibility', 'start_room', 'hostile_to', 'roster'],
+};
+function setStatus(text, kind = '') {
+  const el = document.getElementById('ed-status');
+  el.textContent = text;
+  el.className = 'ed-status ' + kind;
+}
+function updateBreadcrumb() {
+  const bc = document.getElementById('ed-breadcrumb');
+  const parts = [];
+  const part = (text, jump) => {
+    const span = document.createElement('span');
+    span.className = jump ? 'crumb' : 'current';
+    if (jump) span.dataset.jump = jump;
+    // Authored world names and entry IDs are text, including after an
+    // asynchronous selection finishes while another dialog is open.
+    span.textContent = text;
+    return span;
+  };
+  if (ed.gameSlug) {
+    parts.push(part(ed.gameName || ed.gameSlug, 'game'));
+  } else {
+    parts.push(part('Games'));
+  }
+  if (ed.type) parts.push(part(TYPE_LABEL[ed.type], 'type'));
+  if (ed.entryId) parts.push(part(ed.entryId));
+  bc.replaceChildren();
+  parts.forEach((span, index) => {
+    if (index) {
+      const separator = document.createElement('span');
+      separator.className = 'sep'; separator.textContent = '>';
+      bc.append(separator);
+    }
+    bc.append(span);
+  });
+  bc.querySelectorAll('.crumb').forEach(el => {
+    el.addEventListener('click', () => {
+      if (el.dataset.jump === 'game') resetFromType();
+      if (el.dataset.jump === 'type') resetFromEntry();
+    });
+  });
+}
+function updateToolbar() {
+  document.getElementById('ed-new').disabled = !ed.type;
+  document.getElementById('ed-save').disabled = !ed.gameSlug;
+  document.getElementById('ed-reload').disabled = !ed.gameSlug;
+  document.getElementById('ed-validate').disabled = !ed.gameSlug;
+  document.getElementById('ed-delete').disabled = !ed.entryId;
+  document.getElementById('ed-duplicate').disabled = !ed.entryId;
+  document.getElementById('ed-export').disabled = !ed.gameSlug;
+  const applyBtn = document.getElementById('ed-apply');
+  applyBtn.hidden = !!config.editor_only;
+  if(config.editor_only){applyBtn.disabled=true;return;}
+  if (!ed.gameSlug) {
+    applyBtn.disabled = true;
+    applyBtn.textContent = 'Apply to running game';
+    applyBtn.title = 'Select a game first.';
+  } else if (ed.gameSlug === config.running_game) {
+    applyBtn.disabled = false;
+    applyBtn.textContent = 'Apply to running game';
+    applyBtn.title = 'Reload the world; connected players are preserved';
+  } else {
+    applyBtn.disabled = false;
+    applyBtn.textContent = `Run ${ed.gameName || ed.gameSlug}`;
+    applyBtn.title = `Switch the running game to ${ed.gameName || ed.gameSlug}. Connected players will be moved to its start room.`;
+  }
+}
+async function apiGet(path) {
+  const r = await fetch('/api/editor/' + path);
+  return r.json();
+}
+async function apiPost(path, body) {
+  const r = await fetch('/api/editor/' + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {}),
+  });
+  return r.json();
+}
+function gpath(suffix) {
+  return `games/${ed.gameSlug}/${suffix}`;
+}
+async function onEditorActivated() {
+  if (!config.editor_enabled) return;
+  if (ed.gameSlug) return;
+  await loadGames();
+}
+async function loadGames() {
+  const data = await apiGet('games');
+  const container = document.getElementById('ed-games');
+  container.innerHTML = '';
+  const games = data.games || [];
+  if (games.length === 0) {
+    container.innerHTML = '<div class="ed-empty">No games yet. Click + New Game.</div>';
+    return;
+  }
+  games.forEach(g => {
+    const div = document.createElement('div');
+    div.className = 'ed-game';
+    div.dataset.slug = g.slug;
+    const isRunning = g.slug === config.running_game;
+    if (isRunning) {const dot=document.createElement('span');dot.className='running-dot';div.append(dot);}
+    if (g.image_url) {const image=document.createElement('img'),url=new URL(g.image_url,location.href);url.searchParams.set('t',Date.now());image.className='thumb';image.src=url.href;div.append(image);}
+    div.append(document.createTextNode(g.name));
+    div.title = isRunning ? `${g.name} (${config.editor_only?'source draft':'running'})` : g.name;
+    div.addEventListener('click', () => selectGame(g.slug, g.name));
+    container.appendChild(div);
+  });
+  const running = games.find(g => g.slug === config.running_game);
+  if (running) selectGame(running.slug, running.name);
+}
+async function loadGamesSilent() {
+  const data = await apiGet('games');
+  const container = document.getElementById('ed-games');
+  container.innerHTML = '';
+  (data.games || []).forEach(g => {
+    const div = document.createElement('div');
+    div.className = 'ed-game';
+    div.dataset.slug = g.slug;
+    const isRunning = g.slug === config.running_game;
+    if (isRunning) {const dot=document.createElement('span');dot.className='running-dot';div.append(dot);}
+    div.append(document.createTextNode(g.name));
+    div.title = isRunning ? `${g.name} (${config.editor_only?'source draft':'running'})` : g.name;
+    div.addEventListener('click', () => selectGame(g.slug, g.name));
+    if (g.slug === ed.gameSlug) div.classList.add('active');
+    container.appendChild(div);
+  });
+}
+async function refreshEntriesCache() {
+  for (const t of Object.keys(TYPE_LABEL)) {
+    try {
+      const data = await apiGet(gpath('entries/' + t));
+      ed.entriesCache[t] = data.entries || [];
+    } catch { ed.entriesCache[t] = []; }
+  }
+}
+
+async function selectGame(slug, name) {
+  window.ExpanseWorldAtlas?.worldChanged();window.ExpanseMap?.reset();
+  document.getElementById('map-center').replaceChildren();
+  ed.gameSlug = slug;
+  window.expanseEditorWorld=slug;
+  window.dispatchEvent(new Event('expanse:art-selection'));
+  ed.gameName = name;
+  const toolbar=document.getElementById('creator-sets');toolbar.replaceChildren();
+  const packs=await apiGet(gpath('record-sets'));
+  if(ed.gameSlug!==slug)return;
+  for(const pack of packs.sets||[]){
+    const button=document.createElement('button');button.type='button';button.className='ed-btn';button.textContent='Add '+pack.title;
+    button.onclick=async()=>{const result=await apiPost(gpath('add-record-set'),{key:pack.key});setStatus(result.error||result.text);if(ed.type)await refreshEntries();};
+    toolbar.append(button);
+  }
+  ed.types = ['misc'];
+  try {
+    const td = await apiGet(`games/${slug}/types`);
+    ed.types = td.types || ['misc'];
+  } catch { /* keep fallback */ }
+  await refreshEntriesCache();
+  resetFromType();
+  document.querySelectorAll('.ed-game').forEach(el =>
+    el.classList.toggle('active', el.dataset.slug === slug));
+  document.querySelectorAll('.ed-type').forEach(el =>
+    el.classList.remove('active'));
+  document.getElementById('ed-entries').innerHTML = '';
+  document.getElementById('ed-list-title').textContent = '—';
+  updateBreadcrumb();
+  updateToolbar();
+  setStatus(`Game '${name}' selected. Pick a type.`);
+}
+async function selectType(type) {
+  ed.type = type;
+  ed.entryId = null;
+  document.querySelectorAll('.ed-type').forEach(el =>
+    el.classList.toggle('active', el.dataset.type === type));
+  document.getElementById('ed-list-title').textContent = TYPE_LABEL[type] || type;
+  showEmptyDetail();
+  updateBreadcrumb();
+  updateToolbar();
+  await refreshEntries();
+}
+async function refreshEntries() {
+  const data = await apiGet(gpath('entries/' + ed.type));
+  if (ed.type === 'item') {
+    try {
+      const td = await apiGet(gpath('types'));
+      ed.types = td.types || ['misc'];
+    } catch { /* keep existing */ }
+  }
+  const container = document.getElementById('ed-entries');
+  container.innerHTML = '';
+  const entries = data.entries || [];
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="ed-empty">Empty. Click + New.</div>';
+  }
+  entries.forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'ed-entry';
+    div.dataset.id = entry.id;
+    div.textContent = entry.id;
+    div.addEventListener('click', () => selectEntry(entry.id));
+    container.appendChild(div);
+  });
+  await refreshEntriesCache();
+  setStatus(`Loaded ${entries.length} ${TYPE_LABEL[ed.type].toLowerCase()}.`);
+}
+async function selectEntry(id) {
+  ed.entryId = id;
+  const selection = {id, type:ed.type, slug:ed.gameSlug, version:(ed.selectionVersion||0)+1};
+  ed.selectionVersion=selection.version;
+  document.querySelectorAll('.ed-entry').forEach(el =>
+    el.classList.toggle('active', el.dataset.id === id));
+  const obj = await apiGet(gpath(`show/${ed.type}/${id}`));
+  if(ed.entryId!==selection.id || ed.type!==selection.type || ed.gameSlug!==selection.slug || ed.selectionVersion!==selection.version)return;
+  if (obj.error) { setStatus(obj.error, 'warn'); return; }
+  renderFields(obj);
+  if(window.creatorSelection)window.creatorSelection(obj,ed.type);
+  updateBreadcrumb();
+  updateToolbar();
+}
+function showEmptyDetail() {
+  document.getElementById('ed-empty').style.display = 'block';
+  document.getElementById('ed-fields').style.display = 'none';
+}
+const FIELD_HINTS = {
+  room: {
+    name: 'Display name shown as the room title',
+    map_x: 'Room layout X: east is positive. Not a geographic world position.',
+    map_y: 'Room layout Y: south is positive. Used by the local tile map.',
+    map_z: 'Room layout level: up is positive. Not elevation in metres.',
+    description: 'Base description (used when no variant matches)',
+    description_variants: 'Conditional descriptions - first matching variant wins',
+    exits: 'Direction -> destination room id',
+    items: 'Item ids lying on the floor of this room',
+    group: 'Owning faction. If hostile to your faction, entering may trigger an ambush.',
+    spawners: 'NPC spawners with caps, respawn rules, cooldown, and total limits.',
+  },
+  item: {
+    name: 'Display name',
+    description: 'Flavor text shown when used or examined',
+    type: 'Category (weapon, armor, consumable, misc)',
+    value: 'Base trade value in gold',
+    heal: 'HP restored when used (consumables only)',
+    attack_bonus: 'Added to attacker damage (weapons)',
+    defense_bonus: 'Added to defense when taking damage (armor)',
+    slot: 'Equipment slot; derives from type if blank',
+  },
+  npc: {
+    name: 'Display name',
+    description: 'Flavor text shown on look',
+    role: 'Vocation. chef/innkeeper/merchant/blacksmith/barkeep sell via talk+buy. guard gives directions.',
+    dialogue: 'Default greeting. Shown when the player has no matching group.',
+    greetings: 'Per-group overrides. Takes precedence over dialogue when the player is a member.',
+    stock: 'Items this NPC sells (item id, price, qty). Requires a trade role.',
+    group: 'Faction this NPC belongs to',
+    hp: 'Starting and maximum hit points',
+    spawn_room: 'Room this NPC spawns in - if set, overrides workplace/guard',
+    workplace_room: 'Room where this NPC plies their trade (chef -> kitchen)',
+    workplace_building: 'Building where this NPC works - falls back to its first room',
+    guard_room: 'Room this guard is stationed at (stationary)',
+    guard_building: 'Building this guard patrols (moves between its rooms)',
+    patrol_mode: 'random (wander) or loop (walk rooms in building order).',
+    patrol_chance: 'Probability of moving per player move (0.0-1.0, default 0.5).',
+    corpse: 'On death: disappear, permanent, or timed',
+    corpse_ttl: 'Seconds a timed corpse lingers',
+    corpse_name: 'Custom label shown for a corpse',
+  },
+  quest: {
+    name: 'Display name',
+    description: 'Quest text shown to the player',
+  },
+  building: {
+    name: 'Display name',
+    description: 'Building description',
+    rooms: 'Room ids that make up this building',
+    group: 'Owning faction (informational; room groups override for display).',
+  },
+  group: {
+    name: 'Display name',
+    description: 'Faction description',
+    visibility: 'playable: players can join at start. npc_only: reference only.',
+    start_room: 'The room ID where players of this faction spawn.',
+    hostile_to: 'Factions this group considers enemies. Use "*" for all.',
+    roster: 'NPC defs that spawn as ambushers in this faction\'s territory.',
+  },
+};
+
+const FIELD_KIND = {
+  room: { map_x:'map_coord',map_y:'map_coord',map_z:'map_coord',map_symbol:'map_symbol',map_visibility:'map_visibility', id: 'id', name: 'string', description: 'text', group: 'id_ref_group', spawners: 'spawners', description_variants: 'variants', exits: 'exits', items: 'items_room' },
+  item: { read_text:'text', id: 'id', name: 'string', description: 'text', description_variants: 'variants', type: 'item_type', value: 'int', heal: 'int', attack_bonus: 'int', defense_bonus: 'int', slot: 'string' },
+  npc: {
+    id: 'id', name: 'string', description: 'text', role: 'string',
+    group: 'id_ref_group', description_variants: 'variants',
+    hp: 'int', attack: 'int', defense: 'int', gold: 'int',
+    spawn_room: 'id_ref_room', workplace_room: 'id_ref_room',
+    workplace_building: 'id_ref_building',
+    guard_room: 'id_ref_room', guard_building: 'id_ref_building',
+    corpse: 'enum_corpse', corpse_ttl: 'int', corpse_name: 'string',
+    patrol_mode: 'enum_patrol', patrol_chance: 'float',
+    dialogue: 'text', greetings: 'greetings', stock: 'stock',
+  },
+  quest: { id: 'id', name: 'string', description: 'text', description_variants: 'variants' },
+  building: { id: 'id', name: 'string', description: 'text', group: 'id_ref_group', rooms: 'rooms_building', music_venue:'venue_picker' },
+  group: { id: 'id', name: 'string', description: 'text', visibility: 'enum_group_visibility', hostile_to: 'multiselect_group', start_room: 'id_ref_room', roster: 'multiselect_npc' },
+};
+
+function renderFields(obj) {
+  document.getElementById('ed-empty').style.display = 'none';
+  document.getElementById('ed-fields').style.display = 'block';
+  const fields = document.getElementById('ed-fields');
+  fields.innerHTML = '';
+  window.ExpanseStyles?.editor(fields,obj,ed.type);
+  const keys = ED_FIELD_ORDER[ed.type] || Object.keys(obj);
+  const kinds = FIELD_KIND[ed.type] || {};
+  const hints = FIELD_HINTS[ed.type] || {};
+  if(ed.type==='room'){fields.appendChild(buildWorldCoordinates(obj));fields.appendChild(buildPlanetPosition(obj));}
+  keys.forEach(key => {
+    if (key === 'id' || (ed.type==='room' && ['world_x','world_y','world_region'].includes(key))) return;
+    const val = obj[key];
+    const kind = kinds[key] || (Array.isArray(val) ? 'array' : typeof val === 'number' ? 'int' : 'string');
+    const hint = hints[key];
+    const label = document.createElement('label');
+    label.textContent = key;
+    fields.appendChild(label);
+    if (hint) {
+      const h = document.createElement('div');
+      h.className = 'ed-field-hint';
+      h.textContent = hint;
+      fields.appendChild(h);
+    }
+    fields.appendChild(buildFieldWidget(key, kind, val, obj.id));
+  });
+}
+
+function buildPlanetPosition(obj) {
+  const box=document.createElement('fieldset'),legend=document.createElement('legend');
+  legend.textContent='Planet position';box.append(legend);
+  const inputs={};
+  for(const [key,label,limit] of [['lat','Latitude',90],['lon','Longitude',180]]){
+    const field=document.createElement('label'),input=document.createElement('input');
+    field.textContent=label;input.type='number';input.step='any';input.min=-limit;input.max=limit;
+    input.value=obj.planet?.[key]??'';field.append(input);box.append(field);inputs[key]=input;
+  }
+  const stage=document.createElement('button');stage.type='button';stage.textContent='Stage globe position';
+  stage.onclick=()=>{if(!box.isConnected||ed.entryId!==obj.id)return;
+   if(!Object.values(inputs).every(input=>input.value!==''&&input.reportValidity())){setStatus('Enter a latitude and longitude in range.','warn');return;}
+   saveField('planet',{...obj.planet,lat:inputs.lat.valueAsNumber,lon:inputs.lon.valueAsNumber});};
+  box.append(stage);return box;
+}
+function buildWorldCoordinates(obj) {
+  const box=document.createElement('fieldset');box.className='ed-world-coordinates';
+  const legend=document.createElement('legend');legend.textContent='World position (optional)';box.append(legend);
+  const help=document.createElement('p');help.className='ed-field-hint';help.textContent='Geographic grid: +X east, +Y north. Abstract world units, not kilometres or latitude/longitude. This does not move rooms, change exits or place a coastline. Leave both coordinates blank for an unplaced room. Room layout coordinates below are separate (+Y south).';box.append(help);
+  const fields={};
+  for(const [key,labelText] of [['world_x','World X (east)'],['world_y','World Y (north)'],['world_region','Region label (optional)']]){
+    const label=document.createElement('label'),input=document.createElement('input');label.textContent=labelText;
+    input.name=key;input.id='ed-'+key;input.setAttribute('aria-label',labelText);input.value=obj[key]??'';
+    if(key==='world_region'){input.type='text';input.maxLength=80;}else{input.type='number';input.step='any';input.min='-1000000';input.max='1000000';input.placeholder='Not placed';}
+    label.append(input);box.append(label);fields[key]=input;
+  }
+  const apply=document.createElement('button'),clear=document.createElement('button'),status=document.createElement('p');
+  apply.type=clear.type='button';apply.className=clear.className='ed-btn';apply.textContent='Stage world position';clear.textContent='Clear world position';apply.id='ed-world-position-save';clear.id='ed-world-position-clear';status.className='ed-field-hint';status.setAttribute('role','status');box.append(apply,clear,status);
+  const selection={id:obj.id,slug:ed.gameSlug,type:ed.type,version:ed.selectionVersion},path=gpath('room-coordinates');
+  let pending=false;
+  const current=()=>box.isConnected&&ed.entryId===selection.id&&ed.gameSlug===selection.slug&&ed.type===selection.type&&ed.selectionVersion===selection.version;
+  const save=async(reset)=>{
+    if(pending||!current())return;
+    const x=reset?'':fields.world_x.value.trim(),y=reset?'':fields.world_y.value.trim();
+    if((x==='')!==(y==='')){status.textContent='Enter both X and Y, or leave both blank.';return;}
+    if(!reset&&(!fields.world_x.checkValidity()||!fields.world_y.checkValidity()||!fields.world_region.checkValidity())){status.textContent='Coordinates must be finite numbers between -1,000,000 and 1,000,000; region labels have at most 80 characters.';return;}
+    pending=true;apply.disabled=clear.disabled=true;Object.values(fields).forEach(input=>input.disabled=true);status.textContent='Staging world position…';
+    const values={id:selection.id,world_x:x===''?null:Number(x),world_y:y===''?null:Number(y),world_region:fields.world_region.value};
+    try{
+      const result=await apiPost(path,values);
+      if(!current())return;
+      if(result.error){status.textContent=result.error;return;}
+      if(reset){fields.world_x.value='';fields.world_y.value='';}
+      status.textContent='World position staged. Use Save to write it, then Apply to update the running world.';
+      setStatus(status.textContent);
+      if(typeof refreshDesignerMap==='function')try{await refreshDesignerMap();}catch(error){if(current())status.textContent='World position staged; map refresh failed. Save remains available.';}
+    }catch(error){if(current())status.textContent='Could not confirm staging: '+error.message+'. Reload this room before retrying.';}
+    finally{pending=false;apply.disabled=clear.disabled=false;Object.values(fields).forEach(input=>input.disabled=false);}
+  };
+  apply.onclick=()=>save(false);clear.onclick=()=>save(true);return box;
+}
+
+function buildFieldWidget(key, kind, val, objId) {
+  switch (kind) {
+    case 'map_coord': {
+      const inp=document.createElement('input'); inp.type='number'; inp.step='1'; inp.min='-10000'; inp.max='10000'; inp.value=val ?? '';
+      inp.placeholder='Automatic (blank)'; inp.title='Use Auto-place first, then adjust coordinates. X east, Y south, Z floor.';
+      inp.onchange=()=>{if(inp.value===''||Number.isInteger(Number(inp.value)))saveField(key,inp.value===''?null:Number(inp.value));};
+      return inp;
+    }
+    case 'map_visibility': {
+      const sel=document.createElement('select');
+      for(const [v,t] of [['discovered','Show after visiting'],['public','Always visible'],['hidden','Visible only while standing here']]){let o=document.createElement('option');o.value=v;o.textContent=t;sel.append(o);}
+      sel.value=val||'discovered';sel.onchange=()=>saveField(key,sel.value);return sel;
+    }
+    case 'map_symbol': {
+      const inp=document.createElement('input'); inp.type='text';inp.maxLength=1;inp.value=val||'.';inp.title='One ASCII punctuation character. @, *, ? and alphanumeric characters are reserved.';
+      inp.onchange=()=>{if(/^[!-~]$/.test(inp.value)&&!/[A-Za-z0-9@*?]/.test(inp.value))saveField(key,inp.value);else setStatus('Choose an ASCII punctuation symbol such as . + < > #','warn');};return inp;
+    }
+    case 'text': {
+      const ta = document.createElement('textarea');
+      ta.value = val || '';
+      ta.addEventListener('blur', () => saveField(key, ta.value));
+      return ta;
+    }
+    case 'int': {
+      const inp = document.createElement('input');
+      inp.type = 'number';
+      inp.value = val ?? 0;
+      inp.addEventListener('blur', () => {
+        const n = Number(inp.value);
+        if (!Number.isNaN(n)) saveField(key, n);
+      });
+      return inp;
+    }
+    case 'exits': return renderExits(objId, val || {});
+    case 'items_room': return renderItemsList(objId, val || []);
+    case 'rooms_building': return renderRoomList(objId, val || []);
+    case 'venue_picker': {
+      const select=document.createElement('select');select.setAttribute('aria-label','Building soundtrack type');
+      for(const [key,name] of [['','Automatic'],['home','Home'],['tavern','Tavern or inn'],['civic','Government building or palace'],['school','School']]) select.add(new Option(name,key));
+      select.value=val||'';select.onchange=()=>saveField('music_venue',select.value);return select;
+    }
+    case 'variants': return renderVariants(objId, val || []);
+    case 'item_type': return renderTypeSelect(val || 'misc');
+    case 'enum_group_visibility': {
+      const sel = document.createElement('select');
+      [['npc_only', 'npc_only'], ['playable', 'playable']].forEach(([v, t]) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = t;
+        sel.appendChild(o);
+      });
+      if (val && !['npc_only', 'playable'].includes(val)) {
+        const o = document.createElement('option');
+        o.value = val; o.textContent = val + ' (custom)';
+        sel.appendChild(o);
+      }
+      sel.value = val || 'npc_only';
+      sel.addEventListener('change', () => saveField(key, sel.value));
+      return sel;
+    }
+    case 'multiselect_group': return renderMultiSelect(key, val || [], 'group', []);
+    case 'multiselect_npc': return renderMultiSelect(key, val || [], 'npc', []);
+    case 'spawners': return renderSpawners(objId, val || []);
+    case 'enum_patrol': {
+      const sel = document.createElement('select');
+      [['random', 'random (wander)'], ['loop', 'loop (end-to-end)'], ['none', 'none (stay put)']].forEach(([v, t]) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = t;
+        sel.appendChild(o);
+      });
+      if (val && !['random', 'loop'].includes(val)) {
+        const o = document.createElement('option');
+        o.value = val; o.textContent = val + ' (custom)';
+        sel.appendChild(o);
+      }
+      sel.value = val || 'random';
+      sel.addEventListener('change', () => saveField(key, sel.value));
+      return sel;
+    }
+    case 'float': {
+      const inp = document.createElement('input');
+      inp.type = 'number'; inp.step = '0.1'; inp.min = '0'; inp.max = '1';
+      inp.value = val ?? 0.5;
+      inp.addEventListener('blur', () => {
+        const n = Number(inp.value);
+        if (!Number.isNaN(n)) saveField(key, n);
+      });
+      return inp;
+    }
+    case 'greetings': return renderGreetings(objId, val || {});
+    case 'stock': return renderStock(objId, val || []);
+    case 'enum_corpse': {
+      const sel = document.createElement('select');
+      [['', '— none —'], ['disappear', 'disappear'], ['permanent', 'permanent'], ['timed', 'timed']].forEach(([v, t]) => {
+        const o = document.createElement('option');
+        o.value = v; o.textContent = t;
+        sel.appendChild(o);
+      });
+      if (val && !['disappear','permanent','timed'].includes(val)) {
+        const o = document.createElement('option');
+        o.value = val; o.textContent = val + ' (custom)';
+        sel.appendChild(o);
+      }
+      sel.value = val || '';
+      sel.addEventListener('change', () => saveField(key, sel.value || null));
+      return sel;
+    }
+    case 'id_ref_room': return renderIdPicker(key, val, 'room');
+    case 'id_ref_building': return renderIdPicker(key, val, 'building');
+    case 'id_ref_group': return renderIdPicker(key, val, 'group');
+    case 'array': {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = (val || []).join(', ');
+      inp.addEventListener('blur', () => {
+        const arr = inp.value.split(',').map(s => s.trim()).filter(Boolean);
+        saveField(key, arr);
+      });
+      return inp;
+    }
+    default: {
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = val == null ? '' : String(val);
+      inp.addEventListener('blur', () => saveField(key, inp.value));
+      return inp;
+    }
+  }
+}
+
+function renderIdPicker(fieldName, currentVal, targetType) {
+  const sel = document.createElement('select');
+  const empty = document.createElement('option');
+  empty.value = ''; empty.textContent = '— none —';
+  sel.appendChild(empty);
+  const entries = (ed.entriesCache && ed.entriesCache[targetType]) || [];
+  entries.forEach(e => {
+    const o = document.createElement('option');
+    o.value = e.id;
+    o.textContent = e.name ? (e.id + ' — ' + e.name) : e.id;
+    sel.appendChild(o);
+  });
+  if (currentVal && !entries.find(e => e.id === currentVal)) {
+    const o = document.createElement('option');
+    o.value = currentVal;
+    o.textContent = currentVal + ' (missing)';
+    sel.appendChild(o);
+  }
+  sel.value = currentVal || '';
+  sel.addEventListener('change', () => saveField(fieldName, sel.value || null));
+  return sel;
+}
+function renderTypeSelect(currentVal) {
+  const sel = document.createElement('select');
+  const types = (ed.types && ed.types.length) ? ed.types : ['misc'];
+  const seen = new Set();
+  types.forEach(t => {
+    if (!t || seen.has(t)) return;
+    seen.add(t);
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t;
+    sel.appendChild(opt);
+  });
+  if (currentVal && !seen.has(currentVal)) {
+    const opt = document.createElement('option');
+    opt.value = currentVal;
+    opt.textContent = currentVal + ' (custom)';
+    sel.appendChild(opt);
+  }
+  sel.value = currentVal || types[0] || 'misc';
+  sel.addEventListener('change', () => saveField('type', sel.value));
+  return sel;
+}
+function renderMultiSelect(fieldName, currentVals, sourceType, excludeIds) {
+  const sel = document.createElement('select');
+  sel.multiple = true;
+  sel.size = 5;
+  const entries = (ed.entriesCache && ed.entriesCache[sourceType]) || [];
+  const exclude = new Set(excludeIds || []);
+  entries.forEach(e => {
+    if (exclude.has(e.id)) return;
+    const o = document.createElement('option');
+    o.value = e.id;
+    o.textContent = e.name ? (e.id + ' — ' + e.name) : e.id;
+    if ((currentVals || []).includes(e.id)) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', () => {
+    const vals = Array.from(sel.selectedOptions).map(o => o.value);
+    saveField(fieldName, vals);
+  });
+  return sel;
+}
+
+function renderSpawners(roomId, spawners) {
+  const wrap = document.createElement('div');
+  const render = () => {
+    wrap.innerHTML = '';
+    spawners.forEach((s, idx) => {
+      const block = document.createElement('div');
+      block.style.cssText = 'border:1px solid #1e2430;border-radius:3px;padding:6px;margin-bottom:6px;';
+      const row1 = document.createElement('div');
+      row1.className = 'ed-exit-row';
+      const npcSel = document.createElement('select');
+      npcSel.style.flex = '2';
+      const empty = document.createElement('option');
+      empty.value = ''; empty.textContent = '\u2014 npc \u2014';
+      npcSel.appendChild(empty);
+      (ed.entriesCache.npc || []).forEach(n => {
+        const o = document.createElement('option');
+        o.value = n.id;
+        o.textContent = n.name ? (n.id + ' \u2014 ' + n.name) : n.id;
+        npcSel.appendChild(o);
+      });
+      npcSel.value = s.npc || '';
+      npcSel.addEventListener('change', () => {
+        s.npc = npcSel.value;
+        saveField('spawners', [...spawners]);
+      });
+      const countInput = document.createElement('input');
+      countInput.type = 'number';
+      countInput.style.width = '56px';
+      countInput.min = '1';
+      countInput.title = 'Max alive from this spawner';
+      countInput.value = s.count ?? 1;
+      countInput.addEventListener('blur', () => {
+        s.count = Number(countInput.value) || 1;
+        saveField('spawners', [...spawners]);
+      });
+      const chanceInput = document.createElement('input');
+      chanceInput.type = 'number';
+      chanceInput.style.width = '56px';
+      chanceInput.min = '0'; chanceInput.max = '1'; chanceInput.step = '0.1';
+      chanceInput.title = 'Entry roll (0.0-1.0)';
+      chanceInput.value = s.chance ?? 1;
+      chanceInput.addEventListener('blur', () => {
+        const n = Number(chanceInput.value);
+        s.chance = Number.isNaN(n) ? 1 : n;
+        saveField('spawners', [...spawners]);
+      });
+      const rm = document.createElement('button');
+      rm.textContent = '\u00d7';
+      rm.addEventListener('click', () => {
+        spawners.splice(idx, 1);
+        saveField('spawners', [...spawners]);
+        render();
+      });
+      row1.append(npcSel, countInput, chanceInput, rm);
+
+      const row2 = document.createElement('div');
+      row2.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:4px;font-size:11px;color:#8fa3c8;flex-wrap:wrap;';
+
+      const autoLabel=document.createElement('label');autoLabel.textContent='Automatic population';
+      const autoCb=document.createElement('input');autoCb.type='checkbox';autoCb.checked=!!s.automatic;
+      autoCb.onchange=()=>{s.automatic=autoCb.checked;saveField('spawners',[...spawners]);};autoLabel.append(autoCb);row2.append(autoLabel);
+      const deathLabel = document.createElement('label');
+      deathLabel.style.cssText = 'display:flex;align-items:center;gap:4px;cursor:pointer;';
+      const deathCb = document.createElement('input');
+      deathCb.type = 'checkbox';
+      deathCb.checked = !!s.on_death;
+      deathCb.addEventListener('change', () => {
+        s.on_death = deathCb.checked;
+        saveField('spawners', [...spawners]);
+      });
+      deathLabel.append(deathCb, document.createTextNode('on death'));
+
+      const cdLabel = document.createElement('label');
+      cdLabel.style.cssText = 'display:flex;align-items:center;gap:4px;';
+      cdLabel.append(document.createTextNode('cooldown'));
+      const cdInput = document.createElement('input');
+      cdInput.type = 'number';
+      cdInput.style.width = '56px';
+      cdInput.min = '0';
+      cdInput.placeholder = '0';
+      cdInput.title = 'Seconds between spawns (0 = no cooldown)';
+      cdInput.value = s.cooldown ?? 0;
+      cdInput.addEventListener('blur', () => {
+        const n = Number(cdInput.value);
+        s.cooldown = Number.isNaN(n) ? 0 : n;
+        saveField('spawners', [...spawners]);
+      });
+      cdLabel.append(cdInput, document.createTextNode('s'));
+
+      const limLabel = document.createElement('label');
+      limLabel.style.cssText = 'display:flex;align-items:center;gap:4px;';
+      limLabel.append(document.createTextNode('total limit'));
+      const limInput = document.createElement('input');
+      limInput.type = 'number';
+      limInput.style.width = '56px';
+      limInput.min = '1';
+      limInput.placeholder = '\u221e';
+      limInput.title = 'Max total spawned from this spawner (blank = unlimited)';
+      limInput.value = (s.total_limit == null) ? '' : s.total_limit;
+      limInput.addEventListener('blur', () => {
+        if (limInput.value === '') {
+          delete s.total_limit;
+        } else {
+          const n = Number(limInput.value);
+          s.total_limit = Number.isNaN(n) ? null : n;
+        }
+        saveField('spawners', [...spawners]);
+      });
+      limLabel.append(limInput);
+
+      row2.append(deathLabel, cdLabel, limLabel);
+      block.append(row1, row2);
+      wrap.appendChild(block);
+    });
+    const add = document.createElement('button');
+    add.className = 'ed-btn';
+    add.textContent = '+ Add spawner';
+    add.addEventListener('click', () => {
+      spawners.push({ npc: '', count: 1, chance: 0.5, on_death: false, cooldown: 0 });
+      saveField('spawners', [...spawners]);
+      render();
+    });
+    wrap.appendChild(add);
+  };
+  render();
+  return wrap;
+}
+
+function renderGreetings(npcId, greetings) {
+  const wrap = document.createElement('div');
+  const render = () => {
+    wrap.innerHTML = '';
+    Object.entries(greetings || {}).forEach(([group_id, text]) => {
+      const row = document.createElement('div');
+      row.className = 'ed-exit-row';
+      const label = document.createElement('span');
+      label.style.cssText = 'flex:0 0 auto;padding:6px 8px;background:#141821;border:1px solid #1e2430;border-radius:3px;font-size:12px;color:#8fa3c8;min-width:120px;';
+      label.textContent = group_id;
+      const txtInp = document.createElement('input');
+      txtInp.type = 'text';
+      txtInp.style.flex = '1';
+      txtInp.value = text || '';
+      txtInp.addEventListener('blur', () => {
+        greetings[group_id] = txtInp.value;
+        saveField('greetings', { ...greetings });
+      });
+      const rm = document.createElement('button');
+      rm.textContent = '\u00d7';
+      rm.title = 'Remove greeting';
+      rm.addEventListener('click', () => {
+        delete greetings[group_id];
+        saveField('greetings', { ...greetings });
+        render();
+      });
+      row.append(label, txtInp, rm);
+      wrap.appendChild(row);
+    });
+    const add = document.createElement('button');
+    add.className = 'ed-btn';
+    add.textContent = '+ Add greeting';
+    add.addEventListener('click', () => {
+      const used = new Set(Object.keys(greetings));
+      const available = (ed.entriesCache.group || []).filter(g => !used.has(g.id));
+      if (available.length === 0) {
+        setStatus('All groups already have a greeting.', 'warn');
+        return;
+      }
+      greetings[available[0].id] = '';
+      saveField('greetings', { ...greetings });
+      render();
+    });
+    wrap.appendChild(add);
+  };
+  render();
+  return wrap;
+}
+
+function renderStock(npcId, stock) {
+  const wrap = document.createElement('div');
+  const render = () => {
+    wrap.innerHTML = '';
+    stock.forEach((s, idx) => {
+      const row = document.createElement('div');
+      row.className = 'ed-exit-row';
+      const itemSel = document.createElement('select');
+      itemSel.style.flex = '2';
+      const empty = document.createElement('option');
+      empty.value = ''; empty.textContent = '\u2014 item \u2014';
+      itemSel.appendChild(empty);
+      (ed.entriesCache.item || []).forEach(it => {
+        const o = document.createElement('option');
+        o.value = it.id;
+        o.textContent = it.name ? (it.id + ' \u2014 ' + it.name) : it.id;
+        itemSel.appendChild(o);
+      });
+      itemSel.value = s.item || '';
+      itemSel.addEventListener('change', () => {
+        s.item = itemSel.value;
+        saveField('stock', [...stock]);
+      });
+      const priceInput = document.createElement('input');
+      priceInput.type = 'number';
+      priceInput.style.width = '60px';
+      priceInput.min = '0';
+      priceInput.title = 'Price (gold)';
+      priceInput.value = s.price ?? 0;
+      priceInput.addEventListener('blur', () => {
+        s.price = Number(priceInput.value) || 0;
+        saveField('stock', [...stock]);
+      });
+      const qtyInput = document.createElement('input');
+      qtyInput.type = 'number';
+      qtyInput.style.width = '60px';
+      qtyInput.min = '0';
+      qtyInput.title = 'Qty available';
+      qtyInput.value = s.qty ?? 1;
+      qtyInput.addEventListener('blur', () => {
+        s.qty = Number(qtyInput.value) || 0;
+        saveField('stock', [...stock]);
+      });
+      const rm = document.createElement('button');
+      rm.textContent = '\u00d7';
+      rm.addEventListener('click', () => {
+        stock.splice(idx, 1);
+        saveField('stock', [...stock]);
+        render();
+      });
+      row.append(itemSel, priceInput, qtyInput, rm);
+      wrap.appendChild(row);
+    });
+    const add = document.createElement('button');
+    add.className = 'ed-btn';
+    add.textContent = '+ Add stock';
+    add.addEventListener('click', () => {
+      stock.push({ item: '', price: 1, qty: 5 });
+      saveField('stock', [...stock]);
+      render();
+    });
+    wrap.appendChild(add);
+  };
+  render();
+  return wrap;
+}
+
+
+function renderExits(roomId, exits) {
+  const wrap = document.createElement('div');
+  const rerender = () => {
+    wrap.innerHTML = '';
+    Object.entries(exits).forEach(([dir, target]) => {
+      const row = document.createElement('div');
+      row.className = 'ed-exit-row';
+      const d = document.createElement('input'); d.type = 'text'; d.value = dir; d.disabled = true;
+      const t = document.createElement('input'); t.type = 'text'; t.value = target;
+      t.addEventListener('blur', () => { exits[dir] = t.value; saveField('exits', { ...exits }); });
+      const rm = document.createElement('button'); rm.textContent = '×';
+      rm.title = 'Remove exit';
+      rm.addEventListener('click', () => {
+        delete exits[dir]; saveField('exits', { ...exits }); rerender();
+      });
+      row.append(d, t, rm);
+      wrap.appendChild(row);
+    });
+    const add = document.createElement('button');
+    add.className = 'ed-btn'; add.textContent = '+ Add exit';
+    add.addEventListener('click', () => {
+      const raw = prompt('Direction (north/south/east/west/up/down/...):');
+      if (!raw || !raw.trim()) return;
+      const aliases={n:'north',s:'south',e:'east',w:'west',ne:'northeast',nw:'northwest',se:'southeast',sw:'southwest',u:'up',d:'down'};
+      const dir=aliases[raw.trim().toLowerCase()]||raw.trim().toLowerCase();
+      if(Object.keys(exits).some(k=>(aliases[k.trim().toLowerCase()]||k.trim().toLowerCase())===dir)){setStatus('An exit already uses '+dir+'. Edit its destination in the existing row.','warn');return;}
+      const target = prompt('Target room id:');
+      if (!target) return;
+      exits[dir] = target; saveField('exits', { ...exits }); rerender();
+    });
+    wrap.appendChild(add);
+  };
+  rerender();
+  return wrap;
+}
+function renderRoomList(buildingId, rooms) {
+  const wrap = document.createElement('div');
+  const render = () => {
+    wrap.innerHTML = '';
+    rooms.forEach((roomId, idx) => {
+      const row = document.createElement('div');
+      row.className = 'ed-exit-row';
+      const label = document.createElement('input');
+      label.type = 'text';
+      label.value = roomId;
+      label.disabled = true;
+      const rm = document.createElement('button');
+      rm.textContent = '×';
+      rm.title = 'Remove room from building';
+      rm.addEventListener('click', () => {
+        rooms.splice(idx, 1);
+        saveField('rooms', [...rooms]);
+        render();
+      });
+      row.append(label, rm);
+      wrap.appendChild(row);
+    });
+    const add = document.createElement('button');
+    add.className = 'ed-btn';
+    add.textContent = '+ Add room';
+    add.addEventListener('click', () => showPicker());
+    wrap.appendChild(add);
+  };
+  const showPicker = async () => {
+    try {
+      const data = await apiGet(gpath('entries/room'));
+      ed.entriesCache.room = data.entries || [];
+    } catch (e) { /* keep existing cache */ }
+    const available = (ed.entriesCache.room || [])
+      .filter(r => !rooms.includes(r.id))
+      .sort((a, b) => a.id.localeCompare(b.id));
+    if (available.length === 0) {
+      setStatus('All rooms are already in this building.', 'warn');
+      return;
+    }
+    wrap.innerHTML = '';
+    const picker = document.createElement('div');
+    picker.style.cssText = 'display:flex;gap:6px;align-items:center;';
+    const sel = document.createElement('select');
+    sel.style.cssText = 'flex:1;background:#0d0f14;color:#d8dce4;border:1px solid #1e2430;border-radius:3px;padding:6px 8px;font:inherit;';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = '— pick a room —';
+    sel.appendChild(placeholder);
+    available.forEach(r => {
+      const o = document.createElement('option');
+      o.value = r.id;
+      o.textContent = r.name ? (r.id + ' — ' + r.name) : r.id;
+      sel.appendChild(o);
+    });
+    const ok = document.createElement('button');
+    ok.className = 'ed-btn';
+    ok.textContent = 'Add';
+    ok.addEventListener('click', () => {
+      if (!sel.value) return;
+      rooms.push(sel.value);
+      saveField('rooms', [...rooms]);
+      render();
+    });
+    const cancel = document.createElement('button');
+    cancel.className = 'ed-btn';
+    cancel.textContent = 'Cancel';
+    cancel.addEventListener('click', render);
+    picker.append(sel, ok, cancel);
+    wrap.appendChild(picker);
+    sel.focus();
+    sel.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') ok.click();
+    });
+  };
+  render();
+  return wrap;
+}
+
+function renderItemsList(roomId, items) {
+  const wrap = document.createElement('div');
+  const rerender = () => {
+    wrap.innerHTML = '';
+    items.forEach((itemId, idx) => {
+      const row = document.createElement('div');
+      row.className = 'ed-exit-row';
+      const label = document.createElement('input');
+      label.type = 'text';
+      label.value = itemId;
+      label.disabled = true;
+      const rm = document.createElement('button');
+      rm.textContent = '×';
+      rm.title = 'Remove item from room';
+      rm.addEventListener('click', async () => {
+        const res = await apiPost(gpath('removeitem'),
+          { room: roomId, item: itemId });
+        if (res.error) { setStatus(res.error, 'warn'); return; }
+        items.splice(idx, 1);
+        setStatus(res.text, 'ok');
+        rerender();
+      });
+      row.append(label, rm);
+      wrap.appendChild(row);
+    });
+    const add = document.createElement('button');
+    add.className = 'ed-btn';
+    add.textContent = '+ Add item';
+    add.addEventListener('click', async () => {
+      const itemId = prompt('Item id (must exist under Items):');
+      if (!itemId) return;
+      const res = await apiPost(gpath('placeitem'),
+        { room: roomId, item: itemId });
+      if (res.error) { setStatus(res.error, 'warn'); return; }
+      items.push(itemId);
+      setStatus(res.text, 'ok');
+      rerender();
+    });
+    wrap.appendChild(add);
+  };
+  rerender();
+  return wrap;
+}
+function _variantSummary(v) {
+  const parts = [];
+  if (v.when?.killed?.length) parts.push(`killed: ${v.when.killed.join(',')}`);
+  if (v.when?.player_has?.length) parts.push(`has: ${v.when.player_has.join(',')}`);
+  if (v.when?.player_hp_below) parts.push(`hp<${v.when.player_hp_below}`);
+  return (parts.length ? `[${parts.join('; ')}] ` : '[always] ') + (v.text || '');
+}
+async function _setVariants(objId, variants) {
+  const res = await apiPost(gpath('setfield'), {
+    type: ed.type, id: objId, field: 'description_variants', value: variants,
+  });
+  if (res.error) { setStatus(res.error, 'warn'); }
+  else { setStatus(res.text + ' (' + (res.dirty.join(', ') || 'clean') + ')'); }
+}
+function renderVariants(objId, variants) {
+  const wrap = document.createElement('div');
+  const rerender = () => {
+    wrap.innerHTML = '';
+    variants.forEach((variant, idx) => {
+      const row = document.createElement('div');
+      row.className = 'ed-exit-row';
+      const desc = document.createElement('input');
+      desc.type = 'text';
+      desc.value = _variantSummary(variant);
+      desc.readOnly = true;
+      desc.addEventListener('click', async () => {
+        const newText = prompt('Variant description text:', variant.text || '');
+        if (newText === null) return;
+        const newKilled = prompt(
+          'Killed NPC ids (comma-separated, blank = none):',
+          (variant.when?.killed || []).join(', '));
+        if (newKilled === null) return;
+        const newHas = prompt(
+          'Player must have item ids (comma-separated, blank = none):',
+          (variant.when?.player_has || []).join(', '));
+        if (newHas === null) return;
+        const when = {};
+        if (newKilled.trim()) when.killed = newKilled.split(',').map(s => s.trim()).filter(Boolean);
+        if (newHas.trim()) when.player_has = newHas.split(',').map(s => s.trim()).filter(Boolean);
+        variants[idx] = { when, text: newText };
+        await _setVariants(objId, variants);
+        rerender();
+      });
+      const rm = document.createElement('button');
+      rm.textContent = '×';
+      rm.addEventListener('click', async () => {
+        variants.splice(idx, 1);
+        await _setVariants(objId, variants);
+        rerender();
+      });
+      row.append(desc, rm);
+      wrap.appendChild(row);
+    });
+    const add = document.createElement('button');
+    add.className = 'ed-btn';
+    add.textContent = '+ Add variant';
+    add.addEventListener('click', async () => {
+      const text = prompt('Variant description text:');
+      if (!text) return;
+      const killed = prompt('Killed NPC ids (comma-separated, blank = none):');
+      if (killed === null) return;
+      const has = prompt('Player must have item ids (comma-separated, blank = none):');
+      if (has === null) return;
+      const when = {};
+      if (killed.trim()) when.killed = killed.split(',').map(s => s.trim()).filter(Boolean);
+      if (has.trim()) when.player_has = has.split(',').map(s => s.trim()).filter(Boolean);
+      variants.push({ when, text });
+      await _setVariants(objId, variants);
+      rerender();
+    });
+    wrap.appendChild(add);
+  };
+  rerender();
+  return wrap;
+}
+async function saveField(field, value) {
+  if (!ed.entryId) return;
+  const res = await apiPost(gpath('setfield'), {
+    type: ed.type, id: ed.entryId, field, value,
+  });
+  if (res.error) { setStatus(res.error, 'warn'); return; }
+  setStatus(res.text + ' (' + (res.dirty.join(', ') || 'clean') + ')');
+}
+function resetFromType() {
+  ed.type = null; ed.entryId = null;
+  document.querySelectorAll('.ed-type').forEach(el => el.classList.remove('active'));
+  document.getElementById('ed-entries').innerHTML = '';
+  document.getElementById('ed-list-title').textContent = '—';
+  showEmptyDetail();
+  updateBreadcrumb();
+  updateToolbar();
+}
+function resetFromEntry() {
+  ed.entryId = null;
+  document.querySelectorAll('.ed-entry').forEach(el => el.classList.remove('active'));
+  showEmptyDetail();
+  updateBreadcrumb();
+  updateToolbar();
+}
+document.querySelectorAll('.ed-type').forEach(el => {
+  el.addEventListener('click', () => {
+    if (!ed.gameSlug) { setStatus('Select a game first.', 'warn'); return; }
+    selectType(el.dataset.type);
+  });
+});
+document.getElementById('ed-new-game')?.addEventListener('click', async () => {
+  const slug = prompt('New game slug (lowercase letters, digits, underscores, starts with a letter):');
+  if (!slug) return;
+  const name = prompt('Display name for this game:');
+  if (!name) return;
+  const template = confirm(
+    'Include starter content?\n\n' +
+    'OK = starter (Village Square, inn, cellar with a giant rat, bread, blade)\n' +
+    'Cancel = blank (a single empty starting room)'
+  ) ? 'starter' : 'blank';
+  const res = await apiPost('games', { slug, name, template });
+  if (res.error) { setStatus(res.error, 'warn'); return; }
+  setStatus(res.text + '\n' + (res.note || ''), 'ok');
+  await loadGamesSilent();
+});
+document.getElementById('ed-new')?.addEventListener('click', async () => {
+  if (!ed.type) return;
+  const id = prompt(`New ${ed.type} id (lowercase, underscores):`);
+  if (!id) return;
+  const res = await apiPost(gpath('new'), { type: ed.type, id });
+  setStatus(res.text || res.error, res.error ? 'warn' : 'ok');
+  await refreshEntries();
+  selectEntry(id);
+});
+document.getElementById('ed-save')?.addEventListener('click', async () => {
+  const res = await apiPost(gpath('save'), {});
+  setStatus(res.text || res.error, res.error ? 'warn' : 'ok');
+});
+document.getElementById('ed-reload')?.addEventListener('click', async () => {
+  if (!confirm('Discard all unsaved changes?')) return;
+  const res = await apiPost(gpath('reload'), {});
+  setStatus(res.text || res.error, res.error ? 'warn' : 'ok');
+  if (res.error) return;
+  resetFromEntry();
+  if (ed.type) await refreshEntries();
+});
+document.getElementById('ed-validate')?.addEventListener('click', async () => {
+  const res = await apiGet(gpath('validate'));
+  setStatus(res.text || 'No output',
+    res.text && res.text.startsWith('OK') ? 'ok' : 'warn');
+});
+const uploadBtn = document.getElementById('ed-upload-image');
+if (uploadBtn) uploadBtn.addEventListener('click', () => {
+  if (!ed.gameSlug) return;
+  document.getElementById('ed-image-input').click();
+});
+
+document.getElementById('ed-image-input')?.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 4 * 1024 * 1024) {
+    setStatus('Image too large (max 4MB)', 'warn');
+    return;
+  }
+  const ext = file.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const res = await apiPost(gpath('image'), { data: reader.result, ext });
+    if (res.error) { setStatus(res.error, 'warn'); return; }
+    setStatus(res.text, 'ok');
+    await loadGamesSilent();
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+document.getElementById('ed-duplicate')?.addEventListener('click', async () => {
+  if (!ed.entryId) return;
+  const suggested = `${ed.entryId}_copy`;
+  const newId = prompt(`New ${ed.type} id:`, suggested);
+  if (!newId) return;
+  const res = await apiPost(gpath('duplicate'), {
+    type: ed.type, source: ed.entryId, id: newId });
+  if (res.error) { setStatus(res.error, 'warn'); return; }
+  setStatus(res.text, 'ok');
+  await refreshEntries();
+  await refreshEntriesCache();
+  selectEntry(newId);
+});
+
+document.getElementById('ed-delete')?.addEventListener('click', async () => {
+  if (!ed.entryId) return;
+  if (!confirm(`Delete ${ed.type} '${ed.entryId}'?`)) return;
+  const res = await apiPost(gpath('delete'), { type: ed.type, id: ed.entryId });
+  setStatus(res.text || res.error, res.error ? 'warn' : 'ok');
+  if (res.error) return;
+  resetFromEntry();
+  await refreshEntries();
+});
+document.getElementById('ed-export')?.addEventListener('click', async () => {
+  if (!ed.gameSlug) return;
+  if(config.editor_only){
+    const res=await apiPost(gpath('export'),{});
+    setStatus(res.text||res.error,res.error?'warn':'ok');
+    if(res.download_url){const link=document.createElement('a');link.href=res.download_url;link.download=ed.gameSlug+'.expanse';document.body.append(link);link.click();link.remove();}
+    return;
+  }
+  const def = `~/Games/text-rpg/exports/${ed.gameSlug}.expanse`;
+  const path = prompt('Export to path:', def);
+  if (!path) return;
+  const res = await apiPost(gpath('export'), { path });
+  setStatus(res.text || res.error, res.error ? 'warn' : 'ok');
+});
+
+document.addEventListener('expanse-world-imported', () => loadGamesSilent());
+
+document.getElementById('ed-apply')?.addEventListener('click', async () => {
+  if (!ed.gameSlug) return;
+  if(config.editor_only){setStatus('Export this draft, then import its .expanse file from World & saves.');return;}
+  if (ed.gameSlug === config.running_game) {
+    const res = await apiPost(gpath('apply'), {});
+    setStatus(res.text || res.error, res.error ? 'warn' : 'ok');
+  } else {
+    const target = ed.gameName || ed.gameSlug;
+    if (!confirm(`Switch the running game to '${target}'?\n\nConnected players will be moved to its start room.`)) return;
+    const res = await apiPost(gpath('run'), {});
+    if (res.error) { setStatus(res.error, 'warn'); return; }
+    config.running_game = res.running_game || ed.gameSlug;
+    await loadGamesSilent();
+    updateToolbar();
+    setStatus(res.text, 'ok');
+  }
+});
+async function loadCharacterOptions() {
+  document.querySelector('#character-creation h1').textContent='Create a character in '+(document.getElementById('cc-game').selectedOptions[0]?.textContent||config.running_game);
+  const gameSlug = document.getElementById('cc-game').value;
+  const status = document.getElementById('cc-status');
+  try {
+    const res = await fetch('/api/character/options?game=' + encodeURIComponent(gameSlug));
+    const data = await res.json();
+    if (data.error) { status.textContent = data.error; return; }
+    if(document.getElementById('cc-game').value!==gameSlug)return;
+    fillSelect('cc-race', data.races || []);
+    fillSelect('cc-class', data.classes || []);
+    fillSelect('cc-sex', data.sexes || []);
+    fillSelect('cc-faction', data.factions || [], false);
+    window.ExpanseStyles?.creation(data);
+    if(window.refreshCharacterSaves)window.refreshCharacterSaves();
+    const gamesRes = await fetch('/api/games').then(r => r.json());
+    const g = (gamesRes.games || []).find(x => x.slug === gameSlug);
+    const wrap = document.getElementById('cc-image-wrap');
+    const img = document.getElementById('cc-image');
+    if (g && g.image_url) {
+      img.src = g.image_url + "?t=" + Date.now();
+      wrap.style.display = 'block';
+    } else {
+      img.src = '';
+      wrap.style.display = 'none';
+    }
+    status.textContent = '';
+  } catch (e) {
+    status.textContent = 'Failed to load options: ' + e.message;
+  }
+}
+
+async function showCreationModal(reason) {
+  const modal = document.getElementById('character-creation');
+  if (!modal) return;
+  modal.classList.add('show');
+  if(window.refreshCharacterSaves) window.refreshCharacterSaves();
+  const status = document.getElementById('cc-status');
+  status.textContent = reason || '';
+  const editableName = config.character_name_locked === false;
+  const fixedName = typeof config.character_name === 'string' ? config.character_name.trim() : '';
+  const firstField = document.getElementById('cc-first');
+  const lastField = document.getElementById('cc-last');
+  if (editableName) {
+    firstField.readOnly = false;
+    lastField.readOnly = false;
+  } else if (fixedName) {
+    const [first, ...last] = fixedName.split(/\s+/);
+    firstField.value = first;
+    lastField.value = last.join(' ');
+    firstField.readOnly = true;
+    lastField.readOnly = true;
+  }
+  const accountNote = document.getElementById('cc-account-note');
+  const accountName = typeof config.account_name === 'string' ? config.account_name.trim() : '';
+  accountNote.hidden = !editableName || !accountName;
+  accountNote.textContent = accountNote.hidden ? '' : 'Signed in as ' + accountName + '. Choose your character’s name below.';
+  document.getElementById('cc-desc').value = '';
+  
+  const gameSelect = document.getElementById('cc-game');
+  if (!gameSelect) {
+      status.textContent = 'UI Error: Game dropdown missing. Refresh the page.';
+      return;
+  }
+  
+  try {
+    const res = await fetch('/api/games');
+    const data = await res.json();
+    fillSelect('cc-game', data.games || []);
+    if(Array.from(gameSelect.options).some(o=>o.value===config.running_game))gameSelect.value=config.running_game;
+    
+    // Prevent attaching duplicate listeners if modal reopens
+    gameSelect.removeEventListener('change', loadCharacterOptions);
+    gameSelect.addEventListener('change', loadCharacterOptions);
+    
+    await loadCharacterOptions();
+    document.getElementById('cc-first').focus();
+  } catch (e) {
+    status.textContent = 'Failed to load games: ' + e.message;
+  }
+}
+
+function fillSelect(id, entries, allowNone) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = '';
+  if (allowNone) {
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = '— none —';
+    sel.appendChild(o);
+  }
+  entries.forEach(e => {
+    const o = document.createElement('option');
+    o.value = e.id || e.slug;
+    o.textContent = e.name || e.id || e.slug;
+    sel.appendChild(o);
+  });
+}
+
+async function submitCreation() {
+  const status = document.getElementById('cc-status');
+  status.textContent = 'Creating…';
+  const payload = {
+    game_slug: document.getElementById('cc-game').value,
+    first_name: document.getElementById('cc-first').value.trim(),
+    last_name: document.getElementById('cc-last').value.trim(),
+    race: document.getElementById('cc-race').value,
+    class: document.getElementById('cc-class').value,
+    sex: document.getElementById('cc-sex').value,
+    faction: document.getElementById('cc-faction').value,
+    description: document.getElementById('cc-desc').value.trim(),
+    appearance: window.ExpanseStyles?.selection()||{},
+  };
+  if (!payload.first_name) { status.textContent = 'First name is required.'; return; }
+  const createButton=document.getElementById('cc-create');
+  if(createButton.disabled)return;
+  createButton.disabled=true;
+  try {
+    const res = await fetch('/api/character/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(r => r.json());
+    if (res.error) { status.textContent = res.error; return; }
+    if(res.delete_token)localStorage.setItem('expanse.delete_token.'+res.player_id,res.delete_token);
+    config.running_game = payload.game_slug || config.running_game;
+    localStorage.setItem(`expanse.player_id.${config.running_game || 'default'}.${config.mode || 'single'}`, res.player_id);
+    window.expanseJustCreated=res.player_id;
+    status.textContent = 'Character created. Entering the world…';
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      sessionStorage.setItem('expanse.active',res.player_id);ws.send(JSON.stringify({command:'resume',player_id:res.player_id,auth_token:res.delete_token}));
+    }
+  } catch (e) {
+    status.textContent = 'Failed: ' + e.message;
+  } finally {createButton.disabled=false;}
+}
+
+
+
+
+function showPlayerMap(m){
+  window.latestMap=m;document.getElementById('open-host-planet').hidden=!config.can_manage_server;
+  if(window.renderRoomPanel)window.renderRoomPanel(m);
+  if(window.ExpanseCountryView)window.ExpanseCountryView.render(m);else if(window.ExpanseMap)window.ExpanseMap.render(m);
+  window.ExpanseSky?.update(document.querySelector('#player-visual-map .atlas-viewport'),m.weather,m.visual?.tiles?.find(t=>t.current)?.effects);
+  document.getElementById('map-legend').textContent=(m.location?'You are in '+m.location.name+'\n':'')+'Level '+m.floor+' · Text commands and exit buttons use the same room graph.';
+  const blind=m.blind_navigation===true;
+  document.getElementById('map-exits').textContent=blind?'Darkness hides exits. Try any direction; a working lantern reveals nearby routes.':'Exits: '+(m.exits||[]).join(' | ');
+  if(Array.isArray(m.visual?.passages)){document.getElementById('map-move').replaceChildren();return;}
+  const buttons=document.getElementById('map-move');
+  const attempts=blind?['north','northeast','east','southeast','south','southwest','west','northwest','up','down','in','out']:(m.exits||[]);
+  const signature=JSON.stringify([blind,attempts,(m.visual?.exits||[]).map(e=>[e.direction,e.blocked])]);
+  if(buttons.dataset.signature===signature)return;
+  buttons.dataset.signature=signature;buttons.replaceChildren();
+  const compass={northwest:[1,1],north:[2,1],northeast:[3,1],west:[1,2],east:[3,2],southwest:[1,3],south:[2,3],southeast:[3,3]};
+  const pad=document.createElement('div');pad.className='exit-compass';pad.setAttribute('role','group');pad.setAttribute('aria-label','Compass directions');
+  const passages=document.createElement('div');passages.className='exit-passages';passages.setAttribute('role','group');passages.setAttribute('aria-label','Passages');
+  for(const exit of attempts){
+    const direction=exit.split(' -> ')[0],slot=compass[direction];
+    const b=document.createElement('button');b.type='button';b.className='ed-btn';b.textContent=direction;
+    b.setAttribute('aria-label','Go '+direction);
+    if(slot){b.style.gridColumn=slot[0];b.style.gridRow=slot[1];pad.append(b);}else passages.append(b);
+    const visualExit=(m.visual?.exits||[]).find(e=>e.direction===direction);
+    if(!blind&&visualExit?.blocked){b.disabled=true;b.title=visualExit.blocked;}
+    else b.title=blind?'Try '+direction+' (route unknown in darkness)':exit;
+    b.onclick=()=>{if(window.ExpansePlayerControls)window.ExpansePlayerControls.move('go '+direction);else if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({command:'go '+direction}));};
+  }
+  if(pad.childElementCount)buttons.append(pad);
+  if(passages.childElementCount){
+    const label=document.createElement('span');label.textContent='Passages';label.className='exit-group-label';
+    passages.prepend(label);buttons.append(passages);
+  }
+
+
+}
+async function refreshDesignerMap(){
+  if(!ed.gameSlug)return setStatus('Select a game first.','warn');
+  const select=document.getElementById('map-center');const current=select.value||ed.entryId||'';
+  const m=await apiGet(gpath('map')+'?room='+encodeURIComponent(current));
+  if(m.error)return setStatus(m.error,'warn');
+  select.replaceChildren();for(const r of m.rooms){const o=document.createElement('option');o.value=r.id;o.textContent=r.name+' ('+r.id+')';select.append(o);}select.value=m.center;
+  if(window.ExpanseMap)window.ExpanseMap.render(m,{hostId:'designer-visual-map',designer:true,onSelect:async room=>{await selectType('room');await selectEntry(room);select.value=room;await refreshDesignerMap();}});
+  document.getElementById('designer-map-status').textContent='Floor '+m.floor+'\n'+m.exits.join(' | ')+'\n'+m.warnings.join('\n');
+}
+document.getElementById('map-refresh').onclick=()=>refreshDesignerMap().catch(e=>setStatus(e.message,'warn'));
+document.getElementById('map-center').onchange=()=>refreshDesignerMap().catch(e=>setStatus(e.message,'warn'));
+document.getElementById('map-place').onclick=async()=>{if(!ed.gameSlug)return setStatus('Select a game first.','warn');try{const r=await apiPost(gpath('map-place'),{});setStatus(r.error||r.text);await refreshDesignerMap();if(ed.type==='room'&&ed.entryId)await selectEntry(ed.entryId);}catch(e){setStatus(e.message,'warn');}};
+
+updateBreadcrumb();
+updateToolbar();
+</script>
+<div id="character-creation">
+  <div class="cc-panel">
+    <h1>Create Your Character</h1>
+    <p>This creates another character in the selected world, without resetting its clock. To start a separate world, choose File → New Game.</p>
+    <div id="cc-image-wrap"><img id="cc-image" src="" alt="Game title image"></div>
+    <div class="cc-row" style="margin-bottom: 16px;">
+      <label>Game / World<select id="cc-game"></select></label>
+    </div>
+    <p id="cc-account-note" hidden></p>
+    <div class="cc-row">
+      <label>First name<input id="cc-first" type="text" maxlength="30" autocomplete="off" aria-describedby="cc-account-note"></label>
+      <label>Last name (optional)<input id="cc-last" type="text" maxlength="30" autocomplete="off" aria-describedby="cc-account-note"></label>
+    </div>
+    <div class="cc-row">
+      <label>Race<select id="cc-race"></select></label>
+      <label>Class<select id="cc-class"></select></label>
+      <label>Sex<select id="cc-sex"></select></label>
+    </div>
+    <div class="cc-row">
+      <label>Faction<select id="cc-faction"></select></label>
+    </div>
+    <label style="display:block;font-size:11px;color:#6b7688;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Description</label>
+    <textarea id="cc-desc" rows="3" placeholder="A short portrait of who you are."></textarea>
+    <details id="cc-appearance"><summary>Appearance</summary><div id="cc-style-fields"></div></details>
+    <div class="cc-status" id="cc-status"></div>
+    <div class="cc-actions">
+      <button id="cc-back" class="ed-btn" onclick="if(window.ExpansePixelStudio?.canLeave()===false)return;document.getElementById('character-creation').classList.remove('show'); window.location.href='/mode.html';">Back</button>
+      <button id="cc-create" class="ed-btn primary" onclick="submitCreation()">Create Character</button>
+    </div>
+  </div>
+</div>
+<script src="/living-defaults.js?v=1.9.15"></script>
+<script src="/living-editor.js?v=1.9.15"></script>
+<script src="/geology-editor.js"></script>
+<link rel="stylesheet" href="/editor-files.css">
+<script src="/editor-files.js"></script>
+<script src="/weather-editor.js"></script>
+<script src="/population-editor.js"></script>
+<script src="/history-editor.js"></script>
+<script src="/tax-editor.js"></script>
+<script src="/workspace.js"></script>
+<script src="/trade-ui.js"></script>
+<script src="/session-menu.js?v=1.9.9"></script>
+<link rel="stylesheet" href="/playtest-feedback.css">
+<script src="/playtest-feedback.js"></script>
+<script src="/society-ui.js"></script>
+<link rel="stylesheet" href="/dm-console.css">
+<script src="/dm-console.js"></script>
+<script src="/settlements-ui.js"></script>
+
+<link rel="stylesheet" href="/world-import.css">
+
+<link rel="stylesheet" href="/saves.css">
+<script src="/save-browser.js"></script>
+<script src="/character-frame.js"></script>
+<script src="/display-settings.js"></script>
+<script src="/dock-layout.js?v=1.9.9"></script>
+<link rel="stylesheet" href="/visual-map.css?v=1.9.8">
+<script src="/fighting-poses.js"></script>
+<script src="/world-assets.js"></script><script src="/world-audio.js?v=1.9.12"></script><script src="/character-sheets.js?v=1.9.10"></script>
+<script src="/sky-weather.js"></script>
+<script src="/map-effects.js?v=1.9.15"></script>
+<script src="/visual-map.js?v=1.9.15"></script><script src="/travel-viewport.js"></script><script src="/country-view.js"></script>
+<link rel="stylesheet" href="/world-atlas.css?v=1.9.8">
+<script src="/planet-globe.js"></script>
+<script src="/world-atlas.js?v=1.9.8"></script>
+<link rel="stylesheet" href="/player-lists.css">
+<script src="/player-lists.js?v=1.9.14"></script>
+<script src="/resident-watch.js"></script>
+<script src="/source-quests.js?v=1.9.14"></script>
+<script>
+window.expanseAssetSend=body=>{if(!ws||ws.readyState!==1)return false;ws.send(JSON.stringify(body));return true;};
+window.expanseAtlasSend=command=>{if(!ws||ws.readyState!==WebSocket.OPEN)return false;ws.send(JSON.stringify({command}));return true;};
+window.expanseAtlasCreator=selection=>apiGet('games/'+encodeURIComponent(selection.slug)+(selection.live?'/live-globe':'/world-atlas')+'?room='+encodeURIComponent(selection.room||''));
+document.getElementById('open-planet').onclick=()=>ExpanseWorldAtlas.openGlobe();
+document.getElementById('open-host-planet').onclick=()=>ExpanseWorldAtlas.openGlobe({slug:config.running_game,room:window.latestMap?.location?.id,live:true});
+document.getElementById('open-world-atlas').onclick=()=>ExpanseWorldAtlas.openPlayer();
+document.getElementById('open-host-atlas').onclick=()=>ExpanseWorldAtlas.openCreator({slug:ed.gameSlug,room:document.getElementById('map-center').value||ed.entryId||''});
+</script>
+<link rel="stylesheet" href="/player-controls.css">
+<script src="/player-controls.js?v=1.9.15"></script>
+<link rel="stylesheet" href="/player-calendar.css">
+<script src="/player-calendar.js"></script>
+<link rel="stylesheet" href="/pixel-studio.css">
+<script src="/pixel-art-model.js"></script>
+<script>
+window.expansePixelContext=()=>({slug:ed.gameSlug,type:({room:'rooms',npc:'npcs',race:'races',item:'items'})[ed.type]||ed.type,id:ed.entryId});
+window.expansePixelRequest=async(body)=>{if(!ed.gameSlug)throw Error('Select a Creator game first');const url='/api/editor/games/'+encodeURIComponent(ed.gameSlug)+'/pixel-art';const r=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{});const data=await r.json();if(!r.ok||data.error)throw Error(data.error||'Art request failed');return data;};
+</script>
+<script src="/pixel-studio.js"></script>
+<script src="/character-style.js"></script>
+<script src="/gazette.js"></script>
+<script src="/chronicles.js"></script>
+<script src="/window-controls.js"></script>
+<link rel="stylesheet" href="/paperdoll-equipment.css">
+<script src="/paperdoll-equipment.js"></script>
+<script src="/rest-controls.js"></script>
+<link rel="stylesheet" href="/creator-search.css">
+<script src="/creator-search.js"></script>
+<link rel="stylesheet" href="/game-settings.css">
+<script src="/game-settings.js"></script>
+<link rel="stylesheet" href="/creator-guide.css">
+<script src="/creator-guide-data.js?v=1.9.15"></script>
+<script src="/creator-guide.js"></script>
+<link rel="stylesheet" href="/creator-assist.css">
+<script src="/creator-assist.js"></script>
+<script src="/locks-ui.js?v=1.9.11"></script>
+<script src="/locks-editor.js?v=1.9.11"></script>
+<script src="/waystones.js"></script>
+<script src="/play-windows.js"></script>
+<link rel="stylesheet" href="/play-windows.css">
+<link rel="stylesheet" href="/mobile-layout.css">
+<script src="/street-actions.js?v=1.9.8"></script><script src="/pet-union.js"></script><script src="/soundscape.js?v=1.9.12"></script><script src="/music-editor.js"></script>
+<script src="/local-quests.js"></script>
+<link rel="stylesheet" href="/interface-tour.css?v=1.9.14">
+<script src="/interface-tour.js?v=1.9.14"></script>
+</body>
+</html>

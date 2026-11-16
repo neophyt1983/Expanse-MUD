@@ -1,0 +1,52 @@
+/* A compact, nonmodal coach card; the game and highlighted control stay usable. */
+#interface-tour{position:fixed;inset:auto;margin:0;box-sizing:border-box;min-width:0;min-height:0;max-width:none;padding:0;border:1px solid #88c5ad;border-radius:10px;background:#182923f5;color:#edf4ef;box-shadow:0 6px 24px #0008;font:15px/1.45 system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden;overscroll-behavior:contain;z-index:2147483001;white-space:normal;overflow-wrap:anywhere}
+#interface-tour .interface-tour-titlebar{box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;flex:0 0 auto;gap:10px;min-width:0;min-height:44px;padding:8px 12px;border-bottom:1px solid #49665a;background:#232b2a;color:#d6e6df;font:600 14px/1.3 system-ui,sans-serif;cursor:grab;touch-action:none;user-select:none}
+#interface-tour-titlebar>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#interface-tour .interface-tour-titlebar.is-dragging{cursor:grabbing}
+#interface-tour-titlebar:focus-visible{outline:3px solid #f4dc92;outline-offset:-4px}
+#interface-tour-content{box-sizing:border-box;flex:1 1 auto;min-width:0;min-height:0;padding:4px 14px 0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+#interface-tour[data-scroll=card]{overflow:auto}
+#interface-tour[data-scroll=card] #interface-tour-content{flex:0 0 auto;max-height:none;overflow:visible;scrollbar-gutter:auto}
+#interface-tour[hidden],#interface-tour-highlight[hidden]{display:none!important}
+#interface-tour::backdrop,#interface-tour-highlight::backdrop{background:transparent;pointer-events:none}
+#interface-tour h2{margin:2px 0 8px;padding:0;font:600 18px/1.25 system-ui,sans-serif;color:#f3fff7;white-space:normal}
+#interface-tour p{margin:7px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+#interface-tour-progress{font-size:12px;color:#b7d4c4}
+#interface-tour-status:empty{display:none}
+#interface-tour-status{font-size:13px;color:#f2d9a4}
+#interface-tour-alternative{min-width:0;overflow-wrap:anywhere}
+#interface-tour-alternative h3{margin:12px 0 6px;font:600 16px/1.3 system-ui,sans-serif;color:#f3fff7}
+#interface-tour-alternative[hidden]{display:none}
+.interface-tour-buttons,.interface-tour-choices{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+#interface-tour .interface-tour-buttons{box-sizing:border-box;flex:0 0 auto;min-width:0;margin:0;padding:10px 14px 14px}
+#interface-tour button{box-sizing:border-box;min-height:44px;min-width:44px;padding:8px 12px;border:1px solid #6f9d8a;border-radius:5px;background:#223b31;color:#eef8f2;font:inherit;white-space:normal;cursor:pointer;touch-action:manipulation}
+#interface-tour button:focus-visible,#interface-guide-open:focus-visible{outline:3px solid #f4dc92;outline-offset:2px}
+#interface-tour button:disabled{opacity:.65;cursor:wait}
+#interface-tour-next{background:#315b45}
+#interface-tour-accept-alternative{background:#315b45}
+#interface-tour-skip{background:transparent}
+#interface-tour-later{margin-left:auto;background:transparent}
+#interface-tour-highlight{position:fixed;inset:auto;margin:0;padding:0;box-sizing:border-box;border:3px solid #f4dc92;border-radius:6px;background:transparent;box-shadow:0 0 0 2px #182923b8;pointer-events:none;z-index:2147483000}
+.interface-tour-target{outline:2px solid #f4dc92;outline-offset:2px}
+.interface-tour-editor,.interface-tour-editor *{box-sizing:border-box;min-width:0;max-width:100%}
+.interface-tour-editor label{display:block;margin:8px 0}
+.interface-tour-editor input:not([type=checkbox]),.interface-tour-editor select,.interface-tour-editor textarea{display:block;width:100%;margin-top:4px}
+.interface-tour-editor textarea{min-height:90px;white-space:pre-wrap;overflow-wrap:anywhere}
+.interface-tour-editor .tour-editor-step{margin:12px 0;padding:10px;border:1px solid #486154;border-radius:5px}
+.interface-tour-editor .tour-editor-buttons{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.interface-tour-editor button{min-height:40px;white-space:normal}
+.source-quest-callout{box-sizing:border-box;margin:14px 0;padding:15px;border:2px solid #8bc7ac;border-left:6px solid #aee3c7;border-radius:8px;background:#193329;color:#edf8f0;white-space:normal;overflow-wrap:anywhere;font:16px/1.45 system-ui,sans-serif}
+.source-quest-callout strong{display:block;font-size:17px;color:#e4ffed}
+.source-quest-callout p{margin:9px 0;white-space:normal}
+.source-quest-callout .source-quest-open,#quest-offers .source-quest-accept{display:block;min-height:48px;width:100%;padding:12px 16px;border:2px solid #a4dcb9;border-radius:6px;background:#315e43;color:#fff;font:600 16px/1.4 system-ui,sans-serif;text-align:center;white-space:normal;overflow-wrap:anywhere;cursor:pointer;touch-action:manipulation}
+.source-quest-callout button:focus-visible,#quest-offers button:focus-visible{outline:3px solid #f4dc92;outline-offset:3px}
+.source-quest-callout button:disabled,#quest-offers button:disabled{opacity:.65;cursor:default}
+#quest-offers{box-sizing:border-box;width:min(620px,calc(100vw - 24px));max-width:calc(100vw - 24px);max-height:calc(var(--expanse-viewport-height,100dvh) - 24px);overflow:auto;white-space:normal;overflow-wrap:anywhere}
+#quest-offers-title{font-size:20px;line-height:1.3;white-space:normal}
+#quest-offers-instructions,#quest-offers-status,.source-quest-offer p{font:16px/1.5 system-ui,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere}
+.source-quest-offer{margin:10px 0;padding:12px;border:1px solid #597b68;border-radius:6px;min-width:0}
+.source-quest-offer h3{margin:0 0 8px;font:600 18px/1.35 system-ui,sans-serif;white-space:normal}
+#quest-offers-status:empty{display:none}
+#quest-offers[data-guided=true] .source-quest-offer p{max-height:180px;max-height:min(24dvh,180px);overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:6px}
+#quest-offers[data-guided=true] .source-quest-accept{position:sticky;bottom:0;z-index:1;box-shadow:0 -5px 10px #1c2028}
+@media(max-width:680px){#interface-tour{font-size:15px}#interface-tour-content{padding-left:11px;padding-right:11px}#interface-tour h2{font-size:16px}#interface-tour .interface-tour-buttons{gap:5px;padding:10px 11px 11px}#interface-tour button{padding:7px 10px}}
