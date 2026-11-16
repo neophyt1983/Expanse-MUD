@@ -372,6 +372,7 @@ function connect() {
     window.ExpanseGazette?.disconnect();
     window.ExpanseChronicles?.close();
     window.ExpanseSourceQuests?.clear();
+    window.ExpanseInterfaceTour?.disconnect();
     window.ExpansePlayerControls?.disconnect();
     window.ExpanseDM?.disconnect();
     window.ExpanseTrade?.disconnect();window.ExpanseCalendar?.disconnect();
@@ -392,6 +393,8 @@ function connect() {
     if(connection!==ws)return;
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
+    window.ExpanseSourceQuests?.receive(msg);
+    if(msg.type!=='map'&&window.ExpanseInterfaceTour?.receive(msg))return;
     if(window.ExpansePlaytest?.receive(msg))return;
     if(window.ExpanseDamage?.handle(msg))return;
     if(msg.type==='error'&&window.expanseStartingNewGame&&/^Save failed/i.test(msg.text||'')){
@@ -404,6 +407,7 @@ function connect() {
       if(msg.position_revision<positionRevision)return;
       positionRevision=msg.position_revision;
     }
+    if(msg.type==='map')window.ExpanseInterfaceTour?.receive(msg);
     if(window.ExpanseResidentWatch?.receive(msg))return;
     if(msg.event==='character_entered'||msg.type==='saved_exit')window.ExpanseResidentWatch?.close();
     if(window.ExpanseSaveSlots?.receive(msg))return;
@@ -1913,8 +1917,8 @@ updateToolbar();
     </div>
   </div>
 </div>
-<script src="/living-defaults.js?v=1.9.8"></script>
-<script src="/living-editor.js?v=1.9.8"></script>
+<script src="/living-defaults.js?v=1.9.11"></script>
+<script src="/living-editor.js?v=1.9.11"></script>
 <script src="/geology-editor.js"></script>
 <link rel="stylesheet" href="/editor-files.css">
 <script src="/editor-files.js"></script>
@@ -1924,7 +1928,7 @@ updateToolbar();
 <script src="/tax-editor.js"></script>
 <script src="/workspace.js"></script>
 <script src="/trade-ui.js"></script>
-<script src="/session-menu.js"></script>
+<script src="/session-menu.js?v=1.9.9"></script>
 <link rel="stylesheet" href="/playtest-feedback.css">
 <script src="/playtest-feedback.js"></script>
 <script src="/society-ui.js"></script>
@@ -1938,19 +1942,19 @@ updateToolbar();
 <script src="/save-browser.js"></script>
 <script src="/character-frame.js"></script>
 <script src="/display-settings.js"></script>
-<script src="/dock-layout.js"></script>
+<script src="/dock-layout.js?v=1.9.9"></script>
 <link rel="stylesheet" href="/visual-map.css?v=1.9.8">
 <script src="/fighting-poses.js"></script>
-<script src="/world-assets.js"></script><script src="/world-audio.js"></script><script src="/character-sheets.js"></script>
+<script src="/world-assets.js"></script><script src="/world-audio.js"></script><script src="/character-sheets.js?v=1.9.10"></script>
 <script src="/sky-weather.js"></script>
-<script src="/visual-map.js?v=1.9.8"></script><script src="/travel-viewport.js"></script><script src="/country-view.js"></script>
+<script src="/visual-map.js?v=1.9.10"></script><script src="/travel-viewport.js"></script><script src="/country-view.js"></script>
 <link rel="stylesheet" href="/world-atlas.css?v=1.9.8">
 <script src="/planet-globe.js"></script>
 <script src="/world-atlas.js?v=1.9.8"></script>
 <link rel="stylesheet" href="/player-lists.css">
-<script src="/player-lists.js"></script>
+<script src="/player-lists.js?v=1.9.9"></script>
 <script src="/resident-watch.js"></script>
-<script src="/source-quests.js"></script>
+<script src="/source-quests.js?v=1.9.9"></script>
 <script>
 window.expanseAssetSend=body=>{if(!ws||ws.readyState!==1)return false;ws.send(JSON.stringify(body));return true;};
 window.expanseAtlasSend=command=>{if(!ws||ws.readyState!==WebSocket.OPEN)return false;ws.send(JSON.stringify({command}));return true;};
@@ -1983,17 +1987,19 @@ window.expansePixelRequest=async(body)=>{if(!ed.gameSlug)throw Error('Select a C
 <link rel="stylesheet" href="/game-settings.css">
 <script src="/game-settings.js"></script>
 <link rel="stylesheet" href="/creator-guide.css">
-<script src="/creator-guide-data.js"></script>
+<script src="/creator-guide-data.js?v=1.9.11"></script>
 <script src="/creator-guide.js"></script>
 <link rel="stylesheet" href="/creator-assist.css">
 <script src="/creator-assist.js"></script>
-<script src="/locks-ui.js"></script>
-<script src="/locks-editor.js"></script>
+<script src="/locks-ui.js?v=1.9.11"></script>
+<script src="/locks-editor.js?v=1.9.11"></script>
 <script src="/waystones.js"></script>
 <script src="/play-windows.js"></script>
 <link rel="stylesheet" href="/play-windows.css">
 <link rel="stylesheet" href="/mobile-layout.css">
 <script src="/street-actions.js?v=1.9.8"></script><script src="/pet-union.js"></script><script src="/soundscape.js"></script><script src="/music-editor.js"></script>
 <script src="/local-quests.js"></script>
+<link rel="stylesheet" href="/interface-tour.css?v=1.9.9">
+<script src="/interface-tour.js?v=1.9.9"></script>
 </body>
 </html>

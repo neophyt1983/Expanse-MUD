@@ -42,9 +42,15 @@ function body(c,family,rig,skin){
   const image=ctx.getImageData(0,0,32,32),px=image.data;
   const rgb=[1,3,5].map(i=>parseInt(skin.slice(i,i+2),16));
   for(let i=0;i<px.length;i+=4){
-   if(px[i+2]!==128||px[i+3]!==255||![160,255].includes(px[i]))continue;
-   const tint=px[i]===160?-.24:px[i+1]===64?.22:0;
+   // Canvas privacy protections can alter readback channels by a few levels.
+   // Match only the three skin-mask colors, so a missed marker cannot stay pink.
+   if(Math.abs(px[i+2]-128)>2||px[i+3]<253)continue;
+   const shadow=Math.abs(px[i]-160)<=2&&px[i+1]<=2;
+   const base=px[i]>=253&&px[i+1]<=2,highlight=px[i]>=253&&Math.abs(px[i+1]-64)<=2;
+   if(!shadow&&!base&&!highlight)continue;
+   const tint=shadow?-.24:highlight?.22:0;
    rgb.forEach((v,ch)=>{px[i+ch]=Math.round(tint>0?v+(255-v)*tint:v*(1+tint));});
+   px[i+3]=255;
   }
   ctx.putImageData(image,0,0);if(tinted.size>=300)tinted.delete(tinted.keys().next().value);tinted.set(key,tile);
  }

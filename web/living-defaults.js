@@ -26,3 +26,7 @@ window.LIVING_DEFAULTS.room.facility_landmark='';
 window.LIVING_DEFAULTS.room.waterway={};
 
 window.LIVING_DEFAULTS.quest.escort={};
+window.LIVING_DEFAULTS.quest.interface_tour={};
+// Optional chain metadata is authored in the game file, never inferred on load.
+window.LIVING_DEFAULTS.quest.quest_chain={};
+window.LIVING_DEFAULTS.quest.quest_split_migration={};

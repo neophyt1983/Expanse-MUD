@@ -942,7 +942,10 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
    const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
    const fraction=s.motion?Math.max(0,1-(performance.now()-s.motion.start)/s.motion.duration)**2:0;
    const speed=Number.isFinite(packet.travel_speed_multiplier)&&packet.travel_speed_multiplier>=.25&&packet.travel_speed_multiplier<=4?packet.travel_speed_multiplier:1;
-   s.motion=!reduced&&direction===geometric&&(dx||dy)?{dx:Math.max(-1,Math.min(1,dx+(s.motion?.dx||0)*fraction)),dy:Math.max(-1,Math.min(1,dy+(s.motion?.dy||0)*fraction)),start:performance.now(),duration:420/speed}:null;
+   // Finish a normal step within the walk controller's 95/speed cadence.
+   // Carry any unfinished displacement so a rapid confirmation cannot jump
+   // the painted terrain. Positions still come only from confirmed packets.
+   s.motion=!reduced&&direction===geometric&&(dx||dy)?{dx:dx+(s.motion?.dx||0)*fraction,dy:dy+(s.motion?.dy||0)*fraction,start:performance.now(),duration:95/speed}:null;
    s.arrival.textContent=(direction?'Moved '+direction:'Arrived')+' · '+newTile.name;
    s.arrival.hidden=false;
   }else if(!oldTile||!sameCharacter||options.designer){s.motion=null;s.arrival.hidden=true;}

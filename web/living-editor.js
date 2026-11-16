@@ -34,7 +34,121 @@
  function el(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;return e;}
  function picker(type,val){const s=el('select');s.append(new Option('Choose…',''));for(const o of ed.entriesCache[type]||[])s.append(new Option(o.name||o.id,o.id));if(val&&!Array.from(s.options).some(o=>o.value===val))s.append(new Option(val,val));s.value=val||'';return s;}
  function jsonField(key,val){const box=el('div'),hint=el('small','Advanced structured field: valid JSON is required. Changes apply only after Save field.'),ta=el('textarea');ta.dataset.creatorJson=key;ta.dataset.creatorType=ed.type;ta.dataset.creatorWorld=ed.gameSlug;ta.dataset.creatorEntry=String(ed.entryId);ta.dataset.creatorVersion=String(ed.selectionVersion||0);ta.rows=6;ta.value=JSON.stringify(val??{},null,2);const b=el('button','Save field');b.type='button';b.className='ed-btn';b.onclick=()=>{if(ta.dataset.creatorWorld!==ed.gameSlug||ta.dataset.creatorType!==ed.type||ta.dataset.creatorEntry!==String(ed.entryId)||ta.dataset.creatorVersion!==String(ed.selectionVersion||0)){setStatus('Selection changed. Reopen this JSON field before staging it.','warn');return;}try{const v=JSON.parse(ta.value);saveField(key,v);}catch(e){setStatus('Invalid JSON: '+e.message,'warn');}};box.append(hint,ta,b);return box;}
+ function questChainField(key,val){
+  const object=val&&typeof val==='object'&&!Array.isArray(val);
+  if(val&&(!object||(val.version!==undefined&&val.version!==1)||(val.stages!==undefined&&(!Array.isArray(val.stages)||val.stages.some(id=>typeof id!=='string'))))){
+   const raw=jsonField(key,val);raw.prepend(el('p','This chain needs advanced editing. Its original fields are preserved below. Supported chains use version 1, an ordered stages list, a final quest ID, a zero-based index and a destination room.'));return raw;
+  }
+  const draft=structuredClone(val||{}),context={world:ed.gameSlug,type:ed.type,id:String(ed.entryId),version:String(ed.selectionVersion||0)};
+  // Keep the fieldset inside its field wrapper so Inspector search and pending
+  // edit tracking continue to associate every control with quest_chain.
+  const box=el('div'),section=el('fieldset');box.className='quest-chain-editor';section.style.minWidth='0';box.append(section);
+  section.append(el('legend','Quest stages'));
+  section.append(el('p','Give each destination its own quest. Use the same ordered stage IDs on every quest in the chain, and put the preceding stage in each later quest’s prerequisites.'));
+  const enabled=el('input');enabled.type='checkbox';enabled.checked=Object.keys(draft).length>0;enabled.dataset.questChainField='enabled';
+  const include=el('label',' Use a quest chain');include.prepend(enabled);section.append(include);
+  const fields=el('fieldset');fields.style.minWidth='0';section.append(fields);
+  function field(label,input,key){const row=el('label',label);row.style.display='block';row.style.margin='8px 0';input.style.display='block';input.style.width='100%';input.style.boxSizing='border-box';input.style.minWidth='0';input.dataset.questChainField=key;input.setAttribute('aria-label',label);row.append(input);fields.append(row);return input;}
+  const chain=field('Final quest / chain ID',picker('quest',draft.id||context.id),'id');
+  const stages=field('Stage quest IDs in travel order (one per line)',el('textarea'),'stages');stages.rows=5;stages.value=(draft.stages||[]).join('\n');
+  const addChoice=field('Add an existing quest to the end',picker('quest',''),'add');
+  const add=el('button','Append selected stage');add.type='button';add.className='ed-btn';fields.append(add);
+  const place=el('p');place.dataset.questChainStatus='true';place.setAttribute('role','status');fields.append(place);
+  const destination=field('This stage’s destination',picker('room',draft.destination),'destination');
+  const source=field('Continuation book (optional)',picker('item',draft.source_item),'source_item');
+  fields.append(el('small','Use the same destination in turn_in_room. A continuation book belongs at the preceding destination: make it anchored and readable, and include this quest in its knowledge.quests.'));
+  const ordered=()=>stages.value.split(/\r?\n/).map(id=>id.trim()).filter(Boolean);
+  function summary(){
+   fields.disabled=!enabled.checked;
+   const ids=ordered(),index=ids.indexOf(context.id);
+   place.textContent=index<0?'Include the selected quest '+context.id+' in the stage list.':'This quest is stage '+(index+1)+' of '+ids.length+'. The stored index is '+index+'.';
+  }
+  stages.oninput=summary;
+  add.onclick=()=>{
+   const ids=ordered();if(!addChoice.value)return;
+   if(ids.includes(addChoice.value)){setStatus('That quest is already in the stage list.','warn');return;}
+   if(ids.length>=64){setStatus('A chain supports at most 64 stages.','warn');return;}
+   stages.value=[...ids,addChoice.value].join('\n');stages.dispatchEvent(new Event('input',{bubbles:true}));
+  };
+  enabled.onchange=()=>{if(enabled.checked&&!ordered().length)stages.value=context.id;summary();};summary();
+  const commit=el('button','Save quest chain');commit.type='button';commit.className='ed-btn';commit.dataset.saveQuestChain='true';
+  commit.onclick=()=>{
+   if(context.world!==ed.gameSlug||context.type!==ed.type||context.id!==String(ed.entryId)||context.version!==String(ed.selectionVersion||0)){setStatus('Selection changed. Reopen the quest chain before saving it.','warn');return;}
+   if(!enabled.checked){saveField(key,{});return;}
+   const ids=ordered(),index=ids.indexOf(context.id);
+   if(ids.length<2||ids.length>64||new Set(ids).size!==ids.length||index<0){setStatus('Use 2–64 unique stage quest IDs and include the selected quest exactly once.','warn');return;}
+   if(!chain.value||ids.at(-1)!==chain.value){setStatus('The final quest / chain ID must be the last quest in the ordered stage list.','warn');return;}
+   if(!destination.value){setStatus('Choose this stage’s destination, then use the same room in turn_in_room.','warn');return;}
+   const value={...draft,version:1,id:chain.value,stages:ids,index,destination:destination.value};
+   if(source.value)value.source_item=source.value;else if(draft.source_item!=='')delete value.source_item;
+   saveField(key,value);
+  };
+  section.append(el('p','For a split quest, set reward_gold and reward_xp on every stage to the original amount divided by the number of stages, rounded up; zero remains zero. Keep item rewards and other completion effects on the final stage.'));
+  section.append(el('small','Save quest chain stages only this field. Create or update the other quest records and their prerequisites separately, then Save draft, Validate and export the complete .expanse file.'),commit);return box;
+ }
+ function interfaceTourField(key,val){
+  if(val&&(typeof val!=='object'||Array.isArray(val)||(val.version&&val.version!==1)||(Array.isArray(val.steps)&&val.steps.some(step=>!step||typeof step!=='object'||Array.isArray(step)))))return jsonField(key,val);
+  const draft=structuredClone(val||{}),context={world:ed.gameSlug,type:ed.type,id:String(ed.entryId),version:String(ed.selectionVersion||0)};
+  const targets={conversation:'Conversation',command:'Command input',actions:'Actions menu',quests:'Quests',map:'Terrain map',compass:'Quest compass',location:'Location and nearby people',books:'Bookshelves',inventory:'Inventory',status:'Character status',condition:'Condition',save:'Save',save_quit:'Save & quit',panels:'Panels and restoring windows',help:'Help'};
+  const box=el('fieldset');box.className='interface-tour-editor';box.append(el('legend','Interface lesson'));
+  box.append(el('p','Author up to 24 short steps that point to real controls. Next acknowledges a step; Show me reveals a control. A lesson never moves the character or activates Save. Newly accepted quests require the lesson before turn-in; already accepted or completed quests can replay it.'));
+  const enabled=el('input');enabled.type='checkbox';enabled.checked=Array.isArray(draft.steps)&&draft.steps.length>0;
+  const enabledLabel=el('label','Include an interface lesson ');enabledLabel.prepend(enabled);box.append(enabledLabel);
+  const fields=el('fieldset');fields.className='interface-tour-fields';box.append(fields);
+  const title=el('input');title.type='text';title.maxLength=120;title.value=draft.title||'';title.setAttribute('aria-label','Interface lesson title');
+  const titleLabel=el('label','Lesson title');titleLabel.append(title);fields.append(titleLabel);
+  const completion=el('textarea');completion.rows=3;completion.maxLength=1200;completion.value=draft.completion_text||'';completion.setAttribute('aria-label','Interface lesson completion guidance');
+  const completionLabel=el('label','After the lesson — next quest guidance');completionLabel.append(completion);fields.append(completionLabel);
+  fields.append(el('small','Leave completion guidance blank to use the quest description. The actual quest objectives and rewards remain separate.'));
+  const rows=el('div');rows.className='tour-editor-steps';fields.append(rows);
+  let steps=Array.isArray(draft.steps)?draft.steps.map(step=>({...step})):[];
+  const add=el('button','Add step');add.type='button';add.className='ed-btn';fields.append(add);
+  function field(parent,label,key,value,tag='input'){
+   const wrapper=el('label',label),input=el(tag);input.value=value||'';input.dataset.tourField=key;input.setAttribute('aria-label',label);
+   if(tag==='textarea'){input.rows=4;input.maxLength=1200;}else{input.type='text';input.maxLength=key==='id'?64:120;}
+   wrapper.append(input);parent.append(wrapper);return input;
+  }
+  function draw(){
+   rows.replaceChildren();fields.disabled=!enabled.checked;add.disabled=steps.length>=24;
+   steps.forEach((step,index)=>{
+    const row=el('section');row.className='tour-editor-step';row.dataset.tourStep=String(index);row.append(el('h4','Step '+(index+1)));
+    for(const [label,name,tag] of [['Stable step ID','id','input'],['Step title','title','input'],['Short explanation','text','textarea']]){const input=field(row,label,name,step[name],tag);input.oninput=()=>{step[name]=input.value;};}
+    const targetLabel=el('label','Highlight control'),target=el('select');target.dataset.tourField='target';target.setAttribute('aria-label','Highlight control');
+    for(const [id,label] of Object.entries(targets))target.append(new Option(label,id));
+    if(step.target&&!Object.hasOwn(targets,step.target))target.append(new Option('Unknown: '+step.target,step.target));target.value=step.target||'conversation';step.target=target.value;target.onchange=()=>{step.target=target.value;};targetLabel.append(target);row.append(targetLabel);
+    const controls=el('div');controls.className='tour-editor-buttons';
+    for(const [label,delta] of [['Move up',-1],['Move down',1]]){const b=el('button',label);b.type='button';b.disabled=index+delta<0||index+delta>=steps.length;b.onclick=()=>{const other=index+delta;if(other<0||other>=steps.length)return;[steps[index],steps[other]]=[steps[other],steps[index]];draw();rows.children[other]?.querySelector('input')?.focus();};controls.append(b);}
+    const remove=el('button','Remove step');remove.type='button';remove.onclick=()=>{steps.splice(index,1);draw();add.focus();};controls.append(remove);row.append(controls);rows.append(row);
+   });
+  }
+  function appendStep(){if(steps.length>=24)return;let n=steps.length+1;while(steps.some(step=>step.id==='step_'+n))n++;steps.push({id:'step_'+n,target:'conversation',title:'',text:''});draw();rows.lastElementChild?.querySelector('input')?.focus();}
+  add.onclick=appendStep;enabled.onchange=()=>{if(enabled.checked&&!steps.length)appendStep();else draw();};draw();
+  const commit=el('button','Save interface lesson');commit.type='button';commit.className='ed-btn';commit.dataset.saveInterfaceTour='true';
+  commit.onclick=()=>{
+   if(context.world!==ed.gameSlug||context.type!==ed.type||context.id!==String(ed.entryId)||context.version!==String(ed.selectionVersion||0)){setStatus('Selection changed. Reopen the interface lesson before saving it.','warn');return;}
+   if(!enabled.checked){saveField(key,{});return;}
+   if(!title.value.trim()||title.value.trim().length>120||steps.length<1||steps.length>24){setStatus('Use a lesson title of 1–120 characters and 1–24 steps.','warn');return;}
+   const ids=new Set();
+   for(const [index,step] of steps.entries()){
+    if(typeof step.id!=='string'||!/^[-_a-zA-Z0-9]{1,64}$/.test(step.id)||ids.has(step.id)){setStatus('Step '+(index+1)+' needs a unique ID using 1–64 letters, digits, underscores or hyphens.','warn');return;}ids.add(step.id);
+    if(!Object.hasOwn(targets,step.target)||typeof step.title!=='string'||!step.title.trim()||step.title.trim().length>120||typeof step.text!=='string'||!step.text.trim()||step.text.trim().length>1200){setStatus('Step '+(index+1)+' needs a supported control, a short title (up to 120 characters), and text (up to 1200 characters).','warn');return;}
+   }
+   if(completion.value.trim().length>1200){setStatus('Completion guidance is limited to 1200 characters.','warn');return;}
+   const value={...draft,version:1,title:title.value.trim(),steps:steps.map(step=>({...step,title:step.title.trim(),text:step.text.trim()}))};
+   if(completion.value.trim())value.completion_text=completion.value.trim();else delete value.completion_text;
+   saveField(key,value);
+  };
+  box.append(el('p','Save interface lesson stages only this field on the selected quest. Validate and export the complete world through the usual Creator workflow.'),commit);return box;
+ }
  buildFieldWidget=function(key,kind,val,objId){
+  if(key==='quest_chain'&&ed.type==='quest')return questChainField(key,val);
+  if(key==='quest_split_migration'&&ed.type==='quest'){
+   const box=el('div'),details=el('details');details.append(el('summary','Original quest preserved for existing saves'));
+   details.append(el('p','Keep this record on the final quest when converting a published quest. Its original snapshot preserves progress and rewards for characters who already accepted or completed the older quest. Editing or removing that snapshot can change how their saves are interpreted.'));
+   details.append(el('p','An unsplit quest uses an empty object. A migration record has version 1, a revision, and original containing the complete quest before it was split. Preserve any resolved_reward_xp, resolved_reward_gold and additional metadata already present.'));
+   details.append(jsonField(key,val));box.append(details);return box;
+  }
+  if(key==='interface_tour'&&ed.type==='quest')return interfaceTourField(key,val);
   if(key==='combat_level'&&ed.type==='npc'){const box=el('div'),n=el('input');n.type='number';n.min=1;n.max=100;n.step=1;n.value=val??1;n.onchange=()=>{if(n.checkValidity())saveField(key,Number(n.value));else n.reportValidity();};box.append(n,el('small',' Authored base threat level for loot tiers. Earned levels above 1 are added; this field does not change combat statistics.'));return box;}
   if(key==='loot_table'&&ed.type==='npc'){const box=jsonField(key,val);box.prepend(el('p','Optional combat loot. Empty {} preserves fixed drops. Use version: 1 and nonoverlapping tiers with min_level/max_level (1–100), chance (0–1), gold {min,max}, and items [{item,weight,min,max}]. A successful chance gives that money and one weighted item stack together. Optional bonus [{item,chance,min,max}] rolls independently; rare bonuses never fill a failed common roll. Quantities are positive integers. Validate checks references and ranges. Players, owned companions and zoo exhibits receive no supplemental bundle.'));return box;}
   if(key==='escort'&&ed.type==='quest'){

@@ -6,7 +6,7 @@
   const storage='expanse.layout.v1.'+key,ids=entries.map(e=>e[0]),optional=entries.filter(e=>e[3]?.optional).map(e=>e[0]);
   const initial=()=>({ids:[...ids],order:[...ids],widths:ids.map(()=>1),floating:{},hidden:Object.fromEntries(optional.map(id=>[id,true]))});
   let state=initial(),editing=false,gesture=null;
-  const windowModes=new Map();let maximized=null; // Session-only; never rewrite saved layout geometry.
+  const windowModes=new Map(),revealed=new Set();let maximized=null; // Session-only; never rewrite saved layout geometry.
   // Older saves have only the original three panels. Keep their order, widths
   // and floating bounds; new optional panels do not consume space until shown.
   try{
@@ -28,8 +28,9 @@
   const targets=make('div','dock-targets'),visibility=new Map();
   for(const id of optional){const title=entries.find(e=>e[0]===id)[1],button=make('button','ed-btn dock-visibility');button.type='button';button.dataset.togglePanel=id;button.setAttribute('aria-controls','dock-'+key+'-'+id);button.onclick=()=>{if(windowModes.has(id)){windowModes.delete(id);hidePanel(id,false);}else hidePanel(id,!panelHidden(id));if(!panelHidden(id))activeTab=id;render();save();};toolbar.insertBefore(button,hint);visibility.set(id,button);}
   const display=window.ExpanseDisplay;
-  const panelHidden=id=>key==='game'&&id==='character' ? !display.character() : !!state.hidden[id];
+  const panelHidden=id=>!revealed.has(id)&&(key==='game'&&id==='character' ? !display.character() : !!state.hidden[id]);
   function hidePanel(id,hidden){
+   revealed.delete(id);
    state.hidden[id]=hidden;
    if(key==='game'&&id==='character')display.choose('character',hidden?'hide':'show');
   }
@@ -54,11 +55,14 @@
   if(key==='game')window.addEventListener('expanse:show-terrain',()=>restorePanel('map'));
   function focusPanel(id){(root.dataset.arrangement==='tabs'?tabBar.querySelector('[data-dock-tab="'+id+'"]'):panes.get(id).windowButtons[0])?.focus({preventScroll:true});}
   function restorePanel(id){const changed=panelHidden(id);if(changed)hidePanel(id,false);activeTab=id;windowModes.delete(id);maximized=null;render();if(changed)save();}
+  // A guide can reveal one live panel without replacing the player's saved
+  // size, docking order, visibility preference or display settings.
+  function revealPanel(id){if(!ids.includes(id))return null;revealed.add(id);activeTab=id;windowModes.delete(id);maximized=null;render();return panes.get(id).panel;}
   function restoreAll(){let changed=false;for(const id of ids){if(panelHidden(id)){changed=true;hidePanel(id,false);}}windowModes.clear();maximized=null;render();if(changed)save();}
   function openPicker(){if(picker.open){pickerClose.focus();return;}if(document.querySelector('dialog:modal'))return;pickerFocus=document.activeElement;pickerRender();picker.showModal();pickerClose.focus();}
   function closePicker(){picker.close();if(pickerFocus?.isConnected)pickerFocus.focus();}
   panelsButton.onclick=openPicker;pickerClose.onclick=closePicker;picker.addEventListener('cancel',e=>{e.preventDefault();closePicker();});showAll.onclick=()=>{restoreAll();pickerRender();showAll.focus();};
-  workspaces.set(key,{open:openPicker,restoreAll});
+  workspaces.set(key,{open:openPicker,restoreAll,reveal:revealPanel});
   function save(){try{localStorage.setItem(storage,JSON.stringify(state));}catch{hint.textContent='Layout works, but preferences could not be saved.';}}
   function floatRect(id){if(maximized===id)return;const f=state.floating[id],w=canvas.clientWidth,h=canvas.clientHeight;if(!f||!w||!h||root.dataset.arrangement==='tabs')return;const p=panes.get(id).panel;const pw=Math.min(w,Math.max(Math.min(240,w),f.w*w)),ph=Math.min(h,Math.max(Math.min(180,h),f.h*h));const x=Math.max(0,Math.min(w-pw,f.x*w)),y=Math.max(0,Math.min(h-ph,f.y*h));Object.assign(p.style,{left:x+'px',top:y+'px',width:pw+'px',height:ph+'px'});}
   function visibleOrder(){return state.order.filter(id=>!panelHidden(id)&&!windowModes.has(id));}
@@ -134,7 +138,7 @@
    };
    panel.append(header,body,grip);panes.set(id,{panel,title,controls,float,grip,windowButtons});}
   document.addEventListener('pointermove',move);document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end);
-  toggle.onclick=()=>{editing=!editing;render();};reset.onclick=()=>{state=initial();editing=false;windowModes.clear();maximized=null;if(key==='game')display.choose('character','auto');render();save();};new ResizeObserver(()=>{for(const id of ids)floatRect(id);}).observe(canvas);
+  toggle.onclick=()=>{editing=!editing;render();};reset.onclick=()=>{state=initial();editing=false;windowModes.clear();revealed.clear();maximized=null;if(key==='game')display.choose('character','auto');render();save();};new ResizeObserver(()=>{for(const id of ids)floatRect(id);}).observe(canvas);
   function adapt(){
    const mode=display.tabs()+'|'+(key==='game'&&display.character())+'|'+(display.phone?.()===true);
    if(mode===lastDisplay)return;
@@ -147,6 +151,6 @@
  const game=document.getElementById('tab-game');workspace(game,[['conversation','Conversation',document.querySelector('.conversation')],['map','Terrain Map',document.getElementById('player-map-panel')],['location','Location & Inventory',document.getElementById('location-panel')],['character','Character',document.getElementById('character-frame'),{optional:true}]],'game');
  const editor=document.getElementById('ed-grid');editor.classList.add('dock-managed');workspace(editor,[['library','Creator Library',document.querySelector('.creator-library')],['map','World Map',document.getElementById('designer-map-panel')],['inspector','Creator Inspector',document.querySelector('.creator-inspector')]],'editor');
  const active=()=>document.getElementById('tab-editor')?.classList.contains('active')?'editor':'game';
- window.ExpansePanels={open:()=>workspaces.get(active())?.open(),restoreAll:()=>workspaces.get(active())?.restoreAll()};
+ window.ExpansePanels={open:()=>workspaces.get(active())?.open(),restoreAll:()=>workspaces.get(active())?.restoreAll(),reveal:id=>workspaces.get('game')?.reveal(id)};
  document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.shiftKey&&e.key.toLowerCase()==='p'){e.preventDefault();e.stopPropagation();window.ExpansePanels.open();}},true);
 })();

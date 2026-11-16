@@ -3,7 +3,7 @@
  const button=(label,fn)=>{const b=make('button',label);b.type='button';b.className='ed-btn';b.onclick=fn;return b;};
  function send(command){if(command==='save_exit'&&window.ExpansePlaytest){window.ExpansePlaytest.saveAndQuit();return;}if(command==='save_exit'&&window.ExpansePixelStudio?.canLeave()===false)return;if(!ws||ws.readyState!==WebSocket.OPEN){append('error','Connect to the server before saving.');return;}if(window.expanseSaveStatus)window.expanseSaveStatus('Saving…');ws.send(JSON.stringify({command}));}
  const bar=make('div');bar.id='session-actions';bar.style.cssText='display:flex;gap:8px;flex-wrap:wrap;padding:8px';
- if(!window.ExpanseNativeFileMenu){const leave=button('Save & quit',()=>send('save_exit'));leave.dataset.playtestSaveQuit='true';bar.append(button('Save',()=>send('save')),leave);}
+ if(!window.ExpanseNativeFileMenu){const leave=button('Save & quit',()=>send('save_exit')),save=button('Save',()=>send('save'));save.id='session-save';leave.id='session-save-quit';leave.dataset.playtestSaveQuit='true';bar.append(save,leave);}
  const saveStatus=make('span');saveStatus.id='save-status';saveStatus.setAttribute('role','status');bar.append(saveStatus);window.expanseSaveStatus=text=>saveStatus.textContent=text;
  document.getElementById('tab-game').prepend(bar);
  const modal=document.getElementById('character-creation'),box=make('section');box.style.cssText='border-bottom:1px solid #486154;padding-bottom:14px;margin-bottom:14px';
