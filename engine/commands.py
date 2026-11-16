@@ -1709,12 +1709,12 @@ def process_command(registry: CommandRegistry, world: World,
     if cmd.available is not None and not cmd.available(ctx):
         return "You can't do that here."
     if player.location not in player.explored_rooms: player.explored_rooms.append(player.location)
-    if living.enabled(world) and not player.alive and first not in ("revive", "wait", "help", "condition", "quests", "map"):
+    if living.enabled(world) and not player.alive and first not in ("revive", "wait", "help", "condition", "quests", "map", "interface"):
         return "You are unconscious. Use revive to recover at the starting settlement."
     from engine import mortality, society
-    if society.enabled(world) and player.progress.get('permanently_dead'):
+    if society.enabled(world) and player.progress.get('permanently_dead') and first!='interface':
         return 'This character has died permanently. Their history is retained; create a new character from the starting screen.'
-    if society.enabled(world) and player.progress.get('restrained_until',0)>living.state(world)['minute'] and first not in ('look','help','condition','map'):
+    if society.enabled(world) and player.progress.get('restrained_until',0)>living.state(world)['minute'] and first not in ('look','help','condition','map','interface'):
         living.advance(world,1)
         return 'A guard is restraining you. Wait briefly before acting again.'
     from engine import knowledge
@@ -1731,7 +1731,7 @@ def process_command(registry: CommandRegistry, world: World,
     except ValueError as exc:
         return str(exc)
     if living.enabled(world):
-        if not ctx.time_accounted and cmd.name not in ("rest", "sleep", "wait", "help", "look", "map", "survey", "recipes", "catalog", "wardrobe", "materials", "market", "adventures", "quests", "journal", "condition", "inventory", "time", "inspect", "spells", "companions", "services", "route", "guide", "track", "untrack", "waypoint"):
+        if not ctx.time_accounted and cmd.name not in ("rest", "sleep", "wait", "help", "look", "map", "survey", "recipes", "catalog", "wardrobe", "materials", "market", "adventures", "quests", "journal", "condition", "inventory", "time", "inspect", "spells", "companions", "services", "route", "guide", "interface", "track", "untrack", "waypoint"):
             living.advance(world, 1)
         if player.alive and (old_location != player.location or first == "look"):
             event = living.on_entry(world, player)

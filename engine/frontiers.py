@@ -124,6 +124,12 @@ def path(world,start,target,player=None,include_locked=False,*,allowed=None):
     boat=player is not None and any(world.items.get(i,{}).get('boat') for i in player.inventory)
     candidate=_candidate_route(world,start,target,None if include_locked else boat,allowed)
     if candidate is None or include_locked:return candidate
+    return _checked_route(world,start,target,player,boat,allowed,candidate)
+
+
+def _checked_route(world,start,target,player,boat,allowed,candidate):
+    """Recheck a physical candidate against current actor/world permissions."""
+    rooms=world.rooms;details=getattr(world,'room_details',{})
     from engine import geology_impacts
     hazard_sources=geology_impacts.route_sources(world)
     from engine import locks
@@ -151,13 +157,69 @@ def path(world,start,target,player=None,include_locked=False,*,allowed=None):
         check_passages=check_passages or bool(lock_index.get(current))
         for di,dest in rooms[current].exits.items():
             if dest not in rooms or dest in previous or (allowed is not None and dest not in allowed):continue
-            if not include_locked and path_blocked(world,current,di,dest,player,check_passages,lock_index,hazard_sources,boat):continue
+            if path_blocked(world,current,di,dest,player,check_passages,lock_index,hazard_sources,boat):continue
             previous[dest]=(current,di);q.append(dest)
             # The first discovery fixes this destination's BFS predecessor.
             # No remaining node can improve it or change the tie-breaking.
             if dest==target:
                 q.clear();q.append(dest);break
     return None
+
+
+class PathQuery:
+    """Reuse physical BFS work during one synchronous, read-only query.
+
+    A quest plan probes many destinations from the same origin without moving
+    anyone or changing exits, water access, or corner geometry. Its temporary
+    predecessor trees preserve BFS adjacency order. They must not be retained
+    between plans or used while editing the graph. No permission result is
+    cached: every candidate still checks live locks, gates, property and hazards
+    and uses the ordinary permission-aware fallback when necessary.
+    """
+    def __init__(self,world,player=None,include_locked=False,*,allowed=None):
+        self.world=world;self.player=player;self.include_locked=include_locked
+        self.allowed=frozenset(allowed) if allowed is not None else None
+        self._trees={}
+
+    def path(self,start,target):
+        world=self.world;rooms=world.rooms
+        if start not in rooms or target not in rooms:return None
+        if start==target:return []
+        player=self.player
+        boat=player is not None and any(world.items.get(i,{}).get('boat') for i in player.inventory)
+        physical_boat=None if self.include_locked else boat
+        key=(start,physical_boat)
+        tree=self._trees.get(key)
+        if tree is None:
+            # Bound scratch memory for plans with many successive harvest sites.
+            # Eviction only repeats a search; it never limits possible routes.
+            if len(self._trees)>=4:self._trees.pop(next(iter(self._trees)))
+            tree=(deque([start]),{start:None});self._trees[key]=tree
+        queue,previous=tree
+        details=getattr(world,'room_details',{});allowed=self.allowed
+        while queue and target not in previous:
+            current=queue.popleft()
+            for di,dest in rooms[current].exits.items():
+                if dest not in rooms or dest in previous or (allowed is not None and dest not in allowed):continue
+                if physical_boat is False and details.get(dest,{}).get('requires_boat'):continue
+                if physical_boat is not None and di in DIAGONALS and details.get(current,{}).get('open_country'):
+                    clear=True
+                    for first,second in (DIAGONALS[di],DIAGONALS[di][::-1]):
+                        via=rooms[current].exits.get(first)
+                        if (via not in rooms or rooms[via].exits.get(second)!=dest or
+                                physical_boat is False and details.get(via,{}).get('requires_boat')):
+                            clear=False;break
+                    if not clear:continue
+                previous[dest]=(current,di);queue.append(dest)
+            # Finish this vertex before yielding a route. Later probes resume
+            # the same BFS queue, preserving tie order for every destination.
+        if target not in previous:return None
+        candidate=[];current=target
+        while previous[current] is not None:
+            before,di=previous[current];candidate.append((before,di,current));current=before
+        candidate.reverse()
+        if self.include_locked:return candidate
+        return _checked_route(world,start,target,player,boat,allowed,candidate)
 
 def route(world,player,query):
     if player.is_player:

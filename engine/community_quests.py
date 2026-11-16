@@ -110,9 +110,14 @@ def plan(w,actor,spec):
     """Prove a route and a source for every step, including the return."""
     origin=actor.location
     steps=[];minutes=0;used=set()
+    # Planning does not move actors, consume supplies or advance time. Reuse
+    # physical searches only for this plan; permissions are checked each time.
+    paths=frontiers.PathQuery(w,actor)
+    def reachable(room):
+        return paths.path(origin,room) is not None
     def step(room,action,key='',length=1):
         nonlocal origin,minutes
-        route=[] if origin==room else frontiers.path(w,origin,room,actor)
+        route=paths.path(origin,room)
         if route is None:raise ValueError('No open route to '+w.rooms[room].name+'.')
         minutes+=len(route)+length;origin=room
         steps.append(dict(room=room,action=action,key=key,length=length,route=route,route_index=0))
@@ -125,7 +130,7 @@ def plan(w,actor,spec):
             src=w.resources[key]
             if not actor.is_player and 'manual_batches' in src:continue
             if (room,key) in used or key not in resource_nodes.active_resources(w,room):continue
-            if gathering.resource_state(w,actor,room,src) or distance(w,actor,origin,room) is None:continue
+            if gathering.resource_state(w,actor,room,src) or not reachable(room):continue
             used.add((room,key))
             step(room,'gather',key,max(1,src.get('gather_minutes',1)));qty-=src['yields'][iid]
             if qty<=0:return
@@ -156,7 +161,7 @@ def plan(w,actor,spec):
             if missing>0:harvest(iid,missing)
         station=rec.get('station','hand')
         candidates=[origin] if station=='hand' else sorted(sites(w)[1].get(station,()),key=lambda r:nearest(w,origin,r))
-        room=next((r for r in candidates if ecology.available(w,r,rec) and not geology_impacts.room_unusable(w,r) and distance(w,actor,origin,r) is not None),None)
+        room=next((r for r in candidates if ecology.available(w,r,rec) and not geology_impacts.room_unusable(w,r) and reachable(r)),None)
         if room is None:raise ValueError('No reachable working station has the facilities and living animals this design needs.')
         for _ in range(qty):step(room,'make',key,max(1,rec.get('minutes',5)))
     else:

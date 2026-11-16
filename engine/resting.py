@@ -11,7 +11,7 @@ MAX_MINUTES = 1500  # One 25-hour Expanse day.
 READONLY = {'look','map','inventory','score','status','help','standing','workshop',
     'provenance','survey','recipes','catalog','wardrobe','materials','quests',
     'adventures','market','journal','condition','time','inspect','spells',
-    'companions','services','route','guide','track','untrack','save','atlas',
+    'companions','services','route','guide','interface','track','untrack','save','atlas',
     'rest','sleep','wait','tradeactive','tradeview','tradeclose','tradecancel'}
 
 

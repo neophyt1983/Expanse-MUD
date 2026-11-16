@@ -1,5 +1,5 @@
 """Plan click travel only over places the player has walked or can see now."""
-from engine import frontiers, local_visibility
+from engine import frontiers, local_visibility, player_routes
 
 
 def plan(world, player, destination, compiled):
@@ -31,7 +31,8 @@ def plan(world, player, destination, compiled):
     rows=compiled[0]
     if all(rows[r]["_visual_style"][0]=="outdoors" for r in (player.location,destination)):
         allowed={r for r in allowed if r in rows and rows[r]["_visual_style"][0]=="outdoors"}
-    steps=frontiers.path(world,player.location,destination,player,allowed=allowed)
+    steps=player_routes.path(world,player.location,destination,player,allowed=allowed,
+                             positions=compiled[1],rows=rows)
     if steps is None:
         route=frontiers.path(world,player.location,destination,player,include_locked=True,allowed=allowed)
         for origin,direction,_ in route or ():

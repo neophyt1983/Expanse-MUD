@@ -387,13 +387,18 @@ def advance(w):
                              if 'business' in row['kinds'] and not row.get('deceased')
                              for pid in row['participants'])
     for a in list(w.entities.values()):
-        if a.is_player or not a.alive or a.id in used or not profile(w, a)['autonomous']: continue
+        if a.is_player or not a.alive or a.id in used: continue
+        pa = profile(w, a)
+        if not pa['autonomous']: continue
         for b in w.entities_in_room(a.location):
-            if b.is_player or b.id == a.id or b.id in used or not profile(w, b)['autonomous']: continue
-            pa, pb = profile(w, a), profile(w, b)
+            if b.is_player or b.id == a.id or b.id in used: continue
+            pb = profile(w, b)
+            if not pb['autonomous']: continue
+            # These local decisions do not change social profiles. Reuse the
+            # current pair's values; nothing is cached across simulation calls.
             common = set(pa['accepts']) & set(pb['accepts'])
             existing = state(w)['bonds'].get(key(a, b), {}).get('kinds', [])
-            if not profile(w, a)['sentient'] and not profile(w, b)['sentient']:
+            if not pa['sentient'] and not pb['sentient']:
                 try:
                     breed_animals(w, a, b); used.update((a.id, b.id)); break
                 except ValueError: pass
@@ -407,7 +412,7 @@ def advance(w):
                         partner_counts.update((a.id, b.id))
                     used.update((a.id, b.id)); break
             else:
-                if all(profile(w, e)['family_enabled'] for e in (a, b)):
+                if pa['family_enabled'] and pb['family_enabled']:
                     try: conceive(w, a, b); used.update((a.id, b.id))
                     except ValueError: pass
             if a.id in used: break

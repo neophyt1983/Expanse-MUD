@@ -1,7 +1,7 @@
 """A viewport of terrain reached through real same-floor map edges."""
 from collections import deque
 
-from engine import frontiers, locks
+from engine import frontiers, locks, player_routes
 from engine.mapping import VECTORS
 from engine.route_surfaces import descriptor
 from engine import geology, facility_landmarks
@@ -182,11 +182,13 @@ def window(world, player, compiled, extent, destination=None, *, require_open=Fa
                 if (rid in rows and rows[rid]['_visual_style'][0]=='outdoors'
                         and world.rooms[rid].map_visibility!='hidden'):
                     allowed.add(rid)
-        path=frontiers.path(world,origin,destination,player,allowed=allowed)
+        path=player_routes.path(world,origin,destination,player,allowed=allowed,
+                                positions=positions,rows=rows)
         if path is not None:return path
     coordinates = {origin: (0, 0)}
     occupied = {(0, 0)}
-    previous = {}
+    depths = {origin: 0} if destination is not None else None
+    finish = 0 if destination == origin else None
     queue = deque([origin])
     tiles = []
     check_edges = require_open or destination is not None or kind != 'outdoors'
@@ -197,13 +199,8 @@ def window(world, player, compiled, extent, destination=None, *, require_open=Fa
     while queue:
         rid = queue.popleft()
         x, y = coordinates[rid]
-        if destination == rid:
-            steps = []
-            while rid != origin:
-                parent, direction = previous[rid]
-                steps.append((parent, direction, rid))
-                rid = parent
-            return steps[::-1]
+        if finish is not None and depths[rid] >= finish:
+            break
         row = rows[rid]
         if destination is None:
             tile = dict(id=rid, dx=x, dy=y, terrain=row['_visual_style'][1])
@@ -235,9 +232,24 @@ def window(world, player, compiled, extent, destination=None, *, require_open=Fa
             coordinates[target] = dx, dy
             occupied.add((dx, dy))
             if destination is not None:
-                previous[target] = rid, direction
+                depths[target] = depths[rid] + 1
+                if target == destination:
+                    finish = depths[target]
             queue.append(target)
     if destination is not None:
+        if destination in coordinates:
+            def shown_edge(source, direction, target):
+                vector = VECTORS.get(direction.removeprefix('approach '))
+                if vector is None or vector[2] or target not in coordinates:
+                    return False
+                expected = tuple(a + b for a, b in zip(positions[source], vector))
+                return ((coordinates[source][0] + vector[0], coordinates[source][1] + vector[1]) == coordinates[target]
+                        and (positions[target] == expected
+                             or crosses_seam(rows[source], rows[target], direction.removeprefix('approach '))))
+            path = player_routes.path(world, origin, destination, player, allowed=coordinates,
+                                      positions=positions, rows=rows, edge_allowed=shown_edge)
+            if path is not None:
+                return path
         raise ValueError('There is no open walking route to that tile on this map.')
     if not require_open and kind=='outdoors':
         by_cell={(t['dx'],t['dy']):t for t in tiles}

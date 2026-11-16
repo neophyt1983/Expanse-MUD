@@ -91,7 +91,7 @@ def notify(w,a,b,emotion,note='',response=None,lines=None):
 def emote(w,a,b,emotion,*,town_turn=None):
     if emotion not in EMOTIONS: raise ValueError('Choose one of the ten social emotions.')
     if b.is_player: raise ValueError('Use normal chat with other players.')
-    if not rel.profile(w,b)['sentient']: raise ValueError('Use treats and play with animals; social conversations require sentience.')
+    if not rel.sentient(w,b): raise ValueError('Use treats and play with animals; social conversations require sentience.')
     from engine import livelihoods
     for person in (a,b):
         if not livelihoods.awake(w,person):raise ValueError(person.name+' is sleeping. Choose Wake NPC or return during waking hours.')
@@ -326,8 +326,16 @@ def advance(w):
             nearby_conversations(w,turn)
     if s.get('last_emoji_hour')==hour:return
     s['last_emoji_hour']=hour;used=set()
+    from engine import livelihoods
     for a in list(w.entities.values()):
-        if a.is_player or not a.alive or a.id in used or not rel.profile(w,a)['sentient'] or not rel.profile(w,a)['autonomous']:continue
+        if a.is_player or not a.alive or a.id in used:continue
+        profile=rel.profile(w,a)
+        if not profile['sentient'] or not profile['autonomous']:continue
+        # emote requires both participants to be awake, even when an owed
+        # reply reverses the speaker. Skip doomed scans before copying prefs.
+        try:
+            if not livelihoods.awake(w,a):continue
+        except ValueError:continue
         neighbors = w.entities_in_room(a.location)
         offset = hour % len(neighbors) if neighbors else 0
         neighbors = neighbors[offset:] + neighbors[:offset]
@@ -336,7 +344,10 @@ def advance(w):
             return a.id in person.progress.get('town_talk', {}).get('errands', {})
         neighbors.sort(key=lambda person: not (person.id in errands or owes_reply(person)))
         for b in neighbors:
-            if b.id==a.id or b.is_player or b.id in used or not rel.profile(w,b)['sentient']:continue
+            if b.id==a.id or b.is_player or b.id in used or not rel.sentient(w,b):continue
+            try:
+                if not livelihoods.awake(w,b):continue
+            except ValueError:continue
             speaker, listener = (b,a) if owes_reply(b) else (a,b)
             options=prefs(w,speaker,include_needs=False)['emotions']
             if not options:continue

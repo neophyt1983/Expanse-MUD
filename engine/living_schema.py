@@ -130,3 +130,6 @@ DEFAULTS["recipe"]["required_abilities"]=[]
 DEFAULTS["ability"]["training_classes"]=[]
 
 DEFAULTS["quest"]["escort"]={}
+
+# Optional, explicitly authored linked quests and their original-save snapshot.
+DEFAULTS['quest'].update(quest_chain={},quest_split_migration={})

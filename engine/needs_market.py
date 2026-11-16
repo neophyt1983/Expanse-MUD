@@ -86,7 +86,9 @@ def target(w,definition,iid,demographics=None):
         population=sum(1 for n in w.npcs.values() if n.get('group')==group and n.get('social_profile',{}).get('sentient'))
         sellers=sum(any((s.get('item') if isinstance(s,dict) else s)==iid for s in n.get('stock',[])) for n in w.npcs.values() if n.get('group')==group)
     else:
-        populations,vendors=demographics
+        # A transfer pass supplies a lazy census. Explicit targets and existing
+        # cached targets return above without evaluating it.
+        populations,vendors=demographics() if callable(demographics) else demographics
         population=populations[group];sellers=vendors[group,iid]
     relief=max(effects(w,iid).values(),default=0)
     demand=population*(30/max(1,relief) if relief else .08)
@@ -94,17 +96,22 @@ def target(w,definition,iid,demographics=None):
     cache[cache_key]=result
     return result
 
+def _demographics(w):
+    """One read-only definition census; callers own its short-lived scope."""
+    populations=Counter();vendors=Counter()
+    for definition in w.npcs.values():
+        group=definition.get('group')
+        if definition.get('social_profile',{}).get('sentient'):populations[group]+=1
+        for iid in {(entry.get('item') if isinstance(entry,dict) else entry) for entry in definition.get('stock',[])}:vendors[group,iid]+=1
+    return populations,vendors
+
 def ensure(w):
     if not enabled(w) or getattr(w,'_finite_ready',False):return
     w._finite_ready=True
     econ=society.economy(w);seen=econ.setdefault('finite_merchants',[])
     # One census for initial finite-stock setup, rather than one per item
     # per merchant. This index exists only for this synchronous setup call.
-    populations=Counter();vendors=Counter()
-    for definition in w.npcs.values():
-        group=definition.get('group')
-        if definition.get('social_profile',{}).get('sentient'):populations[group]+=1
-        for iid in {(entry.get('item') if isinstance(entry,dict) else entry) for entry in definition.get('stock',[])}:vendors[group,iid]+=1
+    demographics=_demographics(w)
     for ident,d in w.npcs.items():
         if not d.get('stock'):continue
         stock=w.shop_state.setdefault(ident,{})
@@ -113,7 +120,7 @@ def ensure(w):
             if iid not in w.items:continue
             initial=int(entry.get('qty',0))
             if ident not in seen and (iid not in stock or initial<=0 or (entry.get('legacy_unlimited') and stock.get(iid)==0)):
-                stock[iid]=target(w,d,iid,(populations,vendors)) if initial<=0 else initial
+                stock[iid]=target(w,d,iid,demographics) if initial<=0 else initial
             stock[iid]=max(0,int(stock.get(iid,0)))
         if ident not in seen:seen.append(ident)
 
@@ -156,18 +163,36 @@ def advance(w,minutes):
     # Abstract regional transfers are not road-routed; both endpoints must be open.
     # Merchants buy finite goods already produced in their own region.
     paid=set()
+    from engine import livelihoods
+    demographics=None
+    sources_by_group={}
+    openness={}
+    # This synchronous phase changes only needs-independent stock, money and
+    # logs. Keep ordered source rows and live stock dictionaries, but share its
+    # unchanged definition census and room-opening answers until it returns.
+    def census():
+        nonlocal demographics
+        if demographics is None:demographics=_demographics(w)
+        return demographics
+    def room_open(rid):
+        if rid not in openness:openness[rid]=livelihoods.room_open(w,rid)
+        return openness[rid]
+    def sources(group):
+        if group not in sources_by_group:
+            sources_by_group[group]=[(rid,row) for rid,row in econ['shops'].items()
+                                     if rid in w.rooms and w.rooms[rid].group==group]
+        return sources_by_group[group]
     for m in w.entities.values():
         if not m.alive or m.is_player or not w.npcs.get(m.source_def,{}).get('stock') or m.source_def in paid:continue
-        from engine import livelihoods
-        if not livelihoods.room_open(w,m.location):continue
+        if not room_open(m.location):continue
         paid.add(m.source_def);d=w.npcs[m.source_def];stock=w.shop_state[m.source_def]
         for entry in d['stock']:
             iid=entry['item']
             if iid not in w.items:continue
-            needed=max(0,target(w,d,iid)-stock.get(iid,0))
-            for rid,other in econ['shops'].items():
+            needed=max(0,target(w,d,iid,census)-stock.get(iid,0))
+            for rid,other in sources(m.group_id):
                 if not needed:break
-                if rid not in w.rooms or w.rooms[rid].group!=m.group_id or not livelihoods.room_open(w,rid):continue
+                if not room_open(rid):continue
                 available=other['stock'].get(iid,0)
                 cost=max(1,merchant_price(w,m.source_def,iid,entry.get('price',w.items[iid].get('value',1)))//2)
                 qty=min(needed,available,max(0,m.gold)//cost)

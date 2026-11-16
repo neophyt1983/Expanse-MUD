@@ -33,10 +33,11 @@ def install(w):
     return None
 
 
-def policy(w, room):
+def policy(w, room, *, _refuges=None):
     """One geography-based roll per observed location, not per character."""
     from engine import encounter_geography, starter_safety
-    if room in starter_safety.all_rooms(w):
+    refuges = starter_safety.all_rooms(w) if _refuges is None else _refuges
+    if room in refuges:
         return None
     area = encounter_geography.describe(w, room)
     if not area or area['zone'] not in ('road', 'outdoor'):
@@ -165,7 +166,7 @@ def spawn(w, room, city, which, now, *, rng=random.random):
 
 def npc_observers(w, s):
     """Rotate a small budget through actual awake countryside travelers."""
-    from engine import relationships, sleep_movement, livelihoods
+    from engine import relationships, sleep_movement, livelihoods, starter_safety
     prior = getattr(w, '_regional_npc_positions', {})
     positions, travelers = {}, []
     # Reading the job ledger must not execute assignment(), which advances work.
@@ -177,6 +178,10 @@ def npc_observers(w, s):
             if job.get('bound'):
                 fieldworkers.update(job.get('targets', []))
     verbs = ('travelling', 'traveling', 'walking', 'patrolling', 'exploring', 'gathering', 'hunting', 'delivering')
+    # Selection only reads geography. Share these derived answers within this
+    # pass, then discard them before encounters can move or spawn anything.
+    refuges, areas = None, {}
+    geography = getattr(w, '_encounter_geography', None)
     for actor in w.entities.values():
         if (not actor.alive or actor.is_player or actor.progress.get('companion_owner')
                 or actor.progress.get('zoo_exhibit') or actor.progress.get('court_case')
@@ -188,7 +193,17 @@ def npc_observers(w, s):
         fieldwork = actor.id in fieldworkers
         if not (moving or fieldwork or any(verb in str(getattr(actor, 'activity', '')).casefold() for verb in verbs)):
             continue
-        if policy(w, actor.location):
+        if refuges is None:
+            refuges = starter_safety.all_rooms(w)
+        if actor.location not in areas:
+            area = policy(w, actor.location, _refuges=refuges)
+            current_geography = getattr(w, '_encounter_geography', None)
+            if current_geography is not geography:
+                # A lazy topology audit can rebuild distances during this pass.
+                areas.clear()
+                geography = current_geography
+            areas[actor.location] = area
+        if areas[actor.location]:
             travelers.append(actor)
     w._regional_npc_positions = positions  # Ephemeral; no persisted position history.
     if not travelers:

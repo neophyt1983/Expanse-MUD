@@ -67,7 +67,7 @@ def practice_view(w,p):
     return dict(used=used,limit=config(w)['repeat_daily_xp'],cooldown_minutes=config(w)['repeat_cooldown_minutes'])
 
 
-def award(w,p,kind,key,amount=None,repeat=None):
+def award(w,p,kind,key,amount=None,repeat=None,*,round_up=False):
     cfg=config(w)
     if (not p.is_player and kind!='combat') or not p.alive or not cfg['enabled'] or p.progress.get('zoo_exhibit'):return ''
     from engine import living,worldtime
@@ -97,7 +97,8 @@ def award(w,p,kind,key,amount=None,repeat=None):
         if practice['used']>=cfg['repeat_daily_xp']:return 'Practice XP budget used for this day; it renews tomorrow. Your work still succeeds.'
         count=practice['counts'].get(ident,0)
         percent=max(min(cfg['repeat_floor_percent'],cfg['repeat_percent']),cfg['repeat_percent']*2//(count+2))
-        amount=min(max(1,amount*percent//100),cfg['repeat_daily_xp']-practice['used'])
+        scaled=(amount*percent+99)//100 if round_up else amount*percent//100
+        amount=min(max(1,scaled),cfg['repeat_daily_xp']-practice['used'])
         practice['used']+=amount;practice['counts'][ident]=count+1
     row['earned'][ident]=True
     if repeat:last[ident]=now
@@ -129,7 +130,9 @@ def quest(w,p,q):
     fresh_objectives=any(q.get(k) for k in ('visit_rooms','talk_to','witnesses')) or any(type(n) is int and n>0 for k in ('kills','actions') for n in q.get(k,{}).values())
     fresh=q.get('progress_scope')=='accepted' and fresh_objectives
     repeat=bool(q.get('repeatable') and (consumed or fresh))
-    return award(w,p,'quest',q['id'],q.get('reward_xp',config(w)['quest_xp']),repeat=repeat)
+    from engine.quest_chains import definition
+    return award(w,p,'quest',q['id'],q.get('reward_xp',config(w)['quest_xp']),repeat=repeat,
+                 round_up=bool(definition(q)))
 
 
 def social(w,p,q,npc):

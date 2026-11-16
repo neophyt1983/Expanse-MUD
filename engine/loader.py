@@ -115,7 +115,7 @@ def build_world(game_dir=None) -> World:
         return world_additions.records(name,load_json(name,folder),patch)
     world = World()
     world.game_dir = str(target_dir.resolve())
-    world._pixel_art_update = {'pixel_art': patch['pixel_art']} if patch and patch.get('pixel_art') else None
+    world._pixel_art_update = world_additions.pixel_updates(patch)
     world.room_details = {r["id"]: r for r in read_records("rooms.json", target_dir)}
     for name in ("recipes", "resources", "encounters", "interactions", "species"):
         setattr(world, name, {r["id"]: r for r in read_records(name+".json", target_dir)})
@@ -169,6 +169,10 @@ def build_world(game_dir=None) -> World:
     from engine import progression
     progression_errors=progression.validate_config(world.metadata.get("progression",{}))+progression.validate({"quest":list(world.quests.values()),"class":list(world.classes.values())})
     if progression_errors:raise ValueError("Progression content: "+"; ".join(progression_errors))
+    from engine import quest_chains
+    chain_errors=quest_chains.validate({'quest':list(world.quests.values()),
+        'room':list(world.room_details.values()),'item':list(world.items.values())})
+    if chain_errors:raise ValueError('Quest chain content: '+'; '.join(chain_errors))
     world.start_room = world.metadata.get("start_room")
     world.abilities = {a["id"]: a for a in read_records("abilities.json", target_dir)}
     world.shortcuts = load_shortcuts(target_dir)
@@ -211,6 +215,11 @@ def validate_world(world: World):
     errors.extend(travel_pacing.validate(world.metadata))
     from engine import loot_tables
     errors.extend(loot_tables.validate({'npc': list(world.npcs.values()), 'item': list(world.items.values())}))
+    from engine import interface_tours
+    errors.extend(interface_tours.validate({'quest': list(world.quests.values())}))
+    from engine import quest_chains
+    errors.extend(quest_chains.validate({'quest':list(world.quests.values()),
+        'room':list(world.room_details.values()),'item':list(world.items.values())}))
     room_ids = set(world.rooms.keys())
     item_ids = set(world.items.keys())
     npc_ids = set(world.npcs.keys())

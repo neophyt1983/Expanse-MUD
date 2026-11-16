@@ -697,9 +697,11 @@ def apply_effects(world,q):
 
 def quest_blocked(world,player,quest):
     """One eligibility rule for acceptance, turn-in, and quest browsers."""
-    from engine import quest_progress as qp
+    from engine import quest_progress as qp, quest_chains
     def completed(qid):return qp.status(world,player,qid)=='complete'
     q=quest;p=player;pr=progress(p);s=state(world)
+    chain_block=quest_chains.blocked(world,player,quest)
+    if chain_block:return chain_block
     if any(not completed(i) for i in q.get('prerequisites',[])):return 'Complete the prerequisite quests first.'
     if any(completed(i) for i in q.get('exclusive_with',[])):return 'Another outcome has already been chosen.'
     if any(s.get('flags',{}).get(k)!=v for k,v in q.get('requires_world_flags',{}).items()):return 'World conditions do not permit this quest yet.'
@@ -711,7 +713,8 @@ def quest_blocked(world,player,quest):
 
 def quest_command(ctx,args,name):
     w,p,r=ctx.world,ctx.player,ctx.room;pr=progress(p);s=state(w)
-    from engine import quest_progress as qp, knowledge
+    from engine import quest_progress as qp, knowledge, quest_chains
+    quest_chains.migrate(w,p)
     def goal(q,kind,key):return qp.count(p,q,kind,key)
     def blocked(q):return quest_blocked(w,p,q)
     if name in ('quests','journal'):
@@ -742,6 +745,8 @@ def quest_command(ctx,args,name):
             why=blocked(q)
             rows.append(f"{q['name']} — {status}"+(' (locked)' if why else '')+'\n'+q.get('description',''))
             if status=='active' or query:
+                from engine import interface_tours
+                if interface_tours.blocked(p,q):rows.append('Interface guide: finish the introductory steps through Actions → Interface guide, or interface resume.')
                 rows.append('Objectives: '+', '.join([f"{w.items.get(i,{}).get('name',i)} {inventory_counts[i]}/{n}" for i,n in q.get('required_items',{}).items()]+[f"{w.npcs.get(i,{}).get('name',i)} defeated {goal(q,'kills',i)}/{n}" for i,n in q.get('kills',{}).items()]+[w.rooms[i].name+(' [visited]' if goal(q,'visits',i) else ' [unvisited]') for i in q.get('visit_rooms',[])]+[f'{knowledge.action_label(w,k)} {goal(q,"actions",k)}/{v}' for k,v in q.get('actions',{}).items()]))
                 if q.get('escort'):
                     from engine import escorts
@@ -767,21 +772,25 @@ def quest_command(ctx,args,name):
     if why:return why
     if q.get('scope')=='world' and qid in s.get('completed_world',[]):return 'This shared-world outcome has already been completed.'
     if name=='accept':
-        if pr['quests'].get(qid)=='active':return 'Already active. Review your journal.'
+        if pr['quests'].get(qid)=='active':return 'Already active. Review your Quests.'
         if pr['quests'].get(qid)=='complete' and not q.get('repeatable'):return 'Already completed.'
         if s['minute']-pr.get('quest_times',{}).get(qid,-100000)<q.get('cooldown_minutes',worldtime.MINUTES_PER_DAY):return 'This work is not available again yet.'
         if q.get('offer_room') and q['offer_room']!=r.id:return 'Accept this quest at '+w.rooms[q['offer_room']].name+'.'
         if q.get('escort'):
             pr.get('escort_arrivals',{}).pop(qid,None)
             knowledge.teach(w,p,{'rooms':[q['escort']['destination']]})
-        qp.start(p,q)
+        quest_chains.start(w,p,q)
         pr['quests'][qid]='active'
+        from engine import interface_tours
+        tour_started=interface_tours.begin(w,p,q)
         if q.get('escort'):
             from engine import navigation,escorts
             if 'selected_quests' in pr and qid not in pr['selected_quests'] and len(navigation.selected(w,p))<navigation.MAX_SELECTED:pr['selected_quests'].append(qid)
             escorts.meet(w,p,q)
-        return 'Quest accepted. '+q.get('description','')
+        return 'Quest accepted. '+q.get('description','')+('\n\n'+interface_tours.describe(interface_tours.projection(w,p)) if tour_started else '')
     if pr['quests'].get(qid)!='active':return 'Accept the quest first.'
+    from engine import interface_tours
+    if interface_tours.blocked(p,q):return 'Finish the interface guide first. Open Interface guide in Actions, or use interface resume and interface next.'
     if q.get('turn_in_room') and q['turn_in_room']!=r.id:return 'Turn this in at '+w.rooms[q['turn_in_room']].name+'.'
     if any(goal(q,'kills',i)<n for i,n in q.get('kills',{}).items()):return 'Combat objectives are incomplete.'
     if any(not goal(q,'visits',i) for i in q.get('visit_rooms',[])):return 'Exploration objectives are incomplete.'
@@ -803,13 +812,17 @@ def quest_command(ctx,args,name):
         s.setdefault('completed_world',[]).append(qid);s.setdefault('flags',{}).update(q.get('world_flags',{}));apply_effects(w,q)
     from engine import progression
     advancement=progression.quest(w,p,q)
-    return 'Quest complete. '+q.get('completion_text','Your contribution is recorded.').replace('Nearby quest offers','Local people and request ledgers')+' Rewards received.'+('\n'+advancement if advancement else '')
+    chain_notice=quest_chains.completed(w,p,q)
+    return 'Quest complete. '+q.get('completion_text','Your contribution is recorded.').replace('Nearby quest offers','Local people and request ledgers')+' Rewards received.'+('\n'+advancement if advancement else '')+('\n'+chain_notice if chain_notice else '')
 
 # One dispatcher also records successful activities for demonstration and profession quests.
 _base_command=command
 def command(ctx,args,name):
     if not enabled(ctx.world):return 'Living-world rules are not enabled for this world.'
     if name in ('quests','journal','accept','complete'):return quest_command(ctx,args,name)
+    if name=='interface':
+        from engine import interface_tours
+        return interface_tours.command(ctx.world,ctx.player,args)
     if name=='adventures':
         from engine.quest_journal import adventures
         return adventures(ctx,args)
@@ -850,6 +863,7 @@ def command(ctx,args,name):
             key='harvest:'+enc['id'];actions[key]=actions.get(key,0)+1
     return result
 COMMANDS.update(adventures=('Browse long story adventures by region','adventures [region] [page 2]'),market=('Find reachable rotating provision counters','market [item]'),marketbuy=('Buy from a local staffed provision counter','marketbuy <item>'),journal=('Review quest objectives','journal'), route=('Find the next direction to a named place','route adventurers school'),guide=('Read the demonstration guide','guide'),revive=('Recover after defeat','revive'))
+COMMANDS['interface']=('Review the interface guide for an accepted quest','interface guide | next | later | resume | restart')
 
 
 def material_index(world,query='',selected_ids=None):
@@ -1007,4 +1021,6 @@ def validate(data):
     from engine import knowledge
     from engine import progression
     from engine import ability_rules
-    return _knowledge_validate(data)+knowledge.validate(data)+progression.validate(data)+ability_rules.validate(data)
+    from engine import interface_tours
+    from engine import quest_chains
+    return _knowledge_validate(data)+knowledge.validate(data)+progression.validate(data)+ability_rules.validate(data)+interface_tours.validate(data)+quest_chains.validate(data)

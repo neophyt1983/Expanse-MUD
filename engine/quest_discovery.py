@@ -30,7 +30,9 @@ def offer_text(world,player,quest_ids):
     available={q['id']:q for q in knowledge.local_offers(world,player)}
     choices=[qid for qid in quest_ids if qid in available]
     player._source_quest_choices=choices
-    text=''.join('\nRequest: '+available[qid]['name']+'. '+available[qid].get('description','')+'\nTo accept: accept '+available[qid]['name'] for qid in choices)
+    from engine import interface_tours
+    text=''.join('\nRequest: '+available[qid]['name']+'. '+available[qid].get('description','')+
+                 ('\nOpen quest offers below, then choose Accept quest & start guide. Text command: accept ' if interface_tours.definition(available[qid]) else '\nTo accept: accept ')+available[qid]['name'] for qid in choices)
     recorded=sourced(player);accepted=knowledge.accepted(world,player)
     for qid in quest_ids:
         q=world.quests.get(qid,{})
@@ -65,7 +67,8 @@ def attention(world,player):
             target=quest.get('turn_in_room')
             if quest.get('category')=='first steps' and target in world.rooms and target!=player.location:
                 knowledge.teach(world,player,{'rooms':[target]})
-                text+=' Your first stop is '+world.rooms[target].name+'. I have marked it on your globe.'
+                from engine import interface_tours
+                text+=(' After the interface guide, your practice stop is ' if interface_tours.definition(quest) else ' Your first stop is ')+world.rooms[target].name+'. I have marked it on your globe.'
                 break
         return npc.name+' calls to you: '+text+offer_text(world,player,ids)
     return ''
@@ -95,4 +98,5 @@ def take_choices(world,player):
     if not ids:return []
     from engine import knowledge
     available={q['id']:q for q in knowledge.local_offers(world,player)}
-    return [dict(id=qid,name=available[qid]['name'],description=available[qid].get('description','')) for qid in ids if qid in available]
+    from engine import interface_tours
+    return [dict(id=qid,name=available[qid]['name'],description=available[qid].get('description',''),interface_guide=bool(interface_tours.definition(available[qid]))) for qid in ids if qid in available]

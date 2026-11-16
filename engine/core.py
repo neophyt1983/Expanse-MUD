@@ -124,6 +124,8 @@ class World:
     def bind_entity(self, entity: Entity):
         """Attach ephemeral callbacks when creating, resuming or reloading."""
         entity._world_ref = weakref.ref(self)
+        from engine import quest_chains
+        quest_chains.migrate(self, entity)
 
     def add_entity(self, entity: Entity, room_id: str):
         self.bind_entity(entity)

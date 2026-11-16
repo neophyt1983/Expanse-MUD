@@ -5,6 +5,8 @@ One door definition controls both sides of the same exit pair.
 """
 from engine import living
 from engine.directions import direction
+from collections import Counter
+import shlex
 
 
 def invalidate(world):
@@ -101,9 +103,63 @@ def notice(world, actor, row, crime='lock tampering'):
     return ' '+', '.join(n.name for n in witnesses)+' notices the tampering.'
 
 
-def act(world, actor, action, query):
+def item_choices(world, ids, *, actor=None):
+    """Count the real units; unavailable or fixed objects are never transferred."""
+    rows=[]
+    for iid,count in Counter(ids).items():
+        item=world.items.get(iid)
+        reason=('Item definition unavailable.' if not item else
+                'Fixed in place; cannot be carried.' if item.get('anchored_readable') is True else
+                'Unequip this item first.' if actor and iid in actor.equipped.values() else '')
+        rows.append(dict(id=iid,name=str((item or {}).get('name') or iid),count=count,
+                         movable=not reason,reason=reason))
+    return sorted(rows,key=lambda row:(row['name'].casefold(),row['id']))
+
+
+def transfer_selection(world, actor, query, item_query, quantity, *, putting=False, exact=False):
+    """Validate the whole transfer before changing either finite collection."""
+    from engine import item_catalog, sleep_movement
+    if not actor or not actor.alive or sleep_movement.asleep(world,actor):
+        raise ValueError('You must be awake and able to act.')
+    origin,row=select(world,actor,query);s=saved(world,origin,row)
+    if row.get('direction'):raise ValueError('A door cannot store items. Choose a container.')
+    if s['locked']:raise ValueError(row.get('name',row['id'])+' is locked.')
+    if putting and row.get('practice'):raise ValueError('Practice locks must stay empty. Choose a storage container.')
+    if type(quantity) is not int or quantity<1:raise ValueError('Choose a positive whole item quantity.')
+    source=actor.inventory if putting else s['contents']
+    missing='That item is no longer in your inventory.' if putting else 'That item is no longer in the container.'
+    if not isinstance(item_query,str) or not item_query.strip():raise ValueError('Choose an item to transfer.')
+    if exact and (item_query not in source or item_query not in world.items):raise ValueError(missing)
+    item=item_catalog.choose(item_catalog.item_rows(world,source),item_query,missing=missing)
+    iid=item['id'];count=source.count(iid)
+    if exact and iid!=item_query:raise ValueError('That item selection changed. Refresh local actions.')
+    if item.get('anchored_readable') is True:raise ValueError('The '+str(item.get('name') or iid)+' is fixed in place and cannot be moved.')
+    if putting and iid in actor.equipped.values():raise ValueError('Unequip the '+str(item.get('name') or iid)+' first.')
+    if quantity>count:raise ValueError('Only '+str(count)+' of that item '+('remain in your inventory.' if putting else 'remain in the container.'))
+    return origin,row,s,iid,count
+
+
+def transfer(world, actor, query, item_query, quantity=1, *, putting=False):
+    origin,row,s,iid,_=transfer_selection(world,actor,query,item_query,quantity,putting=putting)
+    source=actor.inventory if putting else s['contents']
+    target=s['contents'] if putting else actor.inventory
+    remaining=[];remove=quantity
+    for entry in source:
+        if entry==iid and remove:remove-=1
+        else:remaining.append(entry)
+    received=target+[iid]*quantity
+    warning=notice(world,actor,row,'lock tampering' if putting else 'theft')
+    # Both replacements are prepared before the first mutation. Duplicate units
+    # retain their counts, and a rejected request never removes a partial stack.
+    source[:]=remaining;target[:]=received
+    return ('You put ' if putting else 'You take ')+str(quantity)+' × '+str(world.items[iid].get('name') or iid)+(' in ' if putting else ' from ')+row.get('name',row['id'])+'.'+warning
+
+
+def act(world, actor, action, query, *, item=None, quantity=1):
     from engine import sleep_movement
     if not actor.alive or sleep_movement.asleep(world,actor):return 'You must be awake and able to act.'
+    if action in ('take-item','put'):
+        return transfer(world,actor,query,item,quantity,putting=action=='put')
     origin,row=select(world,actor,query);s=saved(world,origin,row);name=row.get('name',row['id'])
     if action=='inspect':
         return name+': '+('locked' if s['locked'] else 'unlocked')+'. '+row.get('description','')
@@ -134,14 +190,16 @@ def act(world, actor, action, query):
         if row.get('direction'):return 'Use the exit to pass through this door.'
         if s['locked']:return name+' is locked.'
         if not s['contents']:return name+' is empty.'
-        return name+' contains: '+', '.join(world.items.get(i,{}).get('name',i) for i in s['contents'])+'.'
+        return name+' contains: '+', '.join(str(i['count'])+' × '+i['name'] for i in item_choices(world,s['contents']))+'.'
     if action=='take':
         if row.get('direction'):return 'A door has no contents.'
         if s['locked']:return name+' is locked.'
         if not s['contents']:return name+' is empty.'
+        if any(not item['movable'] for item in item_choices(world,s['contents'])):
+            return 'Some contents cannot be moved. Choose a movable item to take separately.'
         warning=notice(world,actor,row,'theft');actor.inventory.extend(s['contents']);s['contents']=[]
         return 'You take the contents of '+name+'.'+warning
-    raise ValueError('Choose inspect, unlock, lock, pick, open, or take.')
+    raise ValueError('Choose inspect, unlock, lock, pick, open, take, take-item, or put.')
 
 
 def service(world, player, npc, query):
@@ -167,6 +225,13 @@ def command(ctx,args):
     action,_,target=args.strip().partition(' ')
     if action not in ('','list','inspect','open'):
         ctx.world.dirty_players=getattr(ctx.world,'dirty_players',set())|{ctx.player.id}
+    if action in ('take-item','put'):
+        try:parts=shlex.split(target)
+        except ValueError as exc:raise ValueError('Close quotes around container and item names.') from exc
+        if len(parts) not in (2,3):raise ValueError('Use locks '+action+' "<container>" "<item>" [quantity].')
+        try:quantity=int(parts[2]) if len(parts)==3 else 1
+        except ValueError as exc:raise ValueError('Choose a positive whole item quantity.') from exc
+        return act(ctx.world,ctx.player,action,parts[0],item=parts[1],quantity=quantity)
     if action in ('lesson','kit'):
         return teach(ctx.world,ctx.player,find_npc(ctx.world,ctx.player,target),action)
     if action=='service':
@@ -182,7 +247,7 @@ def command(ctx,args):
 
 def register(registry):
     from engine.commands import Command
-    registry.register(Command('locks','Interact with nearby physical locks','locks list | locks <inspect|unlock|lock|pick|open|take> <name>',command,example='locks pick practice chest'))
+    registry.register(Command('locks','Interact with nearby containers and locks','locks list | locks <inspect|unlock|lock|pick|open|take> <name> | locks <take-item|put> "<container>" "<item>" [quantity]',command,example='locks put "storage chest" bread 2'))
 
 
 def validate(data):
@@ -230,12 +295,20 @@ def validate(data):
 
 def projection(world, actor):
     """Local interaction packet only; no contents or key IDs behind locked fixtures."""
-    return [{'id':origin+':'+row['id'],'name':row.get('name',row['id']),
-             'kind':'door' if row.get('direction') else 'container',
-             'locked':bool(saved(world,origin,row)['locked']),
-             'pickable':row.get('pickable',True),'has_key':has_key(world,actor,row),
-             'practice':row.get('practice',False),'permitted':permitted(world,actor,row)}
-            for origin,row in local(world,actor.location)]
+    result=[];deposits=None
+    for origin,row in local(world,actor.location):
+        state=saved(world,origin,row)
+        view={'id':origin+':'+row['id'],'name':row.get('name',row['id']),
+              'kind':'door' if row.get('direction') else 'container',
+              'locked':bool(state['locked']),
+              'pickable':row.get('pickable',True),'has_key':has_key(world,actor,row),
+              'practice':row.get('practice',False),'permitted':permitted(world,actor,row)}
+        if view['kind']=='container' and not view['locked']:
+            view['contents']=item_choices(world,state['contents'])
+            if deposits is None:deposits=[item for item in item_choices(world,actor.inventory,actor=actor) if item['movable']]
+            view['deposit_items']=[] if view['practice'] else deposits
+        result.append(view)
+    return result
 
 
 def find_npc(world,player,query):

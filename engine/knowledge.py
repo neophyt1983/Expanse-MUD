@@ -36,6 +36,8 @@ def teach(world, player, table):
 
 
 def accepted(world, player):
+    from engine import quest_chains
+    quest_chains.migrate(world, player)
     return {qid for qid, status in player.progress.get('quests', {}).items()
             if status in ('active', 'complete') and qid in world.quests}
 
