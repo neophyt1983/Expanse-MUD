@@ -155,7 +155,9 @@ def advance(w,minutes):
         if not geology_impacts.room_unusable(w,e.location) and 'recreation' in living.details(w,e.location).get('facilities',[]):
             relieve(e,'rest',minutes*.2);relieve(e,'belonging',minutes*.3)
         for iid in list(dict.fromkeys(e.inventory)):
-            if use(w,e,iid):break
+            # Inventory includes many unrelated tools and materials.  They
+            # cannot relieve a need and do not require a full desire profile.
+            if effects(w,iid) and use(w,e,iid):break
     now=living.state(w)['minute'];econ=society.economy(w)
     if now-econ.get('market_minute',-10000)<30:return
     econ['market_minute']=now

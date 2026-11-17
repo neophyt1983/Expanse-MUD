@@ -15,7 +15,8 @@ import stat
 from engine.world_history import HistoryError
 
 MAX_FILE=64*1024*1024
-MAX_TOTAL=128*1024*1024
+# Full Wild Lands plus generated resident/history records must fit a fresh save.
+MAX_TOTAL=256*1024*1024
 MAX_FILES=2048
 JSON_SIDECARS={'creator-packs.json','world-rules.json','creator-tax-plans.json','population.json','shortcuts.json','pixel-art-library.json'}
 DERIVED={'history.json','history-rules.json','manifest.json','chronicles.json'}
@@ -151,7 +152,7 @@ def snapshot(root,*,population_override=None):
                 # still count against the traversal entry budget above.
                 if _source_backup(relative):continue
                 _allowed(relative)
-                if len(files)>=MAX_FILES or st.st_size>MAX_FILE or total+st.st_size>MAX_TOTAL:raise HistoryError('Template size/count budget exceeded')
+                if len(files)>=MAX_FILES or st.st_size>MAX_FILE or total+st.st_size>MAX_TOTAL:raise HistoryError('Template size/count budget exceeded at '+relative+' ('+str(st.st_size)+' file bytes, '+str(total+st.st_size)+' total bytes)')
                 handle=os.open(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=fd)
                 if not stat.S_ISREG(os.fstat(handle).st_mode):
                     os.close(handle);raise HistoryError("Template file changed type")
@@ -162,9 +163,46 @@ def snapshot(root,*,population_override=None):
                 if total>MAX_TOTAL:raise HistoryError('Template byte budget exceeded')
                 files[relative]=raw
             else:raise HistoryError('Unsupported non-regular template entry: '+relative)
-    fd=os.open(root,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
-    try:walk(fd)
-    finally:os.close(fd)
+    def portable_walk(folder,prefix='',depth=0):
+        nonlocal total,entries
+        from engine.local_files import checked, identity, read_path
+        if depth>7:raise HistoryError('Template directory depth exceeded')
+        before=checked(folder,directory=True)
+        names=[]
+        with os.scandir(folder) as iterator:
+            for entry in iterator:
+                if len(names)+entries>=MAX_FILES:raise HistoryError('Template entry budget exceeded')
+                names.append(entry.name)
+        for name in sorted(names):
+            entries+=1
+            if entries>MAX_FILES:raise HistoryError('Template entry budget exceeded')
+            path=folder/name;relative=prefix+name;st=path.lstat()
+            if stat.S_ISLNK(st.st_mode) or getattr(st,'st_file_attributes',0)&0x400:
+                raise HistoryError('Template linked path refused: '+relative)
+            if stat.S_ISDIR(st.st_mode):
+                if not (relative in ('assets','images') or relative.startswith(('assets/','images/'))):
+                    raise HistoryError('Unsupported template directory: '+relative)
+                directories.append(relative)
+                portable_walk(path,relative+'/',depth+1)
+            elif stat.S_ISREG(st.st_mode):
+                if _source_backup(relative):continue
+                _allowed(relative)
+                if len(files)>=MAX_FILES or st.st_size>MAX_FILE or total+st.st_size>MAX_TOTAL:
+                    raise HistoryError('Template size/count budget exceeded at '+relative+' ('+str(st.st_size)+' file bytes, '+str(total+st.st_size)+' total bytes)')
+                raw=read_path(path,MAX_FILE)
+                _validate_file(relative,raw);total+=len(raw)
+                if total>MAX_TOTAL:raise HistoryError('Template byte budget exceeded')
+                files[relative]=raw
+            else:raise HistoryError('Unsupported non-regular template entry: '+relative)
+        if identity(before)!=identity(checked(folder,directory=True)):
+            raise HistoryError('Template directory changed during snapshot')
+    if hasattr(os,'O_DIRECTORY') and hasattr(os,'O_NOFOLLOW'):
+        fd=os.open(root,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+        try:walk(fd)
+        finally:os.close(fd)
+    else:
+        try:portable_walk(root)
+        except (OSError,ValueError) as exc:raise HistoryError(str(exc)) from exc
     source_signature=signature(files,directories)
     if population_override is not None:
         raw=json.dumps(deepcopy(population_override),allow_nan=False).encode()

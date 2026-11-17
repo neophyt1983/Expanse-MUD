@@ -86,6 +86,8 @@ button:hover,a.button:hover{background:#c4e9cc}a{color:#a9dfbd}
 @media(max-width:450px){body{padding:.6rem}main{padding:1.1rem}.auth-card{padding:.9rem}}
 """
 LIMIT = 128 * 1024 * 1024
+# Server release identity is separate from the shared desktop engine build.
+RENDER_SERVER_BUILD = '2026-11-17-parity-merge-1.9.17'
 
 
 def disk_mounted(path):
@@ -319,7 +321,7 @@ class Service:
         self.importing = False
         self.editors = {}
         self.editor_lock = asyncio.Lock()
-        self.assets = {p.name:p for p in (ROOT/'web').iterdir() if p.suffix in {'.css','.js','.svg'}}
+        self.assets = {p.name:p for p in (ROOT/'web').iterdir() if p.suffix in {'.css','.js','.svg','.ico'}}
 
     def bundle(self, ident):
         if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-f]{64}',ident) or not (self.worlds/ident/'info.json').is_file():
@@ -1254,7 +1256,7 @@ def make_app():
     app.on_response_prepare.append(prepare)
     app.cleanup_ctx.append(service.expiry)
     async def health(req):
-        return web.Response(text='ok')
+        return web.Response(text='ok', headers={'X-Expanse-Server-Build': RENDER_SERVER_BUILD})
     async def play(req):
         service.active_client(req)
         return web.FileResponse(ROOT/'web'/'index.html')
