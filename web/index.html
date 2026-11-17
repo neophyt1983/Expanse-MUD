@@ -172,6 +172,7 @@
       <button data-tab="game" class="active">Game</button>
       <button data-tab="editor" hidden disabled>Editor</button><a href="/" style="color:inherit;padding:8px">World &amp; saves</a>
     </nav>
+    <span id="expanse-current-account" hidden aria-label="Current Expanse account" style="align-self:center;margin-left:auto;padding:4px 12px;color:#acd6bf;font-size:12px;white-space:nowrap;max-width:32vw;overflow:hidden;text-overflow:ellipsis"></span>
   </header>
   <main>
     <section id="tab-game" class="tab active">
@@ -287,6 +288,12 @@ async function fetchConfig() {
     if(!r.ok)throw Error('Configuration unavailable');
     config = await r.json();
   } catch { delete config.ws_port; config.internet_accounts=false; }
+  const accountBadge = document.getElementById("expanse-current-account");
+  if (accountBadge) {
+    const account = typeof config.account_name === "string" ? config.account_name.trim() : "";
+    accountBadge.hidden = !account;
+    accountBadge.textContent = account ? "Account: " + account : "";
+  }
   const edTab = document.querySelector('header nav button[data-tab="editor"]');
   const reasonMsg = {
     launch_flag: 'Editor disabled by launch flag (--no-editor / EXPANSE_EDITOR=0)',
