@@ -33,7 +33,7 @@
    if(busy)return;
    try{
      cfg=await request('/api/config');
-     if(!(cfg.can_manage_server||cfg.render_web))throw Error('Only the host can reload the shared world.');
+     if(!cfg.can_manage_server)throw Error('Only the host can reload the shared world.');
      const data=await live('list');const c=data.slots.find(s=>s.slot===data.current);
      if(!c)throw Error('Choose a saved game to load.');
      await run(()=>load(c));
@@ -56,14 +56,14 @@
    });
  }
  const playing=()=>!start&&window.expanseCharacterLoaded===true;
- function setBusy(on){busy=on;for(const n of dialog.querySelectorAll('button,input,select'))if(n!==close&&!n.closest('.expanse-window-bar'))n.disabled=on;dialog.setAttribute('aria-busy',String(on));}
+ function setBusy(on){busy=on;for(const n of dialog.querySelectorAll('button,input,select'))if(!n.closest('.expanse-window-bar'))n.disabled=on;dialog.setAttribute('aria-busy',String(on));}
  async function run(fn){
    if(busy)return;setBusy(true);status.textContent='';
    try{await fn();}catch(e){status.textContent=e.message;}finally{setBusy(false);render();}
  }
  async function refresh(){
    cfg=await request('/api/config');
-   const data=playing()?await live('list'):await request((cfg.can_manage_server||cfg.render_web)?'/api/application/saves':'/api/character/saves');
+   const data=playing()?await live('list'):await request(cfg.can_manage_server?'/api/application/saves':'/api/character/saves');
    entries=data.slots||data.characters||[];if(start)updateContinue(entries[0]);current=data.current||null;form.hidden=!playing();render();
  }
  async function resume(c){
@@ -75,7 +75,7 @@
    sessionStorage.removeItem(pendingKey);dialog.close();
  }
  async function load(c){
-   if(!(cfg.can_manage_server||cfg.render_web)){await resume(c);return;}
+   if(!cfg.can_manage_server){await resume(c);return;}
    if(window.ExpansePixelStudio?.canLeave()===false)return;
    if((playing()||cfg.game_status==='ready')&&!confirm('Load “'+c.name+'” and leave the current session? Unsaved progress will be lost.'))return;
    window.expanseLeaving=true;
@@ -112,9 +112,9 @@
      const place=c.place||c.location;
      const details=el('small',[c.character!==c.name?c.character:'',c.world_name||c.world,place].filter(Boolean).join(' · '));
      const actions=el('div');actions.className='save-row-actions';
-     if((cfg.can_manage_server||cfg.render_web)||c.legacy||!c.slot)actions.append(button('Load',()=>run(()=>load(c))));
+     if(cfg.can_manage_server||c.legacy||!c.slot)actions.append(button('Load',()=>run(()=>load(c))));
      if(playing())actions.append(button('Overwrite',()=>run(()=>change('overwrite',c))));
-     if((cfg.can_manage_server||cfg.render_web)||playing())actions.append(button('Delete',()=>run(()=>change('delete',c))));
+     if(cfg.can_manage_server||playing())actions.append(button('Delete',()=>run(()=>change('delete',c))));
      if(selecting){const check=el('input');check.type='checkbox';check.checked=marked.has(c.slot);check.setAttribute('aria-label','Select '+c.name);
        check.onchange=()=>{if(check.checked)marked.add(c.slot);else marked.delete(c.slot);remove.disabled=!marked.size;remove.textContent='Delete selected ('+marked.size+')';};
        const label=el('label');label.append(check,title);row.append(label,stamp,details);
@@ -122,7 +122,7 @@
      list.append(row);
    }
    if(!list.children.length)list.append(el('p','No saved games in this list.'));
-   if(playing()&&(cfg.can_manage_server||cfg.render_web)===false)list.prepend(el('small','The host can load a named checkpoint for the shared world.'));
+   if(playing()&&cfg.can_manage_server===false)list.prepend(el('small','The host can load a named checkpoint for the shared world.'));
  }
  form.onsubmit=e=>{e.preventDefault();run(()=>change('create'));};filter.onchange=render;
  const open=start?document.getElementById('open-save-browser'):button('Saves',openManager);

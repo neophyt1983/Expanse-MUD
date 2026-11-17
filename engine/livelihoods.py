@@ -122,7 +122,10 @@ def reasons(w,n):
 
 def receive(w,n,iid):
     if not applies(w,n):return
-    needs_market.use(w,n,iid)
+    # Items without need effects cannot relieve needs; avoid expensive
+    # NPC-profile/threshold evaluation for every tool and ingredient.
+    if w.items.get(iid,{}).get('need_effects'):
+        needs_market.use(w,n,iid)
     rid=workplace(w,n)
     if not on_shift(w,n) or n.location!=rid or not room_open(w,rid) or not w.room_details.get(rid,{}).get('workshop'):return
     needed=job_needs(w,n);cfg,stock=society.shop(w,rid)

@@ -24,6 +24,7 @@ from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
 from server import world_catalogue
 from server.accounts import display_name, name_key
 from server.save_slots import DB as SLOTS_DB
+from server.public_access import PublicGuests, GuestLimit
 
 ROOT = Path(__file__).resolve().parent
 CSS = """body{background:#10171c;color:#e2e9e6;font:1rem/1.6 system-ui;margin:auto;padding:2rem 1rem;max-width:37rem}
@@ -39,9 +40,11 @@ a{color:#aee6c0}form{margin:1rem 0}small{color:#bdc7c2}
 .world-badge{display:inline-block;border:1px solid #789789;border-radius:.35rem;padding:.1rem .5rem;font-size:.85rem;line-height:1.6}
 .world-badge.latest{background:#254b37;color:#c2f5d2;border-color:#89c79c}.world-badge.older{color:#cbd4cf;border-color:#66776f}
 .world-file{display:block;color:#bdc7c2;font-size:.9rem}.world-file code{color:inherit;font-size:inherit}
-.world-note{color:#d0d9d4}button:focus-visible,a:focus-visible{outline:2px solid #b9f0cc;outline-offset:3px}
+.world-note{color:#d0d9d4}.recovery-code{display:block;overflow-wrap:anywhere;word-break:break-all;background:#182b30;border:1px solid #52675e;border-radius:.4rem;padding:.75rem}button:focus-visible,a:focus-visible{outline:2px solid #b9f0cc;outline-offset:3px}
 @media(max-width:420px){.world-card{padding:.85rem}body{padding:1.1rem .75rem}}"""
 LIMIT = 128 * 1024 * 1024
+# Server-only release identity.  The engine build label remains identical to desktop.
+RENDER_SERVER_BUILD = '2026-11-16-mainline-parity-public-1.9.17'
 
 
 def disk_mounted(path):
@@ -59,22 +62,38 @@ def page(title, body, status=200):
         '<style>'+CSS+'</style><main><h1>'+escape(title)+'</h1>'+body+'</main></html>'))
 
 
-def sign_in(error='', status=200):
-    return page('Expanse', '<form method="post" action="/login"><label>Username'
+def sign_in(error='', status=200, public=False):
+    welcome = ('<h2>Play free without a password</h2>'
+               '<p>Start a private adventure instantly. Your browser keeps your access key. '
+               'Save the recovery code shown after joining to return on another device.</p>'
+               '<form method="post" action="/public/join"><button>Play without a password</button></form>'
+               '<p>Already played? <a href="/public/return">Recover your adventure</a></p><hr>') if public else ''
+    return page('Expanse', welcome+'<h2>Owner and invited accounts</h2><form method="post" action="/login"><label>Username'
                 '<input name="name" autocomplete="username" required></label><label>Password'
                 '<input type="password" name="password" autocomplete="current-password" required></label>'
                 '<button>Sign in</button></form><p role="alert">'+escape(error)+'</p>', status)
 
 
 class Accounts:
-    def __init__(self):
-        owner = display_name(os.environ['EXPANSE_OWNER_NAME'])
-        entries = [{'name':owner, 'password':os.environ['EXPANSE_OWNER_PASSWORD'],
-                    'expires_at':os.environ.get('EXPANSE_OWNER_EXPIRES_AT')}]
+    def __init__(self, public=None):
+        self.public = public
+        owner_name = os.environ.get('EXPANSE_OWNER_NAME','')
+        owner_password = os.environ.get('EXPANSE_OWNER_PASSWORD','')
+        if owner_name and owner_password:
+            owner = display_name(owner_name)
+            entries = [{'name':owner, 'password':owner_password,
+                        'expires_at':os.environ.get('EXPANSE_OWNER_EXPIRES_AT')}]
+            self.owner = name_key(owner)
+        elif public and not owner_name and not owner_password:
+            # Deliberately allow public play with no administrator configured;
+            # owner-only imports and reporting are unavailable until configured.
+            self.owner = ''
+            entries = []
+        else:
+            raise ValueError('Set BOTH EXPANSE_OWNER_NAME and EXPANSE_OWNER_PASSWORD, or enable passwordless public play without either. Set a protected owner account for editor and report access.')
         extra = json.loads(os.environ.get('EXPANSE_GUESTS_JSON','[]'))
         if not isinstance(extra,list):
             raise ValueError('EXPANSE_GUESTS_JSON must be an array.')
-        self.owner = name_key(owner)
         self.records = {}
         self.pepper = secrets.token_bytes(32)
         self.sessions = {}
@@ -92,6 +111,12 @@ class Accounts:
                     raise ValueError('Account expiration must include a UTC offset.')
                 expiry = dt.timestamp()
             self.records[key] = (name, self.verifier(password), expiry)
+        if self.public:
+            for guest_name in self.public.registered_names():
+                key = name_key(guest_name)
+                if key in self.records:
+                    raise ValueError('A public account name conflicts with an existing configured login.')
+                self.records[key] = (guest_name, None, None)
 
     def verifier(self, password):
         return hmac.digest(self.pepper,password.encode(),'sha256')
@@ -109,7 +134,7 @@ class Accounts:
         if len(recent)>=8:
             return None
         _, expected, expiry = self.records.get(key,('',bytes(32),0))
-        valid = hmac.compare_digest(self.verifier(password),expected)
+        valid = expected is not None and hmac.compare_digest(self.verifier(password),expected)
         if not valid or (expiry is not None and expiry<=now):
             recent.append(now)
             return None
@@ -123,6 +148,8 @@ class Accounts:
         return token
 
     def lookup(self, token):
+        if self.public and isinstance(token, str) and token.startswith('g.'):
+            return self.public.lookup(token)
         row = self.sessions.get(token)
         if row and row[1]>time.time():
             return row[0]
@@ -147,7 +174,6 @@ class PrivateWorker:
 
 class Service:
     def __init__(self):
-        self.auth = Accounts()
         self.origin = os.getenv('EXPANSE_PUBLIC_URL') or os.getenv('RENDER_EXTERNAL_URL','')
         self.origin = self.origin.rstrip('/')
         parsed = urlsplit(self.origin)
@@ -159,6 +185,14 @@ class Service:
         if os.getenv('RENDER') and not disk_mounted(self.data):
             raise ValueError('The configured Render persistent disk is not mounted.')
         self.data.mkdir(parents=True,exist_ok=True)
+        self.public_enabled = os.environ.get('EXPANSE_PUBLIC_PLAY','0').strip().lower() in ('1','true','yes','on')
+        self.public_max = int(os.environ.get('EXPANSE_MAX_PUBLIC_PLAYERS','30'))
+        if not 1 <= self.public_max <= 200:
+            raise ValueError('EXPANSE_MAX_PUBLIC_PLAYERS must be between 1 and 200.')
+        public = PublicGuests(self.data,self.public_max) if self.public_enabled else None
+        self.auth = Accounts(public)
+        self.public_signups = deque()
+        self.public_recovery_attempts = deque()
         self.worlds = self.data/'worlds'
         self.worlds.mkdir(exist_ok=True)
         self.update_world = os.environ.get('EXPANSE_UPDATE_WORLD_SHA256','').strip()
@@ -173,7 +207,7 @@ class Service:
         self.importing = False
         self.editors = {}
         self.editor_lock = asyncio.Lock()
-        self.assets = {p.name:p for p in (ROOT/'web').iterdir() if p.suffix in {'.css','.js','.svg'}}
+        self.assets = {p.name:p for p in (ROOT/'web').iterdir() if p.suffix in {'.css','.js','.svg','.ico'}}
 
     def bundle(self, ident):
         if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-f]{64}',ident) or not (self.worlds/ident/'info.json').is_file():
@@ -262,6 +296,11 @@ class Service:
             for old in list(self.workers.values()):
                 if old.process and old.process.returncode is not None:
                     await self.stop(old.account, old.game)
+            # A passwordless player cannot occupy several independent worlds
+            # at once. Do not terminate their unsaved adventure implicitly.
+            if self.auth.public and key in self.auth.records and self.auth.records[key][1] is None:
+                if any(account == key for account, game in self.workers):
+                    raise web.HTTPConflict(text='You already have an active adventure. Use Save & quit in that world before opening another.')
             if len(self.workers) >= self.max_workers:
                 raise web.HTTPServiceUnavailable(text='All private game slots are in use. Try again after a player saves and quits. No active player has been disconnected.')
             slug = json.loads((bundle/'info.json').read_bytes())['slug']
@@ -305,7 +344,7 @@ class Service:
     async def landing(self,req):
         key = self.identity(req)
         if not key:
-            return sign_in()
+            return sign_in(public=self.public_enabled)
         name,_,expiry = self.auth.records[key]
         contents = '<p>Signed in as <strong>'+escape(name)+'</strong>.</p>'
         if expiry is not None:
@@ -341,25 +380,122 @@ class Service:
                          '<button>Import world</button></form>')
         elif not entries:
             contents += '<p>The owner has not imported a world yet.</p>'
+        if key==self.auth.owner and self.public_enabled:
+            contents += '<p><a href="/public/players">Public player registrations</a></p>'
+        if self.auth.public and key in self.auth.records and self.auth.records[key][1] is None:
+            contents += "<p>Your guest access stays with this browser. Keep the recovery code you received when you joined; signing out removes this browser's access.</p>"
         return page('Expanse',contents+'<form method="post" action="/logout"><button>Sign out</button></form>')
 
     def has_save(self,key,ident):
         folder = self.folder(key,ident)
         return (folder/SLOTS_DB).is_file() or any(folder.glob('world_state*_single.json'))
 
+    @staticmethod
+    def _rate_limit(queue, window, maximum):
+        now=time.monotonic()
+        while queue and queue[0] <= now-window:
+            queue.popleft()
+        if len(queue)>=maximum:
+            raise web.HTTPTooManyRequests(text='Too many attempts. Please try again later.')
+        queue.append(now)
+
+    def _public_cookie(self, response, token):
+        response.set_cookie(self.cookie,token,path='/',httponly=True,
+                            secure=not self.local,samesite='Strict',max_age=90*86400)
+        return response
+
+    async def public_join(self, req):
+        if not self.public_enabled:
+            raise web.HTTPNotFound()
+        if req['key']:
+            return web.HTTPSeeOther('/')
+        self._rate_limit(self.public_signups,60,5)
+        try:
+            name, token, recovery = self.auth.public.create(set(self.auth.records))
+        except GuestLimit as exc:
+            return page('Expanse — registration full','<p>'+escape(str(exc))+'</p><p><a href="/">Back</a></p>',503)
+        key=name_key(name)
+        self.auth.records[key]=(name,None,None)
+        response = page('Welcome to Expanse',
+            '<p>Your player name is <strong>'+escape(name)+'</strong>.</p>'
+            '<p>There is no password to enter. This browser is signed in automatically.</p>'
+            '<h2>Save this recovery code</h2><p><code class="recovery-code">'+escape(recovery)+'</code></p>'
+            '<p>Keep it private. If you change devices, sign out, or clear browser data, '
+            'enter this code on the Recover page to restore access to your character and saves. '
+            'It is shown only once.</p><p><a class="button" href="/">Continue to your game</a></p>')
+        return self._public_cookie(response,token)
+
+    async def public_return(self, req):
+        if not self.public_enabled:
+            raise web.HTTPNotFound()
+        return page('Recover your Expanse player',
+            '<p>Enter the recovery code you saved when you joined. It is not your character name.</p>'
+            '<form action="/public/recover" method="post"><label>Recovery code'
+            '<input type="text" name="code" autocomplete="off" required></label>'
+            '<button>Recover player</button></form><p><a href="/">Back</a></p>')
+
+    async def public_recover(self, req):
+        if not self.public_enabled:
+            raise web.HTTPNotFound()
+        self._rate_limit(self.public_recovery_attempts,60,8)
+        form = await req.post()
+        code = form.get('code','')
+        found = self.auth.public.recover(code)
+        if not found:
+            return page('Recovery unsuccessful','<p>The code is invalid or the player is disabled.</p><p><a href="/public/return">Try again</a></p>',403)
+        name, token = found
+        return self._public_cookie(web.HTTPSeeOther('/'),token)
+
+    async def public_players(self, req):
+        if req['key']!=self.auth.owner or not self.public_enabled:
+            raise web.HTTPForbidden()
+        guests=self.auth.public.rows()
+        contents=('<p>Open guest registrations: '+str(self.auth.public.count())+' of '+str(self.public_max)+'. '
+                  'Active private adventures: '+str(len(self.workers))+' of '+str(self.max_workers)+'.</p>')
+        for name,enabled,created in guests:
+            action = 'disable' if enabled else 'enable'
+            contents += ('<section class="world-card"><strong>'+escape(name)+'</strong> — '+
+                         ('enabled' if enabled else 'disabled')+
+                         '<form action="/public/players/action" method="post">'
+                         '<input type="hidden" name="name" value="'+escape(name)+'">'
+                         '<input type="hidden" name="action" value="'+action+'">'
+                         '<button>'+action.capitalize()+' player</button></form></section>')
+        return page('Public players',contents+'<a href="/">Back to Expanse</a>')
+
+    async def public_players_action(self, req):
+        if req['key']!=self.auth.owner or not self.public_enabled:
+            raise web.HTTPForbidden()
+        form=await req.post()
+        name, action=form.get('name'),form.get('action')
+        if action not in ('enable','disable') or not isinstance(name,str):
+            raise web.HTTPBadRequest()
+        try:
+            updated=self.auth.public.set_enabled(name,action=='enable')
+        except GuestLimit as exc:
+            return page('Unable to enable player',escape(str(exc))+'<p><a href="/public/players">Back</a></p>',409)
+        if not updated:
+            raise web.HTTPNotFound()
+        if action=='disable':
+            async with self.lock:
+                await self.stop(name_key(name))
+        return web.HTTPSeeOther('/public/players')
+
     async def login(self,req):
         form=await req.post()
         name,password=form.get('name'),form.get('password')
         token = self.auth.authenticate(name,password) if isinstance(name,str) and isinstance(password,str) and len(password)<=128 else None
         if not token:
-            return sign_in('Sign-in failed. Check the name, password and account access.',403)
+            return sign_in('Sign-in failed. Check the name, password and account access.',403,public=self.public_enabled)
         response = web.HTTPSeeOther('/')
         response.set_cookie(self.cookie,token,path='/',httponly=True,secure=not self.local,samesite='Strict',max_age=43200)
         return response
 
     async def logout(self,req):
         key = req['key']
-        self.auth.sessions.pop(req.cookies[self.cookie],None)
+        token = req.cookies.get(self.cookie,'')
+        self.auth.sessions.pop(token,None)
+        if self.auth.public:
+            self.auth.public.invalidate(token)
         async with self.lock:
             await self.stop(key)
             self.selected_games.pop(key, None)
@@ -634,7 +770,7 @@ def make_app():
             if origin!=service.origin:
                 raise web.HTTPForbidden(text='Open Expanse at its configured address.')
         key=service.identity(req)
-        if req.path not in ('/','/healthz','/login','/mode.html') and not key:
+        if req.path not in ('/','/healthz','/login','/mode.html','/public/join','/public/return','/public/recover') and not key:
             if req.path=='/play':
                 return web.HTTPSeeOther('/')
             return web.json_response({'error':'Sign in first.'},status=401)
@@ -653,7 +789,7 @@ def make_app():
     app.on_response_prepare.append(prepare)
     app.cleanup_ctx.append(service.expiry)
     async def health(req):
-        return web.Response(text='ok')
+        return web.Response(text='ok', headers={'X-Expanse-Server-Build': RENDER_SERVER_BUILD})
     async def play(req):
         service.active_client(req)
         return web.FileResponse(ROOT/'web'/'index.html')
@@ -667,6 +803,9 @@ def make_app():
         return web.FileResponse(path)
     app.add_routes([web.get('/healthz',health),web.get('/',service.landing),web.get('/mode.html',service.landing),
                     web.post('/login',service.login),web.post('/logout',service.logout),web.post('/enter',service.enter),
+                    web.post('/public/join',service.public_join),web.get('/public/return',service.public_return),
+                    web.post('/public/recover',service.public_recover),
+                    web.get('/public/players',service.public_players),web.post('/public/players/action',service.public_players_action),
                     web.post('/world/import',service.install),web.get('/world.expanse',world),
                     web.get('/editor',service.editor),
                     web.get('/playtest',service.playtest_report),
