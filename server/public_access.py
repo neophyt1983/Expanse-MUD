@@ -81,14 +81,15 @@ class PublicGuests:
         if not isinstance(recovery, str) or not recovery.startswith('r.') or not 40 <= len(recovery) <= 100:
             return None
         new_cookie = 'g.' + secrets.token_urlsafe(32)
+        new_recovery = 'r.' + secrets.token_urlsafe(32)
         with self._db() as db:
             row = db.execute('SELECT name FROM public_guests WHERE recovery_hash=? AND enabled=1',
                              (self._digest(recovery),)).fetchone()
             if not row:
                 return None
-            db.execute('UPDATE public_guests SET cookie_hash=? WHERE name=?',
-                       (self._digest(new_cookie),row[0]))
-            return row[0],new_cookie
+            db.execute('UPDATE public_guests SET cookie_hash=?,recovery_hash=? WHERE name=?',
+                       (self._digest(new_cookie),self._digest(new_recovery),row[0]))
+            return row[0],new_cookie,new_recovery
 
     def invalidate(self, cookie):
         if isinstance(cookie, str) and cookie.startswith('g.'):
@@ -100,16 +101,11 @@ class PublicGuests:
     def set_enabled(self, name, enabled):
         if not isinstance(name, str):
             return False
-        # Count and update in one write transaction.  The previous separate
-        # connection allowed concurrent re-enables to exceed the player quota.
         with self._db() as db:
-            db.execute('BEGIN IMMEDIATE')
             row = db.execute('SELECT enabled FROM public_guests WHERE name=?',(name,)).fetchone()
             if not row:
                 return False
-            if enabled and not row[0]:
-                active = db.execute('SELECT COUNT(*) FROM public_guests WHERE enabled=1').fetchone()[0]
-                if active >= self.max_players:
-                    raise GuestLimit('Public registration is full. Disable another account first or increase the quota.')
+            if enabled and not row[0] and self.count() >= self.max_players:
+                raise GuestLimit('Public registration is full. Disable another account first or increase the quota.')
             db.execute('UPDATE public_guests SET enabled=? WHERE name=?',(int(bool(enabled)),name))
             return True
