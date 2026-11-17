@@ -4,6 +4,7 @@ No new player is privileged. A role supplied by a browser is never authoritative
 """
 from __future__ import annotations
 from pathlib import Path
+from server.accounts import name_key
 import re
 import sqlite3
 import time
@@ -19,7 +20,7 @@ class MMORoles:
     def __init__(self, data_dir, owner):
         self.path = Path(data_dir) / "mmo-roles.sqlite3"
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.owner = str(owner or "").casefold()
+        self.owner = name_key(owner) if owner else ""
         with self._db() as db:
             db.execute("""CREATE TABLE IF NOT EXISTS roles (
                 account TEXT PRIMARY KEY COLLATE NOCASE,
@@ -48,7 +49,7 @@ class MMORoles:
         return account.casefold()
 
     def get(self, account):
-        key = self.account_key(account)
+        key = name_key(account)
         if self.owner and key == self.owner:
             return ADMIN
         with self._db() as db:
@@ -62,7 +63,7 @@ class MMORoles:
         return self.get(account) == ADMIN
 
     def assign(self, actor, account, role, registered_accounts):
-        who = self.account_key(actor)
+        who = name_key(actor)
         target = self.account_key(account)
         if not self.owner or who != self.owner:
             raise PermissionError("Only the Expanse owner assigns MMO classifications.")
