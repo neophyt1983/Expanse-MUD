@@ -133,7 +133,9 @@ def sign_in(error='', status=200, public=False, registered=False, mail=False, al
                 '<input name="name" autocomplete="username" maxlength="24" required></label><label>Password'
                 '<input type="password" name="password" autocomplete="current-password" required></label>'
                 '<button>Sign in</button></form>'+links+alert+'</section>'
-                '<p class="auth-foot">Gameplay uses manual saves only. Your website and forum accounts '
+                '<p class="auth-foot">Each person needs their own Expanse account. Browser tabs in the same profile share a login. '
+                'Signing in with the same username on another device replaces that account&#39;s previous session. '
+                'Gameplay uses manual saves only. Your website and forum accounts '
                 'are separate from Expanse game accounts.</p>',status)
 
 
