@@ -1,1 +1,1 @@
-BUILD = '2026-11-16-desktop-bundle-1.9.15'
+BUILD = '2026-11-16-secure-accounts-1.9.17'
