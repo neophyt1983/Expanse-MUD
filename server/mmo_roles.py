@@ -64,11 +64,11 @@ class MMORoles:
 
     def assign(self, actor, account, role, registered_accounts):
         who = name_key(actor)
-        target = self.account_key(account)
         if not self.owner or who != self.owner:
             raise PermissionError("Only the Expanse owner assigns MMO classifications.")
-        if target == self.owner:
+        if name_key(account) == self.owner:
             raise PermissionError("Owner permissions cannot be changed here.")
+        target = self.account_key(account)
         if role not in ROLES:
             raise ValueError("Unknown classification.")
         known = {self.account_key(a) for a in registered_accounts}

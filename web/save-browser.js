@@ -56,7 +56,7 @@
    });
  }
  const playing=()=>!start&&window.expanseCharacterLoaded===true;
- function setBusy(on){busy=on;for(const n of dialog.querySelectorAll('button,input,select'))if(n!==close&&!n.closest('.expanse-window-bar'))n.disabled=on;dialog.setAttribute('aria-busy',String(on));}
+ function setBusy(on){busy=on;for(const n of dialog.querySelectorAll('button,input,select'))if(!n.closest('.expanse-window-bar'))n.disabled=on;dialog.setAttribute('aria-busy',String(on));}
  async function run(fn){
    if(busy)return;setBusy(true);status.textContent='';
    try{await fn();}catch(e){status.textContent=e.message;}finally{setBusy(false);render();}

@@ -300,9 +300,10 @@ def import_game(source_path: Path, games_dir: Path,
 
             backup=None;committed=False
             try:
-                fd=os.open(tmp_path,os.O_RDONLY)
-                try:os.fsync(fd)
-                finally:os.close(fd)
+                if hasattr(os, "O_DIRECTORY"):
+                    fd=os.open(tmp_path,os.O_RDONLY | os.O_DIRECTORY)
+                    try:os.fsync(fd)
+                    finally:os.close(fd)
                 # Never delete the existing world. Keep a sibling recovery copy
                 # even after successful Force; failed commit restores it.
                 if dest.is_symlink():return False,'Destination became a symlink; import refused'
@@ -313,9 +314,10 @@ def import_game(source_path: Path, games_dir: Path,
                     backup=dest.with_name('.expanse-backup-'+slug+'-'+uuid.uuid4().hex)
                     os.rename(dest,backup)
                 os.rename(tmp_path,dest);committed=True
-                fd=os.open(games_dir,os.O_RDONLY)
-                try:os.fsync(fd)
-                finally:os.close(fd)
+                if hasattr(os, "O_DIRECTORY"):
+                    fd=os.open(games_dir,os.O_RDONLY | os.O_DIRECTORY)
+                    try:os.fsync(fd)
+                    finally:os.close(fd)
             except (OSError,ValueError) as exc:
                 if committed:return False,'World was installed at '+str(dest)+' but directory durability could not be confirmed. Original backup: '+str(backup)+'. '+str(exc)
                 if backup is not None and backup.exists():

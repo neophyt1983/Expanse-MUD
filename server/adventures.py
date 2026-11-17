@@ -113,7 +113,9 @@ def catalog(games_root,save_root):
         try:meta=json.loads((p/'metadata.json').read_text())
         except (OSError,ValueError):continue
         templates.append({'id':p.name,'name':str(meta.get('name') or p.name)})
-    return {'templates':templates,'adventures':[{k:r[k] for k in ('id','world','name','mode','template','created_at')} | {'saved':not ((_key(save_root),r['world']) in _PENDING)} for r in rows if resolve_world_path(root,save_root,r['world']).is_dir()]}
+    try:preferred=json.loads((root.parent/'.expanse-desktop.json').read_text(encoding='utf-8')).get('preferred_template')
+    except (OSError,ValueError,AttributeError):preferred=None
+    return {'preferred_template':preferred,'templates':templates,'adventures':[{k:r[k] for k in ('id','world','name','mode','template','created_at')} | {'saved':not ((_key(save_root),r['world']) in _PENDING)} for r in rows if resolve_world_path(root,save_root,r['world']).is_dir()]}
 
 
 @_locked

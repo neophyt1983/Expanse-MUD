@@ -8,9 +8,16 @@ from collections import Counter, deque
 CATALOGS=('recipes','resources','encounters')
 
 def state(world):
+    """Return runtime state without re-reading authored dawn on every lookup.
+
+    This is called by virtually every NPC during a simulation tick.  `setdefault`
+    evaluates its default even when the minute is present, needlessly running
+    the world's initial-clock rule many thousands of times per tick.
+    """
     if not hasattr(world,'living_state'):world.living_state={}
     s=world.living_state
-    s.setdefault('minute',worldtime.initial_minute(world.metadata))
+    if 'minute' not in s:
+        s['minute']=worldtime.initial_minute(world.metadata)
     for key in ('nodes','encounters','camps'):
         if key not in s:s[key]={}
     return s
