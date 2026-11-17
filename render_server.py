@@ -29,6 +29,7 @@ from server.accounts import display_name, name_key
 from server.save_slots import DB as SLOTS_DB
 from server.public_access import PublicGuests, GuestLimit
 from server.player_accounts import RegisteredPlayers, RegistrationError
+from server.mmo_roles import MMORoles, ROLES
 
 ROOT = Path(__file__).resolve().parent
 CSS = """body{background:#10171c;color:#e2e9e6;font:1rem/1.6 system-ui;margin:auto;padding:2rem 1rem;max-width:37rem}
@@ -291,6 +292,7 @@ class Service:
         self.registered = RegisteredPlayers(self.data,self.public_max,public) if self.public_enabled else None
         self.registered_login = bool(self.registered and (self.registered_enabled or self.registered.count()>0))
         self.auth = Accounts(public,self.registered)
+        self.mmo_roles = MMORoles(self.data,self.auth.owner)
         self.mail_user = os.environ.get('EXPANSE_SMTP_USER','').strip()
         self.mail_password = os.environ.get('EXPANSE_SMTP_APP_PASSWORD','')
         self.mail_from = os.environ.get('EXPANSE_SMTP_FROM','').strip()
@@ -459,6 +461,12 @@ class Service:
                            allow_signup=self.registered_enabled)
         name,_,expiry = self.auth.records[key]
         contents = '<p>Signed in as <strong>'+escape(name)+'</strong>.</p>'
+        contents += ('<section class="auth-card"><h2>Choose how to play</h2>'
+                     '<p><strong>Single Player:</strong> Your own private adventure with personal saves.</p>'
+                     '<p><strong>MMO:</strong> A shared civilization with other players. '
+                     'Shared-world hosting is being integrated and is not available yet.</p>'
+                     '<p>Your assigned MMO classification: <strong>'+escape(self.mmo_roles.get(name))+'</strong>.</p>'
+                     '<p><a class="button" href="/mmo">MMO status &amp; access</a></p></section>')
         if expiry is not None:
             from datetime import timezone
             contents += '<p>Account access ends '+datetime.fromtimestamp(expiry,timezone.utc).isoformat()+' UTC.</p>'
@@ -478,7 +486,7 @@ class Service:
             if key == self.auth.owner and ident == self.update_world:
                 contents += '<span class="world-badge">Update template</span>'
             contents += '</div><span class="world-file">File ID <code>'+ident[:12]+'</code></span>'
-            contents += '<form action="/enter" method="post"><input type="hidden" name="game" value="'+ident+'"><button aria-label="Play Expanse — '+title+'; file '+ident[:12]+'">Play Expanse</button></form>'
+            contents += '<form action="/enter" method="post"><input type="hidden" name="mode" value="single"><input type="hidden" name="game" value="'+ident+'"><button aria-label="Play Single Player — '+title+'; file '+ident[:12]+'">Play Single Player</button></form>'
             contents += '<div class="world-links"><a href="/world.expanse?game='+ident+'" download>Download imported world</a>'
             if key==self.auth.owner:
                 contents+='<a href="/editor?game='+ident+'">Edit a draft</a>'
@@ -493,7 +501,8 @@ class Service:
         elif not entries:
             contents += '<p>The owner has not imported a world yet.</p>'
         if key==self.auth.owner and self.public_enabled:
-            contents += '<p><a href="/public/players">Public player registrations</a></p>'
+            contents += '<p><a href="/public/players">Public player registrations</a> · '
+            contents += '<a href="/mmo/roles">MMO account classifications</a></p>'
         if key in self.auth.player_keys:
             if self.registered and key in {name_key(x) for x in self.registered.registered_names()}:
                 contents += '<p><a href="/account">Account security &amp; recovery</a></p>'
@@ -905,8 +914,60 @@ class Service:
         response.del_cookie(self.cookie,path='/')
         return response
 
+    async def mmo_status(self, req):
+        key = req['key']
+        if key is None:
+            raise web.HTTPUnauthorized()
+        role = self.mmo_roles.get(self.auth.records[key][0])
+        return page('Expanse MMO',
+            '<p><strong>MMO classification: '+escape(role)+'</strong>.</p>'
+            '<p>The shared MMO server is not enabled. Until it passes shared-world, '
+            'account isolation, editor authorization, persistence and multiplayer tests, '
+            'all accounts remain in separate Single Player worlds.</p>'
+            '<p>MMO classifications: No_Edit (normal player), Admin (authorized moderation and editing), '
+            'Full_Edit (world-creator tools without moderation powers).</p>'
+            '<p><a href="/">Return to play selection</a></p>')
+
+    async def mmo_roles_page(self, req):
+        if req['key'] != self.auth.owner:
+            raise web.HTTPForbidden(text='Only the owner manages MMO classifications.')
+        names = self.registered.registered_names() if self.registered else []
+        rows = []
+        for account in sorted(names, key=str.casefold):
+            role = self.mmo_roles.get(account)
+            options = ''.join('<option value="'+escape(choice)+'"'+(' selected' if choice==role else '')+'>'+
+                              escape(choice)+'</option>' for choice in ROLES)
+            rows.append('<section class="auth-card"><strong>'+escape(account)+'</strong>'
+                        '<form method="post" action="/mmo/roles"><input type="hidden" name="name" value="'+
+                        escape(account)+'"><label>MMO role<select name="role">'+options+'</select></label>'
+                        '<button type="submit">Update classification</button></form></section>')
+        return page('MMO classifications',
+            '<p>Newly registered accounts always start as No_Edit. '
+            'These roles do not grant access to personal worlds. '
+            'MMO editing remains unavailable until the shared MMO server is ready.</p>'+
+            ''.join(rows)+'<p><a href="/">Back to Expanse</a></p>')
+
+    async def mmo_roles_update(self, req):
+        if req['key'] != self.auth.owner:
+            raise web.HTTPForbidden(text='Only the owner manages MMO classifications.')
+        form = await req.post()
+        account, role = form.get('name'), form.get('role')
+        try:
+            self.mmo_roles.assign(self.auth.records[req['key']][0],
+                                  account, role,
+                                  self.registered.registered_names() if self.registered else ())
+        except (ValueError,PermissionError) as exc:
+            return page('Classification not updated', escape(str(exc))+
+                        '<p><a href="/mmo/roles">Return</a></p>', 400)
+        return web.HTTPSeeOther('/mmo/roles')
+
     async def enter(self,req):
         form=await req.post()
+        mode=form.get('mode','single')
+        if mode=='mmo':
+            raise web.HTTPServiceUnavailable(text='Shared MMO world not yet available. Single Player remains available.')
+        if mode!='single':
+            raise web.HTTPBadRequest(text='Choose Single Player or MMO.')
         await self.start(req['key'],form.get('game'))
         return web.HTTPSeeOther('/play?game='+form['game'])
 
@@ -1207,6 +1268,8 @@ def make_app():
         return web.FileResponse(path)
     app.add_routes([web.get('/healthz',health),web.get('/',service.landing),web.get('/mode.html',service.landing),
                     web.post('/login',service.login),web.post('/logout',service.logout),web.post('/enter',service.enter),
+                    web.get('/mmo',service.mmo_status),web.get('/mmo/roles',service.mmo_roles_page),
+                    web.post('/mmo/roles',service.mmo_roles_update),
                     web.post('/public/join',service.public_join),web.get('/public/return',service.public_return),
                     web.post('/public/recover',service.public_recover),
                     web.get('/register',service.register),web.post('/register',service.register_submit),
