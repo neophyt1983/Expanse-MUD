@@ -48,12 +48,19 @@ def _quests(w,p,kind,query):
             # Offer summaries do not give away objectives before acceptance.
             row['children']=[];row['actions']=[action('Accept','accept '+q['id'])]
         elif status=='active':row['actions']=[action('Untrack' if q['id'] in tracked else 'Track quest',('untrack ' if q['id'] in tracked else 'track ')+q['id']),action('Complete','complete '+q['id'])]
+        completion_reason=None
+        if status=='active' and not replaced:
+            from engine import living
+            completion_reason=living.quest_blocked(w,p,q,readonly=True) or living.quest_completion_blocked(w,p,q)
+            children.append(dict(id='turn-in-status',label='Quest completion',
+                                 detail=completion_reason or 'Ready to complete. Choose Complete to turn in this quest.'))
         from engine import interface_tours
         guide=interface_tours.summary(p,q)
         if guide is not None:
             if replaced:detail='Optional reference; reviewing these controls does not change your chosen quest or award another reward.'
             elif not guide['started']:detail='Optional interface guide available.'
-            elif guide['completed']:detail='Guide finished. Continue your quest objectives.'
+            elif guide['completed']:
+                detail='Guide finished. '+(completion_reason or ('Choose Complete to turn in this quest.' if status=='active' else 'This walkthrough is available for reference.'))
             else:detail=('Required guide: ' if guide['required'] else 'Optional review: ')+str(guide['index'])+' / '+str(guide['total'])+' steps acknowledged.'+(' Paused; resume when ready.' if guide['paused'] else '')
             children.insert(0,dict(id='interface-guide',label=q['interface_tour']['title'],detail=detail))
             row['actions'].append(action('Interface guide','interface resume '+q['id']))

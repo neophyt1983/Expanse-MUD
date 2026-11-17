@@ -118,10 +118,15 @@ def begin(world, player, quest):
 
 def blocked(player, quest):
     """Old active/completed quests without an initialized guide stay valid."""
-    if not player.is_player or not definition(quest):
+    tour = definition(quest)
+    if not player.is_player or tour is None:
         return False
     row = _saved(player, quest['id'])
-    return bool(row and row.get('required') is True and row.get('satisfied') is not True)
+    # The same ordered acknowledgements drive both the journal and turn-in.
+    # Older saves may have the complete prefix but no final satisfied marker.
+    # Do not re-lock earned completion when an optional replay is restarted.
+    return bool(row and row.get('required') is True and row.get('satisfied') is not True
+                and _index(tour, row) < len(tour['steps']))
 
 
 def summary(player, quest):

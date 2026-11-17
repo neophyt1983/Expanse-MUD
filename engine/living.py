@@ -715,6 +715,31 @@ def quest_blocked(world,player,quest,*,alternatives=True,readonly=False):
     return ''
 
 
+def quest_completion_blocked(world,player,quest):
+    """Return the ordinary turn-in reason, shared by dispatch and the journal.
+
+    This does not pay rewards, consume goods, move the actor or save progress.
+    Eligibility is checked separately by quest_blocked before this helper.
+    """
+    from engine import interface_tours, quest_progress as qp
+    p=player;q=quest
+    if q.get('scope')=='world' and q['id'] in getattr(world,'living_state',{}).get('completed_world',[]):return 'This shared-world outcome has already been completed.'
+    if p.progress.get('quests',{}).get(q['id'])!='active':return 'Accept the quest first.'
+    if interface_tours.blocked(p,q):return 'Finish the interface guide first. Open Interface guide in Actions, or use interface resume and interface next.'
+    rid=q.get('turn_in_room')
+    if rid and rid!=p.location:return 'Turn this in at '+world.rooms[rid].name+'.'
+    if any(qp.count(p,q,'kills',i)<n for i,n in q.get('kills',{}).items()):return 'Combat objectives are incomplete.'
+    if any(not qp.count(p,q,'visits',i) for i in q.get('visit_rooms',[])):return 'Exploration objectives are incomplete.'
+    if any(qp.count(p,q,'actions',k)<n for k,n in q.get('actions',{}).items()):return 'Activity objectives are incomplete.'
+    if any(not qp.count(p,q,'talks',i) for i in q.get('talk_to',[])):return 'Speak to the required witnesses first.'
+    if any(not qp.witnessed(p,q,row) for row in q.get('witnesses',[])):return 'Record the required witnesses or read their filed statements first.'
+    if q.get('escort') and not p.progress.get('escort_arrivals',{}).get(q['id']):return 'Arrive together with your quest companion first.'
+    counts=Counter(p.inventory)
+    missing=[goods_amount(world.items[i],n-counts[i]) if i in world.items else f'{n-counts[i]} {i}'
+             for i,n in q.get('required_items',{}).items() if counts[i]<n]
+    return 'Missing ingredients: '+', '.join(missing) if missing else ''
+
+
 def quest_command(ctx,args,name):
     w,p,r=ctx.world,ctx.player,ctx.room;pr=progress(p);s=state(w)
     from engine import quest_progress as qp, knowledge, quest_chains
@@ -797,16 +822,8 @@ def quest_command(ctx,args,name):
             if 'selected_quests' in pr and qid not in pr['selected_quests'] and len(navigation.selected(w,p))<navigation.MAX_SELECTED:pr['selected_quests'].append(qid)
             escorts.meet(w,p,q)
         return 'Quest accepted. '+q.get('description','')+('\n\n'+interface_tours.describe(interface_tours.projection(w,p)) if tour_started else '')
-    if pr['quests'].get(qid)!='active':return 'Accept the quest first.'
-    from engine import interface_tours
-    if interface_tours.blocked(p,q):return 'Finish the interface guide first. Open Interface guide in Actions, or use interface resume and interface next.'
-    if q.get('turn_in_room') and q['turn_in_room']!=r.id:return 'Turn this in at '+w.rooms[q['turn_in_room']].name+'.'
-    if any(goal(q,'kills',i)<n for i,n in q.get('kills',{}).items()):return 'Combat objectives are incomplete.'
-    if any(not goal(q,'visits',i) for i in q.get('visit_rooms',[])):return 'Exploration objectives are incomplete.'
-    if any(goal(q,'actions',k)<n for k,n in q.get('actions',{}).items()):return 'Activity objectives are incomplete.'
-    if any(not goal(q,'talks',i) for i in q.get('talk_to',[])):return 'Speak to the required witnesses first.'
-    if any(not qp.witnessed(p,q,row) for row in q.get('witnesses',[])):return 'Record the required witnesses or read their filed statements first.'
-    if q.get('escort') and not pr.get('escort_arrivals',{}).get(qid):return 'Arrive together with your quest companion first.'
+    reason=quest_completion_blocked(w,p,q)
+    if reason:return reason
     consume(p,q.get('required_items',{}),w);p.gold+=q.get('reward_gold',0);p.inventory.extend(q.get('reward_items',[]))
     if q.get('escort'):
         from engine import escorts

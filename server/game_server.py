@@ -1126,6 +1126,19 @@ class GameServer(SocietyServer):
                     await websocket.send(json.dumps(error))
                     continue
 
+                # Correlate list actions without granting privileges or bypassing
+                # ordinary command, location, objective or ownership checks.
+                list_reply = {}
+                if 'player_list_action' in packet:
+                    list_id=packet.get('request_id')
+                    if packet['player_list_action'] is not True or not isinstance(list_id,str) or not 1<=len(list_id)<=100:
+                        rejected={'type':'error','text':'Invalid player-list action request.'}
+                        if isinstance(list_id,str) and 1<=len(list_id)<=100:
+                            rejected.update(request_id=list_id,player_list_action=True)
+                        await websocket.send(json.dumps(rejected))
+                        continue
+                    list_reply={'request_id':list_id,'player_list_action':True}
+
                 # Source-offer buttons wait for authoritative acceptance before
                 # closing. This correlates their request without bypassing the
                 # normal provenance, location and prerequisite checks.
@@ -1323,7 +1336,7 @@ class GameServer(SocietyServer):
                 from engine import sleep_movement
                 blocked=sleep_movement.blocked_command(self.world,self.world.entities.get(player_id),cmd,self.registry,resolve_shortcuts=not(equipment_request or rest_ui or lock_ui))
                 if blocked:
-                    reply={'type':'response','text':blocked,**quest_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}
+                    reply={'type':'response','text':blocked,**quest_reply,**list_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}
                     if movement_id:reply['movement_id']=movement_id
                     await websocket.send(json.dumps(reply))
                     if equipment_request:await websocket.send(json.dumps(equipment_ui.build(self.world,self.world.entities[player_id],equipment_request)))
@@ -1433,7 +1446,7 @@ class GameServer(SocietyServer):
                     continue
 
                 if player_id is None:
-                    await websocket.send(json.dumps({"type":"character_required", "text":"Create a character or load a save before entering the world.", **quest_reply}))
+                    await websocket.send(json.dumps({"type":"character_required", "text":"Create a character or load a save before entering the world.", **quest_reply, **list_reply}))
                     continue
                 if cmd.split()[0].lower() == 'ui':
                     from server import player_ui
@@ -1549,7 +1562,7 @@ class GameServer(SocietyServer):
                     self.last_maps[websocket]=map_packet
                     await websocket.send(json.dumps({'type':'response','text':response,'source_quests':source_choices,'movement_id':movement_id,'step_taken':mover.location!=origin and mover.alive and mover.hp>=initial_hp,**({'walk_arrived':walker.location==edge[2] and walker.alive and walker.hp>=walk_hp} if 'walk_edge' in packet else {})}))
                 else:
-                    await websocket.send(json.dumps({'type':'response','text':response,'source_quests':source_choices,**quest_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}))
+                    await websocket.send(json.dumps({'type':'response','text':response,'source_quests':source_choices,**quest_reply,**list_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}))
 
                 self.mark_explored(player_id)
                 if websocket in getattr(self, 'atlas_subscribers', ()):
