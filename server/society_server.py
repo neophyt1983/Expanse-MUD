@@ -63,6 +63,13 @@ class SocietyServer:
             p=self.world.entities.get(pid)
             if p is None:raise ValueError('Create or load a character first.')
             if verb in ('leave_no_save','quit'):
+                if getattr(self,'mmo_save_on_exit',False):
+                    try:self.save_shared_exit(ws,pid)
+                    except Exception:
+                        await reply('Exit save failed. You are still connected; retry Save & quit.','error',save_failed=True)
+                        return True
+                    await reply('Shared world saved. Disconnected.','saved_exit',checkpoint_saved=True)
+                    await ws.close();return True
                 # A shared world cannot roll back only one participant.
                 # Leaving does not commit or roll back the shared session.
                 # Another player may explicitly save that session later.

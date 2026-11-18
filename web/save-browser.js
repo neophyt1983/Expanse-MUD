@@ -63,6 +63,7 @@
  }
  async function refresh(){
    cfg=await request('/api/config');
+   if(cfg.shared_staging)throw Error('Shared MMO checkpoints save automatically on exit or timeout. Use Choose a character to reconnect. Rewinding the shared world is unavailable here.');
    const data=playing()?await live('list'):await request((cfg.can_manage_server||cfg.render_web)?'/api/application/saves':'/api/character/saves');
    entries=data.slots||data.characters||[];if(start)updateContinue(entries[0]);current=data.current||null;form.hidden=!playing();render();
  }

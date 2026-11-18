@@ -3,6 +3,7 @@
 No new player is privileged. A role supplied by a browser is never authoritative.
 """
 from __future__ import annotations
+from contextlib import contextmanager
 from pathlib import Path
 from server.accounts import name_key
 import re
@@ -37,10 +38,15 @@ class MMORoles:
                 changed_at INTEGER NOT NULL
             )""")
 
+    @contextmanager
     def _db(self):
         db = sqlite3.connect(self.path, timeout=15)
-        db.execute("PRAGMA busy_timeout=15000")
-        return db
+        try:
+            db.execute("PRAGMA busy_timeout=15000")
+            with db:
+                yield db
+        finally:
+            db.close()
 
     @staticmethod
     def account_key(account):

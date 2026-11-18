@@ -1,4 +1,5 @@
 """Fail-closed character ownership for a shared hosted Expanse civilization."""
+from contextlib import contextmanager
 from pathlib import Path
 import sqlite3
 import time
@@ -15,10 +16,15 @@ class MMOOwnership:
             )""")
             db.execute("CREATE INDEX IF NOT EXISTS owner_characters ON ownership(account)")
 
+    @contextmanager
     def _db(self):
         db = sqlite3.connect(self.path, timeout=15)
-        db.execute("PRAGMA busy_timeout=15000")
-        return db
+        try:
+            db.execute("PRAGMA busy_timeout=15000")
+            with db:
+                yield db
+        finally:
+            db.close()
 
     @staticmethod
     def _account(account):
@@ -55,6 +61,16 @@ class MMOOwnership:
         account = self._account(account)
         with self._db() as db:
             return {row[0] for row in db.execute("SELECT player_id FROM ownership WHERE account=?", (account,))}
+
+    def owner(self, player_id):
+        """Resolve authoritative ownership for moderation, never a client label."""
+        try:
+            player_id = self._player(player_id)
+        except ValueError:
+            return None
+        with self._db() as db:
+            row = db.execute("SELECT account FROM ownership WHERE player_id=?", (player_id,)).fetchone()
+        return row[0] if row else None
 
     def release(self, account, player_id):
         account, player_id = self._account(account), self._player(player_id)
