@@ -1,0 +1,46 @@
+name: Asset delivery
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/asset-delivery.yml"
+      - "desktop/qt-bundled-media-*.patch"
+      - "engine/public_media.py"
+      - "engine/world_package.py"
+      - "render_server.py"
+      - "server/app_assets.py"
+      - "server/desktop_asset_seed.py"
+      - "server/game_server.py"
+      - "web/index.html"
+      - "web/world-assets.js"
+      - "web/world-audio.js"
+      - "web/character-sheets.js"
+      - "web/visual-map.js"
+      - "tests/test_*asset*"
+      - "tests/test_*media*"
+
+permissions:
+  contents: read
+
+jobs:
+  cache:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: python -m pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -p test_versioned_app_assets.py
+      - run: python -m unittest discover -s tests -p test_world_media_protocol.py
+      - run: python -m unittest discover -s tests -p test_media_path_policy.py
+      - run: python -m unittest discover -s tests -p test_desktop_asset_seed.py
+      - run: node --test tests/test_world_assets.cjs tests/test_media_consumers.cjs

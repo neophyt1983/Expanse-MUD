@@ -352,6 +352,7 @@ function append(kind, text) {
 }
 function connect() {
   if(window.expanseLeaving)return;
+  window.ExpanseAssets?.disconnect();
   const address=wsUrl();
   if(!address){retryConnection();return;}
   ws = new WebSocket(address);
@@ -375,6 +376,7 @@ function connect() {
   };
   ws.onclose = (event) => {
     if(connection!==ws)return;
+    window.ExpanseAssets?.disconnect();
     window.ExpanseSoundscape?.disconnect();
     window.ExpanseResidentWatch?.close();
     window.ExpanseGazette?.disconnect();
@@ -401,6 +403,7 @@ function connect() {
     if(connection!==ws)return;
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
+    if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit'||(msg.type==='system'&&/^Resumed as /.test(msg.text||'')))window.ExpanseAssets?.disconnect();
     if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit')window.ExpanseMapEffects?.reset();
     if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit'||(msg.type==='system'&&/^Resumed as /.test(msg.text||'')))window.ExpanseSoundscape?.disconnect();
     window.ExpanseSourceQuests?.receive(msg);

@@ -1,5 +1,7 @@
 # Asset-delivery follow-up: cache behavior and gameplay packets
 
+**Historical baseline.** The [v1 implementation and verification record](ASSET-CACHE-V1.md) describes subsequent changes and rollout status.
+
 This supplements the existing [asset-delivery audit/contract](ASSET-DELIVERY.md) and [work coordination](../EXPANSE-COORDINATION.md); it does not introduce a competing protocol or implementation plan. The other work published that canonical handoff at `a783ddd9f8215934c0d607851cd76a09739c05d6` while this investigation was running. This follow-up was integrated onto that commit. Runtime engine, web and server code remain identical to the earlier audited `bbbe023`.
 
 **Persistent synchronization is still proposed. No runtime caching or deployment changes were made; the MMO gate remains closed.** The staged festival 1.9.18/game 1.9.16 release prerequisites in the canonical handoff remain in force. No staged world was imported or approved here.

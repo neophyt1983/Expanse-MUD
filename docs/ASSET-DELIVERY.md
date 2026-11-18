@@ -1,5 +1,7 @@
 # Expanse asset delivery: audit and implementation contract
 
+**Historical baseline.** The [v1 implementation and verification record](ASSET-CACHE-V1.md) describes subsequent changes and rollout status.
+
 Status: **investigated and measured locally; persistent host-versioned caching is proposed, not implemented.** Recorded November 18, 2026. Code audited: [`bbbe023`](https://github.com/neophyt1983/Expanse-MUD/commit/bbbe023ab78f5378603805e2819fd47d81516e60). This document and the measurement tool do not enable MMO or change delivery, deployments, saves or accounts.
 
 Additional engine/game evidence is integrated in the [follow-up measurements](ASSET-DELIVERY-FOLLOWUP.md): current JS cache behavior, published desktop source, opt-in public HTTP headers and disposable single-player map packets. It uses this same implementation contract and preserves the staged-release prerequisites below.

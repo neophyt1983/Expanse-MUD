@@ -1,0 +1,341 @@
+{
+  "schema_version": 1,
+  "status": "pass",
+  "source_commit": "447efd6e540af87a62b59135a6cedc0407595a11",
+  "world_archive_sha256": "b4ceb676d0eebcce77d0394e6375cd5e65800eab5c0b8a44c1356cabfe5c76c6",
+  "world_assets_source_sha256": "899a5a46b315cdeff6c7c595ac18d528ff27bd6f96881cc3e8769c2e865ab1b7",
+  "public_media_source_sha256": "86330b4e3234ce1d81cdb8f6acfe6e7f6a1a8812c4481e1a724dda9b0b9108ff",
+  "candidate_source_sha256": {
+    "web/world-assets.js": "899a5a46b315cdeff6c7c595ac18d528ff27bd6f96881cc3e8769c2e865ab1b7",
+    "engine/public_media.py": "86330b4e3234ce1d81cdb8f6acfe6e7f6a1a8812c4481e1a724dda9b0b9108ff",
+    "engine/world_package.py": "18491fad5ec17290ab8a4564ce94b6416be7d1564e6a7d1963b1af80fcec3ab2",
+    "server/game_server.py": "6be4fdcafd28bc276cbbc42a3b662fbf153bf5cbf9e1d980a8ae39ff5239e024",
+    "web/index.html": "e5b9743f888a632b1edbc77cdb89e6c28825e8cb9a770b29cb3207d19d83619c",
+    "web/visual-map.js": "cf1918455e9771704242c68fa6a6e36c410552e9942d59843caaef375e7f2fee",
+    "web/character-sheets.js": "3c30054aa4703cc75d67ea54e3dbd7f177ee7a63e1beccf9d7fd74106df3de0a",
+    "web/world-audio.js": "7145921b5da6b13614faea991a6eebc375efedde0013cdd7a5178eac78821324"
+  },
+  "measurement": "actual Qt WebEngine HTML, WebSocket, WebCrypto SHA256 and IndexedDB; private profile reused across four processes",
+  "executed_modules": [
+    "web/world-assets.js",
+    "engine/public_media.py",
+    "engine/world_package.py"
+  ],
+  "runtime": {
+    "browser_engine": "PySide6 / QtWebEngine 6.10.3",
+    "qt_plugins": "runtime bundled Qt6 offscreen plugin",
+    "qt_platform": "offscreen",
+    "chromium_flags": "--disable-gpu --no-sandbox",
+    "profile_http_cache": "NoCache",
+    "standalone_chromium_limit": "AF_UNIX socket() is forbidden; installed Qt engine uses socketpair",
+    "engine_limit": "Browser subprocess sandbox disabled for isolated local fixtures; runtime security controls remain unchanged."
+  },
+  "scope_limits": [
+    "Loopback fixture authenticates no real game account and mutates no live world, account or save.",
+    "Fixture uses actual PublicMedia.info policy and asset_packet with exact bundled reviewed bytes; not full GameServer gameplay.",
+    "Trace counts UTF8 WebSocket JSON application payloads only; excludes HTTP/TLS/WebSocket frame bytes and compression.",
+    "PNG createImageBitmap decoding is an optional separate rendering probe; no visible display or physical device is exercised.",
+    "No native installed-asset bridge is exercised; pure browser persistent cache only.",
+    "Application-shell HTTP cache is measured separately."
+  ],
+  "reviewed_asset_count": 15,
+  "reviewed_asset_bytes": 2937600,
+  "results": [
+    {
+      "scenario": "cold",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.10.3 Chrome/134.0.0.0 Safari/537.36",
+      "secure": true,
+      "stats": {
+        "infoRequests": 15,
+        "assetRequests": 43,
+        "downloadedBytes": 2937600,
+        "persistentHits": 0,
+        "persistentWrites": 15,
+        "bundledHits": 0,
+        "integrityFailures": 0,
+        "transientDownloads": 0,
+        "memoryBytes": 2937600,
+        "memoryEntries": 15,
+        "activeLoads": 0,
+        "queuedLoads": 0,
+        "activeLeases": 0
+      },
+      "cache_entries": 15,
+      "cache_bytes": 2937600,
+      "validated_assets": 15,
+      "png_decoded": true,
+      "memory_repeat_no_traffic": true,
+      "elapsed_ms": 783,
+      "host": "a"
+    },
+    {
+      "scenario": "reload",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.10.3 Chrome/134.0.0.0 Safari/537.36",
+      "secure": true,
+      "stats": {
+        "infoRequests": 15,
+        "assetRequests": 0,
+        "downloadedBytes": 0,
+        "persistentHits": 15,
+        "persistentWrites": 0,
+        "bundledHits": 0,
+        "integrityFailures": 0,
+        "transientDownloads": 0,
+        "memoryBytes": 2937600,
+        "memoryEntries": 15,
+        "activeLoads": 0,
+        "queuedLoads": 0,
+        "activeLeases": 0
+      },
+      "cache_entries": 15,
+      "cache_bytes": 2937600,
+      "validated_assets": 15,
+      "png_decoded": true,
+      "memory_repeat_no_traffic": true,
+      "elapsed_ms": 87,
+      "host": "a"
+    },
+    {
+      "scenario": "restart",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.10.3 Chrome/134.0.0.0 Safari/537.36",
+      "secure": true,
+      "stats": {
+        "infoRequests": 15,
+        "assetRequests": 0,
+        "downloadedBytes": 0,
+        "persistentHits": 15,
+        "persistentWrites": 0,
+        "bundledHits": 0,
+        "integrityFailures": 0,
+        "transientDownloads": 0,
+        "memoryBytes": 2937600,
+        "memoryEntries": 15,
+        "activeLoads": 0,
+        "queuedLoads": 0,
+        "activeLeases": 0
+      },
+      "cache_entries": 15,
+      "cache_bytes": 2937600,
+      "validated_assets": 15,
+      "png_decoded": true,
+      "memory_repeat_no_traffic": true,
+      "elapsed_ms": 89,
+      "host": "a"
+    },
+    {
+      "scenario": "corruption",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.10.3 Chrome/134.0.0.0 Safari/537.36",
+      "secure": true,
+      "stats": {
+        "infoRequests": 15,
+        "assetRequests": 1,
+        "downloadedBytes": 467,
+        "persistentHits": 14,
+        "persistentWrites": 1,
+        "bundledHits": 0,
+        "integrityFailures": 1,
+        "transientDownloads": 0,
+        "memoryBytes": 2937600,
+        "memoryEntries": 15,
+        "activeLoads": 0,
+        "queuedLoads": 0,
+        "activeLeases": 0
+      },
+      "cache_entries": 15,
+      "cache_bytes": 2937600,
+      "validated_assets": 15,
+      "png_decoded": true,
+      "memory_repeat_no_traffic": true,
+      "elapsed_ms": 78,
+      "host": "a"
+    },
+    {
+      "scenario": "world-switch",
+      "stats": {
+        "infoRequests": 16,
+        "assetRequests": 2,
+        "downloadedBytes": 936,
+        "persistentHits": 14,
+        "persistentWrites": 1,
+        "bundledHits": 0,
+        "integrityFailures": 1,
+        "transientDownloads": 1,
+        "memoryBytes": 469,
+        "memoryEntries": 1,
+        "activeLoads": 0,
+        "queuedLoads": 0,
+        "activeLeases": 1
+      },
+      "returned_sha256": "c42c02917f2fe94d0a6b474ce4fc882ad7468174990d081d7e7dc6a340a1376e",
+      "cache_entries": 15,
+      "host": "a"
+    },
+    {
+      "scenario": "host-b",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.10.3 Chrome/134.0.0.0 Safari/537.36",
+      "secure": true,
+      "stats": {
+        "infoRequests": 15,
+        "assetRequests": 43,
+        "downloadedBytes": 2937600,
+        "persistentHits": 0,
+        "persistentWrites": 15,
+        "bundledHits": 0,
+        "integrityFailures": 0,
+        "transientDownloads": 0,
+        "memoryBytes": 2937600,
+        "memoryEntries": 15,
+        "activeLoads": 0,
+        "queuedLoads": 0,
+        "activeLeases": 0
+      },
+      "cache_entries": 15,
+      "cache_bytes": 2937600,
+      "validated_assets": 15,
+      "png_decoded": true,
+      "memory_repeat_no_traffic": true,
+      "elapsed_ms": 556,
+      "host": "b"
+    },
+    {
+      "scenario": "return-host-a",
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.10.3 Chrome/134.0.0.0 Safari/537.36",
+      "secure": true,
+      "stats": {
+        "infoRequests": 15,
+        "assetRequests": 0,
+        "downloadedBytes": 0,
+        "persistentHits": 15,
+        "persistentWrites": 0,
+        "bundledHits": 0,
+        "integrityFailures": 0,
+        "transientDownloads": 0,
+        "memoryBytes": 2937600,
+        "memoryEntries": 15,
+        "activeLoads": 0,
+        "queuedLoads": 0,
+        "activeLeases": 0
+      },
+      "cache_entries": 15,
+      "cache_bytes": 2937600,
+      "validated_assets": 15,
+      "png_decoded": true,
+      "memory_repeat_no_traffic": true,
+      "elapsed_ms": 74,
+      "host": "a"
+    }
+  ],
+  "websocket_traces": [
+    {
+      "scenario": "cold",
+      "world": "main",
+      "info_requests": 15,
+      "asset_requests": 43,
+      "raw_asset_bytes": 2937600,
+      "inbound_json_bytes": 5956,
+      "outbound_json_bytes": 3927619,
+      "metadata_json_bytes": 3708,
+      "asset_json_bytes": 3923911,
+      "host": "a"
+    },
+    {
+      "scenario": "reload",
+      "world": "main",
+      "info_requests": 15,
+      "asset_requests": 0,
+      "raw_asset_bytes": 0,
+      "inbound_json_bytes": 1394,
+      "outbound_json_bytes": 3703,
+      "metadata_json_bytes": 3703,
+      "asset_json_bytes": 0,
+      "host": "a"
+    },
+    {
+      "scenario": "restart",
+      "world": "main",
+      "info_requests": 15,
+      "asset_requests": 0,
+      "raw_asset_bytes": 0,
+      "inbound_json_bytes": 1394,
+      "outbound_json_bytes": 3703,
+      "metadata_json_bytes": 3703,
+      "asset_json_bytes": 0,
+      "host": "a"
+    },
+    {
+      "scenario": "corruption",
+      "world": "main",
+      "info_requests": 15,
+      "asset_requests": 1,
+      "raw_asset_bytes": 467,
+      "inbound_json_bytes": 1481,
+      "outbound_json_bytes": 4471,
+      "metadata_json_bytes": 3704,
+      "asset_json_bytes": 767,
+      "host": "a"
+    },
+    {
+      "scenario": "corruption",
+      "world": "changed",
+      "info_requests": 1,
+      "asset_requests": 1,
+      "raw_asset_bytes": 469,
+      "inbound_json_bytes": 168,
+      "outbound_json_bytes": 877,
+      "metadata_json_bytes": 105,
+      "asset_json_bytes": 772,
+      "host": "a"
+    },
+    {
+      "scenario": "host-b",
+      "world": "main",
+      "info_requests": 15,
+      "asset_requests": 43,
+      "raw_asset_bytes": 2937600,
+      "inbound_json_bytes": 5956,
+      "outbound_json_bytes": 3927619,
+      "metadata_json_bytes": 3708,
+      "asset_json_bytes": 3923911,
+      "host": "b"
+    },
+    {
+      "scenario": "return-host-a",
+      "world": "main",
+      "info_requests": 15,
+      "asset_requests": 0,
+      "raw_asset_bytes": 0,
+      "inbound_json_bytes": 1394,
+      "outbound_json_bytes": 3703,
+      "metadata_json_bytes": 3703,
+      "asset_json_bytes": 0,
+      "host": "a"
+    }
+  ],
+  "browser_processes": [
+    {
+      "process": "cold-and-reload",
+      "exit_code": 0,
+      "elapsed_ms": 1252
+    },
+    {
+      "process": "browser-restart",
+      "exit_code": 0,
+      "elapsed_ms": 517
+    },
+    {
+      "process": "corruption-and-world-switch",
+      "exit_code": 0,
+      "elapsed_ms": 408
+    },
+    {
+      "process": "changed-host-and-return",
+      "exit_code": 0,
+      "elapsed_ms": 984
+    }
+  ],
+  "persistent_storage": {
+    "file_count": 62,
+    "bytes": 8990959
+  },
+  "errors": []
+}

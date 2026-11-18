@@ -1,5 +1,11 @@
 (() => {
   const song=new Audio(),effect=new Audio(),rumble=new Audio();
+  const mediaLeases=new Map();
+  function releaseMedia(audio){
+    audio.pause();audio.removeAttribute('src');audio.load?.();
+    mediaLeases.get(audio)?.release?.();mediaLeases.delete(audio);
+  }
+  function useMedia(audio,asset){releaseMedia(audio);mediaLeases.set(audio,asset);audio.src=asset.url;}
   let revision=0, effectRev=0, thunderRev=0, current='', effects=0;
   let performanceContext=null,performanceGain=null,performanceRevision=0,performanceVolume=0;
   const performanceNodes=new Set();
@@ -92,29 +98,29 @@
       performanceVolume=number(musicVolume,0,1)?musicVolume:0;
       if(!performanceVolume)stopPerformance();else if(performanceGain)performanceGain.gain.value=performanceVolume*.35;
       rumble.volume=effect.volume=effects;
-      if(!effects){effectRev++;thunderRev++;effect.pause();rumble.pause();}
+      if(!effects){effectRev++;thunderRev++;releaseMedia(effect);releaseMedia(rumble);}
       song.preservesPitch=false;song.playbackRate=Math.pow(2,transpose/12);
-      if(!musicVolume||!path){revision++;current='';song.pause();return;}
+      if(!musicVolume||!path){revision++;current='';releaseMedia(song);return;}
       if(path===current){if(song.paused&&song.getAttribute('src'))play(song);return;}
-      const update=++revision;current=path;song.pause();song.removeAttribute('src');
+      const update=++revision;current=path;releaseMedia(song);
       window.ExpanseAssets.get(path).then(asset=>{
-        if(update!==revision||!asset)return;
-        song.src=asset.url;song.loop=true;play(song);
+        if(update!==revision||!asset){asset?.release?.();return;}
+        useMedia(song,asset);song.loop=true;play(song);
       });
     },
     async cue(path) {
       const update=++effectRev;
       if(!effects||!path)return;
       const asset=await window.ExpanseAssets.get(path);
-      if(!asset||update!==effectRev||!effects)return;
-      effect.src=asset.url;effect.volume=effects;play(effect);
+      if(!asset||update!==effectRev||!effects){asset?.release?.();return;}
+      useMedia(effect,asset);effect.volume=effects;play(effect);
     },
     async thunder(path) {
       const update=++thunderRev;
-      if(!effects||!path){rumble.pause();return;}
+      if(!effects||!path){releaseMedia(rumble);return;}
       const asset=await window.ExpanseAssets.get(path);
-      if(!asset||update!==thunderRev||!effects)return;
-      rumble.src=asset.url;rumble.volume=effects;play(rumble);
+      if(!asset||update!==thunderRev||!effects){asset?.release?.();return;}
+      useMedia(rumble,asset);rumble.volume=effects;play(rumble);
     },
     test(volume) {
       if(!volume)return;

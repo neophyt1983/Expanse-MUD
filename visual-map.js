@@ -23,24 +23,32 @@
  }
 
  const hash=s=>{let n=2166136261;for(const c of String(s||''))n=Math.imul(n^c.charCodeAt(0),16777619);return n>>>0;};
- let terrainSheet=null,terrainLoading=null,terrainGeneration=0;
+ let terrainSheet=null,terrainLoading=null,terrainGeneration=0,terrainAttempts=0,terrainRetry=null;
  const neutralTile=make('canvas');neutralTile.width=neutralTile.height=24;
  const neutralContext=neutralTile.getContext('2d');neutralContext.fillStyle='#576264';neutralContext.fillRect(0,0,24,24);
  function loadTerrain(){
-  if(terrainLoading||!window.ExpanseAssets)return;
+  if(terrainSheet||terrainLoading||terrainRetry||terrainAttempts>=3||!window.ExpanseAssets)return;
   const gen=terrainGeneration;
-  terrainLoading=(async()=>{
+  const task=(async()=>{
    const index=await window.ExpanseAssets.get('assets/terrain/index.json');if(!index)return;
-   const doc=JSON.parse(await index.blob.text());
+   let doc;try{doc=JSON.parse(await index.blob.text());}finally{index.release?.();}
+   if(gen!==terrainGeneration)return;
    if(!Array.isArray(doc.keys)||!Array.isArray(doc.variants)||doc.size!==24||!Number.isInteger(doc.seeds)||doc.seeds<1||doc.seeds>64)return;
    const asset=await window.ExpanseAssets.get(doc.file);if(!asset)return;
-   const image=new Image();image.src=asset.url;await image.decode();
+   const image=new Image();try{image.src=asset.url;await image.decode();}finally{asset.release?.();}
    if(gen!==terrainGeneration)return;
    terrainSheet={doc,image};cache.clear();for(const view of views.values())view.schedule();
    window.dispatchEvent(new Event('expanse:sprite-ready'));
-  })().catch(()=>{});
+  })().catch(()=>{}).finally(()=>{
+   if(gen!==terrainGeneration)return;
+   if(terrainLoading===task)terrainLoading=null;
+   if(!terrainSheet&&++terrainAttempts<3)terrainRetry=setTimeout(()=>{
+    terrainRetry=null;if(gen===terrainGeneration)loadTerrain();
+   },terrainAttempts===1?1000:3000);
+  });
+  terrainLoading=task;
  }
- window.addEventListener('expanse:world-assets',()=>{terrainGeneration++;terrainLoading=null;terrainSheet=null;cache.clear();artCache.clear();artDocuments.clear();loadTerrain();});
+ window.addEventListener('expanse:world-assets',()=>{terrainGeneration++;clearTimeout(terrainRetry);terrainRetry=null;terrainAttempts=0;terrainLoading=null;terrainSheet=null;cache.clear();artCache.clear();artDocuments.clear();loadTerrain();});
  function tile(terrain,seed){return terrainTile(terrain,seed,null);}
  function terrainTile(terrain,seed,route){
   if(!terrainSheet){loadTerrain();return neutralTile;}

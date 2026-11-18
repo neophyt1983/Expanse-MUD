@@ -1,4 +1,4 @@
-/* Observes the existing served world-assets.js in isolated page contexts.
+/* Exercises the legacy host protocol against world-assets.js in isolated page contexts.
  * This is a protocol/JS probe, not a browser persistence or rendering test. */
 'use strict';
 const assert=require('node:assert/strict');
@@ -28,7 +28,7 @@ function page(host){
 (async()=>{
  const host={data:'original public artwork'}, first=page(host), name='assets/terrain/fixture.png';
  const [a,b]=await Promise.all([first.api.get(name),first.api.get(name)]);
- assert.equal(first.count.requests,1);assert.equal(a,b);
+ assert.equal(first.count.requests,1);assert.equal(a.blob,b.blob);
  host.data='changed public artwork';
  const unchanged=await first.api.get(name);
  assert.equal(await unchanged.blob.text(),'original public artwork');
@@ -42,5 +42,5 @@ function page(host){
   same_page_duplicate_requests:1,new_page_download_requests:1,
   same_session_edit_detected:false,host_session_change_refetches:true,
   persistent_store_used:false,
-  scope:'isolated JS contexts and protocol double; no actual browser disk cache exercised'}));
+  scope:'legacy host without media_protocol, isolated JS contexts; no browser disk cache exercised'}));
 })().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,0 +1,56 @@
+--- a/app/server/display_preferences.py
++++ b/app/server/display_preferences.py
+@@ -58,6 +58,18 @@
+             self.voice.stop()
+
+
++class BundledAssets(QObject):
++    """Optional access to fixed public bytes from the exact bundled release."""
++    def __init__(self, view):
++        super().__init__(view)
++        from server.desktop_asset_seed import BundledAssetSeed
++        self._seed = BundledAssetSeed()
++
++    @Slot(str, result=str)
++    def getBundledAsset(self, digest):
++        return self._seed.get(digest)
++
++
+ class DisplayPreferences(QObject):
+     changed = Signal()
+
+@@ -114,6 +126,8 @@
+     channel = QWebChannel(view.page())
+     prefs.audio = DeviceAudio(view, settings)
+     view.page().loadStarted.connect(prefs.audio.stop)
++    prefs.bundled_assets = BundledAssets(view)
++    channel.registerObject('bundledAssets', prefs.bundled_assets)
+     channel.registerObject('deviceAudio', prefs.audio)
+     channel.registerObject('display', prefs)
+     view.page().setWebChannel(channel)
+@@ -126,6 +140,25 @@
+     script.setWorldId(QWebEngineScript.MainWorld)
+     script.setSourceCode(bytes(source.readAll()).decode() + """
+ new QWebChannel(qt.webChannelTransport, channel => {
++    const bundled = channel.objects.bundledAssets;
++    window.ExpanseBundledAssets = Object.freeze({get(digest) {
++        if(typeof digest !== 'string' || !/^[0-9a-f]{64}$/.test(digest) ||
++           typeof bundled?.getBundledAsset !== 'function') return Promise.resolve(null);
++        return new Promise(resolve => {
++            let settled = false;
++            const finish = value => {
++                if(settled) return;
++                settled = true; clearTimeout(timer);
++                resolve(typeof value === 'string' && value.length > 0 &&
++                    value.length <= 4*Math.ceil((512*1024)/3) && value.length%4 === 0 &&
++                    /^[A-Za-z0-9+/]*={0,2}$/.test(value) ? value : null);
++            };
++            const timer = setTimeout(() => finish(null), 1500);
++            try { bundled.getBundledAsset(digest, finish); }
++            catch { finish(null); }
++        });
++    }});
++    window.dispatchEvent(new Event('expanse:bundled-assets'));
+     window.ExpanseVoice = channel.objects.deviceAudio;
+     window.dispatchEvent(new Event('expanse:device-audio'));
+     const display = channel.objects.display;
