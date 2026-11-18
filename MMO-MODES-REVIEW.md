@@ -1,5 +1,7 @@
 # Expanse — Solo/MMO and permissions (staging)
 
+Related owner direction: [shared host authority and asset delivery coordination](EXPANSE-COORDINATION.md). Asset caching is a separate workstream and does not satisfy or bypass the MMO release gate below.
+
 **This branch is NOT READY FOR PRODUCTION. Do not merge or deploy as MMO.**
 
 ## Confirmed existing architecture
