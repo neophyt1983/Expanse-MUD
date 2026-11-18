@@ -155,12 +155,32 @@ class MediaSnapshot(unittest.TestCase):
             if os.name == 'nt':
                 print('Windows media mutation check: ' + diagnostic)
             self.assertTrue(attempted, diagnostic)
+            if os.name == 'nt':
+                self.assertTrue(denied, 'Windows verification must exclude concurrent writes; ' + diagnostic)
             if denied:
                 self.assertEqual(self.path.read_bytes(), BODY)
                 self.assertTrue(result is None or result['sha256'] == REVIEWED[NAME][1])
             else:
                 self.assertEqual(self.path.read_bytes(), b'X' * len(BODY))
                 self.assertIsNone(result)
+
+    @unittest.skipUnless(os.name == 'nt', 'Windows read-handle sharing semantics')
+    def test_windows_read_handle_excludes_writes_and_deletes_and_releases_ownership(self):
+        with public_media._portable_regular(self.root, NAME) as (descriptor, _, _):
+            self.assertEqual(BODY, os.read(descriptor, len(BODY)))
+            with self.assertRaises(PermissionError):
+                self.path.write_bytes(b'X' * len(BODY))
+            with self.assertRaises(PermissionError):
+                self.path.unlink()
+        self.path.write_bytes(BODY)
+        with self.path.open('r+b'):
+            self.assertIsNone(self.registry.info(NAME), 'An existing writer prevents a stable media snapshot.')
+        self.assertIsNotNone(self.registry.info(NAME))
+        # A failed descriptor conversion leaves ownership with the Win32 helper.
+        with patch('msvcrt.open_osfhandle', side_effect=OSError('Synthetic conversion failure')):
+            with self.assertRaises(OSError):
+                public_media._windows_readonly(self.path)
+        self.path.write_bytes(BODY)
 
     def test_portable_path_and_descriptor_timestamp_views_may_differ_for_unchanged_bytes(self):
         lstat = Path.lstat

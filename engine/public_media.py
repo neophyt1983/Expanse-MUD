@@ -82,6 +82,57 @@ def _unaliased(root, name):
         raise OSError('Aliased media path refused.')
 
 
+def _windows_readonly(path):
+    """Own a no-reparse read handle that excludes concurrent writes/deletes."""
+    import ctypes
+    from ctypes import wintypes
+    import msvcrt
+
+    class AttributeTagInfo(ctypes.Structure):
+        _fields_ = [('attributes', wintypes.DWORD), ('reparse_tag', wintypes.DWORD)]
+
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                       ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    create.restype = wintypes.HANDLE
+    information = kernel.GetFileInformationByHandleEx
+    information.argtypes = [wintypes.HANDLE, ctypes.c_int, ctypes.c_void_p, wintypes.DWORD]
+    information.restype = wintypes.BOOL
+    close = kernel.CloseHandle
+    close.argtypes = [wintypes.HANDLE]
+    close.restype = wintypes.BOOL
+
+    # GENERIC_READ, FILE_SHARE_READ only, OPEN_EXISTING, and
+    # FILE_FLAG_OPEN_REPARSE_POINT. Existing writers are incompatible too.
+    handle = create(os.fspath(path), 0x80000000, 0x00000001, None,
+                    3, 0x00200000, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    owned = True
+    try:
+        attributes = AttributeTagInfo()
+        if not information(handle, 9, ctypes.byref(attributes), ctypes.sizeof(attributes)):
+            raise ctypes.WinError(ctypes.get_last_error())
+        if attributes.attributes & (0x400 | 0x10):
+            raise OSError('Media handle must be a regular file without reparse attributes.')
+        # The descriptor takes ownership only after open_osfhandle succeeds.
+        # _portable_regular closes it on every successful/exceptional exit.
+        descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY)
+        owned = False
+        return descriptor
+    finally:
+        if owned:
+            close(handle)
+
+
+def _portable_descriptor(path):
+    if _windows_filesystem():
+        return _windows_readonly(path)
+    return os.open(path, os.O_RDONLY | getattr(os, 'O_BINARY', 0)
+                   | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_NOFOLLOW', 0))
+
+
 def _linked(info):
     if os.name == 'nt' and not hasattr(info, 'st_file_attributes'):
         raise OSError('Reparse point detection is unavailable.')
@@ -104,8 +155,7 @@ def _portable_regular(root, name):
         raise OSError('Linked media path refused.')
     if not all(stat.S_ISDIR(info.st_mode) for info in before[:-1]) or not stat.S_ISREG(before[-1].st_mode):
         raise OSError('Expected a regular media path.')
-    descriptor = os.open(paths[-1], os.O_RDONLY | getattr(os, 'O_BINARY', 0)
-                         | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_NOFOLLOW', 0))
+    descriptor = _portable_descriptor(paths[-1])
     try:
         opened = os.fstat(descriptor)
         if _linked(opened) or _file_identity(opened) != _file_identity(before[-1]):

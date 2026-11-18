@@ -66,7 +66,13 @@ Authored visible image and audio filenames can use Unicode, spaces, apostrophes 
 identity check. The portable Windows path checks file/directory identities
 before and after reading and rejects reparse points; it rehashes on each small
 version negotiation because Windows creation timestamps do not reliably detect
-all edits. Neither path hashes files during map or chunk construction.
+all edits. Its Win32 read handle permits other readers while denying concurrent
+writes and deletion for the duration of verification or a legacy chunk read.
+An already-open writer prevents a snapshot. Reparse attributes are checked on
+the opened handle itself, and descriptor conversion transfers ownership only
+on success; every other branch closes the Win32 handle. This avoids trusting
+NTFS timestamp updates while a reader remains open. Neither path hashes files
+during map or chunk construction.
 
 Folder publication and explicit world reload invalidate the runtime identity
 and host verification cache. Render's editor edits a separate draft; applying a

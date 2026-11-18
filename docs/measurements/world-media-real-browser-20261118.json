@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "status": "pass",
-  "source_commit": "8ccc4496e7d9a4ab61059123c128e356206d80a9",
+  "source_commit": "f632f4ed425c362fdf3196cdc885b36c01d4ed98",
   "world_archive_sha256": "b4ceb676d0eebcce77d0394e6375cd5e65800eab5c0b8a44c1356cabfe5c76c6",
   "world_assets_source_sha256": "899a5a46b315cdeff6c7c595ac18d528ff27bd6f96881cc3e8769c2e865ab1b7",
-  "public_media_source_sha256": "f843d5c0795ff2876e28b990885efa3a53f462a8aa65a14d0c00c016118b4d29",
+  "public_media_source_sha256": "a5df164e160a874cd3cbcca74789030979d15647d4b1b23790acb7ff3485de4d",
   "candidate_source_sha256": {
     "web/world-assets.js": "899a5a46b315cdeff6c7c595ac18d528ff27bd6f96881cc3e8769c2e865ab1b7",
-    "engine/public_media.py": "f843d5c0795ff2876e28b990885efa3a53f462a8aa65a14d0c00c016118b4d29",
+    "engine/public_media.py": "a5df164e160a874cd3cbcca74789030979d15647d4b1b23790acb7ff3485de4d",
     "engine/world_package.py": "18491fad5ec17290ab8a4564ce94b6416be7d1564e6a7d1963b1af80fcec3ab2",
     "server/game_server.py": "6be4fdcafd28bc276cbbc42a3b662fbf153bf5cbf9e1d980a8ae39ff5239e024",
     "web/index.html": "e5b9743f888a632b1edbc77cdb89e6c28825e8cb9a770b29cb3207d19d83619c",
@@ -64,7 +64,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 1009,
+      "elapsed_ms": 1186,
       "host": "a"
     },
     {
@@ -91,7 +91,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 103,
+      "elapsed_ms": 87,
       "host": "a"
     },
     {
@@ -118,7 +118,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 87,
+      "elapsed_ms": 100,
       "host": "a"
     },
     {
@@ -145,7 +145,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 163,
+      "elapsed_ms": 102,
       "host": "a"
     },
     {
@@ -193,7 +193,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 583,
+      "elapsed_ms": 677,
       "host": "b"
     },
     {
@@ -220,7 +220,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 84,
+      "elapsed_ms": 102,
       "host": "a"
     }
   ],
@@ -314,27 +314,27 @@
     {
       "process": "cold-and-reload",
       "exit_code": 0,
-      "elapsed_ms": 1570
+      "elapsed_ms": 1859
     },
     {
       "process": "browser-restart",
       "exit_code": 0,
-      "elapsed_ms": 462
+      "elapsed_ms": 426
     },
     {
       "process": "corruption-and-world-switch",
       "exit_code": 0,
-      "elapsed_ms": 682
+      "elapsed_ms": 437
     },
     {
       "process": "changed-host-and-return",
       "exit_code": 0,
-      "elapsed_ms": 1068
+      "elapsed_ms": 1162
     }
   ],
   "persistent_storage": {
     "file_count": 62,
-    "bytes": 8990959
+    "bytes": 8990758
   },
   "errors": []
 }
