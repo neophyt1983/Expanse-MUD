@@ -1,0 +1,31 @@
+{
+  "desktop_package": "1.9.17.1",
+  "source_archive_sha256": "96c9f782decc59988588255da41db876ff77a136a6a688ae1ec9eee1cc82e135",
+  "files": [
+    {
+      "member": "Expanse-Desktop-Build-Sources-1.9.17.1/bundle/app/server/desktop.py",
+      "sha256": "261881d8e769a801ff820b1b5b93193da2f45bce4ac18eb9ab4da0a6ed449b8c",
+      "matching_lines": [
+        {
+          "line": 47,
+          "text": "self.profile.setHttpCacheType(QWebEngineProfile.NoCache)"
+        },
+        {
+          "line": 49,
+          "text": "self.profile.setCachePath(str(backend.PROJECT_ROOT/'save/desktop-cache'))"
+        }
+      ]
+    },
+    {
+      "member": "Expanse-Desktop-Build-Sources-1.9.17.1/bundle/app/server/launcher.py",
+      "sha256": "aa957a6a23948dd5defd06808f9723027f3e8c6b8afa578bed61c58fbc984150",
+      "matching_lines": [
+        {
+          "line": 260,
+          "text": "self.send_header(\"Cache-Control\", \"no-store\")"
+        }
+      ]
+    }
+  ],
+  "scope": "inspection of the published build-source supplement; not a Windows/Android runtime trace"
+}

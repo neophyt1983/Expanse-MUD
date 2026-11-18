@@ -18,3 +18,5 @@ Current audited server baseline is `bbbe023` (the merged interface-quest fix aft
 Sequence: baseline and real usage → hashed app files/compression → scoped world manifest/binary blobs → bounded browser/native reuse → measured production comparison. Prefer the existing host and client storage before paying for another delivery service. Cache clearing, eviction, update, rollback and account switching must preserve user data. Keep manual gameplay saving.
 
 Each workstream should cite the same protocol revision, tested source commit, asset-manifest revision and evidence in its PR/release notes. Record unresolved compatibility questions against this handoff before changing a shared file. Update this document and its evidence when implementation is delivered; do not treat design text as proof that a feature is running.
+
+Follow-up evidence from engine/game work: [cache behavior, public headers and gameplay packet sizes](docs/ASSET-DELIVERY-FOLLOWUP.md). It reuses this handoff and the canonical measurement tool. No cache or shared-MMO implementation/deployment is implied; actual production billing/session measurements remain required.

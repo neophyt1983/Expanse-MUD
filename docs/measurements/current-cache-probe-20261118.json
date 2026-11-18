@@ -1,0 +1,1 @@
+{"passed":true,"source":"web/world-assets.js","same_page_duplicate_requests":1,"new_page_download_requests":1,"same_session_edit_detected":false,"host_session_change_refetches":true,"persistent_store_used":false,"scope":"isolated JS contexts and protocol double; no actual browser disk cache exercised"}
