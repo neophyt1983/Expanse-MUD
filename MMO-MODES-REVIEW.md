@@ -31,6 +31,20 @@ Related owner direction: [shared host authority and asset delivery coordination]
 
 **No_Edit must be the default for all accounts.** The browser must never choose its effective role. The server must check permissions for every editor API, save/export/import, mutation endpoint, WebSocket command and DM action. UI hiding alone is insufficient.
 
+## Four-player initial online capacity policy — 2 vCPU / 4 GB Render
+
+Owner requirement (November 17, 2026): admit **at most four concurrent online players** on the current Render instance while validating resource use.
+
+- Four means **active game participants**, not a limit of four registered user accounts.
+- For the MMO world, cap simultaneous authenticated characters at four, counting the owner if they are playing. A fifth player receives a clear **World full** response and does **not** evict an existing player.
+- When Single Player and MMO run on the **same Render service**, apply an overall resource/admission budget rather than allowing four private game processes **plus** four MMO characters by accident. Each private worker incurs extra memory/CPU cost; concurrent capacity still needs load tests.
+- `EXPANSE_MAX_ACTIVE_GAMES` controls the maximum number of **private Single Player processes**; it is not an MMO player-count setting. The current code accepts `4` for this variable. Treat `EXPANSE_MMO_MAX_PLAYERS=4` as a **proposed future** shared-host configuration key, not a live setting until the MMO worker reads and enforces it.
+- Admission and departure must be synchronized: simultaneous fifth joins must not oversubscribe; disconnects, kick/ban, and Save & Quit must release membership; no account's logout may end another's session.
+- Preserve per-account identity, permissions and manual saves. Do not turn on gameplay autosaving merely to manage a slot.
+- Test simultaneous 4-player gameplay (movement, trade, combat/magic, save/restore, owner role changes, process restarts) and compare actual RAM/CPU and responsiveness. Lower the cap if real-world use proves four too much.
+
+**This capacity is a deliberate initial test ceiling, not a measured performance guarantee.**
+
 ## Required second milestone to actually enable MMO
 
 1. Create one dedicated shared-world worker (`GameServer(mode='host')`) and multiple independent network sockets, with clear player capacity and lifecycle.
@@ -42,4 +56,4 @@ Related owner direction: [shared host authority and asset delivery coordination]
 7. Cross-client integration tests: two accounts simultaneously in one world, separate characters, one sees the other, chat/trade, movement updates, logout isolation, privilege denial for forged editor requests, role revocation mid-session, save/load and restart recovery.
 8. Verify performance and load on actual Render resources. The old `EXPANSE_MAX_ACTIVE_GAMES` setting caps private game processes, **not** the shared world's concurrent-player capacity.
 
-Until all checks pass, MMO remains unavailable and existing single-player access is preserved. Keep this pull request draft.
+Until all checks pass, MMO remains unavailable and existing single-player access is preserved. This document describes staged requirements, not proof of a live MMO.
