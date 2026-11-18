@@ -1,0 +1,2727 @@
+{
+  "schema_version": 1,
+  "scope": "read-only local asset measurement; caching and MMO remain unchanged",
+  "source_commit": "bbbe023ab78f5378603805e2819fd47d81516e60",
+  "static": {
+    "served_static_allowlist": {
+      "files": 93,
+      "raw_bytes": 1017457,
+      "gzip_opportunity_bytes": 404205,
+      "brotli_opportunity_bytes": null
+    },
+    "play_html": {
+      "path": "web/index.html",
+      "raw_bytes": 98845,
+      "gzip_opportunity_bytes": 24393,
+      "brotli_opportunity_bytes": null
+    },
+    "play_html_direct_static_references": {
+      "files": 86,
+      "raw_bytes": 864001,
+      "gzip_opportunity_bytes": 294573,
+      "brotli_opportunity_bytes": null
+    },
+    "play_html_and_direct_static_references": {
+      "files": 87,
+      "raw_bytes": 962846,
+      "gzip_opportunity_bytes": 318966,
+      "brotli_opportunity_bytes": null
+    },
+    "unresolved_local_references": [],
+    "files": [
+      {
+        "path": "web/accounts-ui.js",
+        "url": "/accounts-ui.js",
+        "sha256": "3a480b7d4d7ae8fbe97ba63eb8d2eaf75236fe17c402cb440b929386591d3bac",
+        "raw_bytes": 3550,
+        "gzip_opportunity_bytes": 1581,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/adventures.js",
+        "url": "/adventures.js",
+        "sha256": "d6feb4d8dd2a683c8e97555997a20787474b7c7d4aae24f0e7969e63be8ba212",
+        "raw_bytes": 7117,
+        "gzip_opportunity_bytes": 2774,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/application-controls.js",
+        "url": "/application-controls.js",
+        "sha256": "e2ac00e0d173f5aa50a8761382a538ca687aa1d668a798f82b6d2ce5f7e62677",
+        "raw_bytes": 4580,
+        "gzip_opportunity_bytes": 1792,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/browser-support.js",
+        "url": "/browser-support.js",
+        "sha256": "31d391a943d0dcdd5ea1afd67d1378ea062b6e99a4b587c750742436e03fcd9a",
+        "raw_bytes": 1025,
+        "gzip_opportunity_bytes": 482,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/character-frame.css",
+        "url": "/character-frame.css",
+        "sha256": "010998b775a1e4bc47746e260af42741b76e7c25e3ddc8a52eb317dc26ea8e1b",
+        "raw_bytes": 1788,
+        "gzip_opportunity_bytes": 833,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/character-frame.js",
+        "url": "/character-frame.js",
+        "sha256": "ab00304cc626f90531b7576dc926d4af634cc4597ce7a07f5e6b942da79978d2",
+        "raw_bytes": 5035,
+        "gzip_opportunity_bytes": 1893,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/character-sheets.js",
+        "url": "/character-sheets.js",
+        "sha256": "46c42793642c36162bcfbf43a9ab9ef3cc9a787bf3bed93e1675f1ce16a0976c",
+        "raw_bytes": 4001,
+        "gzip_opportunity_bytes": 1723,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/character-style.js",
+        "url": "/character-style.js",
+        "sha256": "eb46df232267063b98019f73ad804fc81ac10a3353d71401647558b541abd731",
+        "raw_bytes": 8598,
+        "gzip_opportunity_bytes": 3162,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/chronicles.js",
+        "url": "/chronicles.js",
+        "sha256": "ef52fef0ab65c09dce80dab726d29086937d9544aef7481c9e7aa9dfbc99763d",
+        "raw_bytes": 3924,
+        "gzip_opportunity_bytes": 1740,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/country-view.js",
+        "url": "/country-view.js",
+        "sha256": "89c0139577dc67bb2a01c4f61ad84ec4c2e97738c749f5c5973f060148d58188",
+        "raw_bytes": 2166,
+        "gzip_opportunity_bytes": 893,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/creator-assist.css",
+        "url": "/creator-assist.css",
+        "sha256": "40831239fc9ab78087a7dd6f8ad82747d1f34814a4d6be8aead01739aa5e5157",
+        "raw_bytes": 381,
+        "gzip_opportunity_bytes": 257,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/creator-assist.js",
+        "url": "/creator-assist.js",
+        "sha256": "aba481a055c801608bec8e577e32d02f315a455452b0b73d91daf9fcc34574bf",
+        "raw_bytes": 8437,
+        "gzip_opportunity_bytes": 3376,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/creator-guide-data.js",
+        "url": "/creator-guide-data.js",
+        "sha256": "e175a09e2d7c73fff58afb7fcf411f76ef70517759ed2e3631e73e715622172a",
+        "raw_bytes": 48666,
+        "gzip_opportunity_bytes": 17746,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/creator-guide.css",
+        "url": "/creator-guide.css",
+        "sha256": "958a532bb50297c56da7e17b30c87a5d6ee021dba7fc41c945018b8ea331c33d",
+        "raw_bytes": 1554,
+        "gzip_opportunity_bytes": 642,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/creator-guide.js",
+        "url": "/creator-guide.js",
+        "sha256": "2ca166ec52cbced4f16d2cfdf730fad1b840dd834e09e19f498b31eb6411f278",
+        "raw_bytes": 4240,
+        "gzip_opportunity_bytes": 1684,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/creator-search.css",
+        "url": "/creator-search.css",
+        "sha256": "549e407227be2082503896bc598547ea48dda69b8d5f369b6dc58e2945bd8a26",
+        "raw_bytes": 567,
+        "gzip_opportunity_bytes": 323,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/creator-search.js",
+        "url": "/creator-search.js",
+        "sha256": "a38ef782a7bcc3c8505d9d367a330c59de9533e9b23f4bb8b7907769d3cba20a",
+        "raw_bytes": 9930,
+        "gzip_opportunity_bytes": 3527,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/damage-feedback.css",
+        "url": "/damage-feedback.css",
+        "sha256": "143d91dfe65660a04c4cd49e4a8848f762f440bc272344a3c0611b0466d937e0",
+        "raw_bytes": 1833,
+        "gzip_opportunity_bytes": 826,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/damage-feedback.js",
+        "url": "/damage-feedback.js",
+        "sha256": "5486ce55952ef9d8a9c15481ac8aff5798813397cf03af9a7068f0ec3a5235a8",
+        "raw_bytes": 5046,
+        "gzip_opportunity_bytes": 2057,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/display-settings.js",
+        "url": "/display-settings.js",
+        "sha256": "a8b23f060eddd34f33dec53727e5f28cd55e697f46c1c6660e4c12b26919af2d",
+        "raw_bytes": 3323,
+        "gzip_opportunity_bytes": 1359,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/dm-console.css",
+        "url": "/dm-console.css",
+        "sha256": "d03ec5aa5745a7cea47be5129a02ec910ff5045192cd47204f0737aa1e8f4666",
+        "raw_bytes": 1779,
+        "gzip_opportunity_bytes": 748,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/dm-console.js",
+        "url": "/dm-console.js",
+        "sha256": "cca01f43e478a3087c4d096b786192efff9a16f1aa651d6401eba14ce86cffd9",
+        "raw_bytes": 13584,
+        "gzip_opportunity_bytes": 4459,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/dock-layout.css",
+        "url": "/dock-layout.css",
+        "sha256": "a9f8812fa7a2296adb4d457b85917908d9cfdb197e4e2715b682ec55efda2830",
+        "raw_bytes": 3386,
+        "gzip_opportunity_bytes": 1217,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/dock-layout.js",
+        "url": "/dock-layout.js",
+        "sha256": "d747c4c6e9c8d703bbdda15185afbf06f84c4a7dbd35b30353da9b6942ba3333",
+        "raw_bytes": 20786,
+        "gzip_opportunity_bytes": 6590,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/editor-files.css",
+        "url": "/editor-files.css",
+        "sha256": "835229a140b4d53e6e99a97ceb428c1ecc8a8efb0fbaab54120fbbe3b5645a90",
+        "raw_bytes": 2142,
+        "gzip_opportunity_bytes": 746,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/editor-files.js",
+        "url": "/editor-files.js",
+        "sha256": "6cb76b596015d5273cb36b6ed1afa593575d2407d4015b33253318650a5a2038",
+        "raw_bytes": 11511,
+        "gzip_opportunity_bytes": 3373,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/expanse.ico",
+        "url": "/expanse.ico",
+        "sha256": "3e49804c6d039f63ec62ccddda49be7da8c42b3407b11d93617c1737dcd7e341",
+        "raw_bytes": 10466,
+        "gzip_opportunity_bytes": 9718,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/expanse.svg",
+        "url": "/expanse.svg",
+        "sha256": "aed196cf735b79e2e6cf3d217c4ee91c146067a43a3b981fcde5067aefc449b9",
+        "raw_bytes": 284,
+        "gzip_opportunity_bytes": 204,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/fighting-poses.js",
+        "url": "/fighting-poses.js",
+        "sha256": "e3d103241b1f7349d5ba86d3ef798c41417f1cc294f6015727b58256169374f5",
+        "raw_bytes": 7754,
+        "gzip_opportunity_bytes": 3245,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/game-settings.css",
+        "url": "/game-settings.css",
+        "sha256": "5eb180f99ff14f04919d1411e9a47c75c30535eca3843eed723a353c30a50e40",
+        "raw_bytes": 1299,
+        "gzip_opportunity_bytes": 625,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/game-settings.js",
+        "url": "/game-settings.js",
+        "sha256": "55003277117a0e7dfb8c25e1158a4c2e467bb2c4251ffe653609aa9a17a63f52",
+        "raw_bytes": 5291,
+        "gzip_opportunity_bytes": 2057,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/gazette.js",
+        "url": "/gazette.js",
+        "sha256": "3938b29ff700c0735b3a77976b0288b17377d15588d9fa58aa98dc3fc280aed0",
+        "raw_bytes": 4878,
+        "gzip_opportunity_bytes": 1918,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/geology-editor.js",
+        "url": "/geology-editor.js",
+        "sha256": "3fe7fa1dbed8e29e182dd7cc1bed68e60bc8d6b4b845738e5bb7531cf5b37179",
+        "raw_bytes": 11355,
+        "gzip_opportunity_bytes": 4146,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/history-editor.js",
+        "url": "/history-editor.js",
+        "sha256": "f58db1b31240388671337ef3f7c41ee19149c004ac07aa83b775bdf20f0a59cc",
+        "raw_bytes": 8641,
+        "gzip_opportunity_bytes": 3704,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/interface-tour.css",
+        "url": "/interface-tour.css",
+        "sha256": "09bd167581cbdfa325657802bf7a9aff639c704e6ac53b3bf0824482f162ce42",
+        "raw_bytes": 6229,
+        "gzip_opportunity_bytes": 1775,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/interface-tour.js",
+        "url": "/interface-tour.js",
+        "sha256": "05dfb362405752b82189799c055aa072e3faf5f61dbcd8a164256118aeec1d59",
+        "raw_bytes": 30459,
+        "gzip_opportunity_bytes": 8424,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/living-defaults.js",
+        "url": "/living-defaults.js",
+        "sha256": "4bacce353f3d041128b0cf8d4411e36814f4c6fd78f0999f1006a9001269fe13",
+        "raw_bytes": 8551,
+        "gzip_opportunity_bytes": 2986,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/living-editor.js",
+        "url": "/living-editor.js",
+        "sha256": "64d0341c92888b1e8f941a0cb97cf0be5725ee99e8745b4c2007297ad1e5c20f",
+        "raw_bytes": 82938,
+        "gzip_opportunity_bytes": 23247,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/local-quests.js",
+        "url": "/local-quests.js",
+        "sha256": "a0e1ca9a82acf08eea3d7863ed4cb003669de2a024e3b6545500e89b9f7228ef",
+        "raw_bytes": 6400,
+        "gzip_opportunity_bytes": 2637,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/locks-editor.js",
+        "url": "/locks-editor.js",
+        "sha256": "b91cd9a984b018f7af714f2fe9b9e0a82b1a3467b250c4a9a7a250dc2b0f8536",
+        "raw_bytes": 6092,
+        "gzip_opportunity_bytes": 2542,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/locks-ui.js",
+        "url": "/locks-ui.js",
+        "sha256": "ec36d55f64547305755fb2e877a9f72e0b28c11acac35526b07c1f65dc9db120",
+        "raw_bytes": 6291,
+        "gzip_opportunity_bytes": 2495,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/map-effects.js",
+        "url": "/map-effects.js",
+        "sha256": "1716a58d711b4cad765bc090955a03094b803492f0bf2c4b82b592e7de80b60d",
+        "raw_bytes": 13441,
+        "gzip_opportunity_bytes": 4391,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/mobile-layout.css",
+        "url": "/mobile-layout.css",
+        "sha256": "c5a11a71e06d8f85ac0675eab940742173828d3ba0131640a750139824b8dc98",
+        "raw_bytes": 2281,
+        "gzip_opportunity_bytes": 979,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/mobile-layout.js",
+        "url": "/mobile-layout.js",
+        "sha256": "b9be7411befb166ecf682acc1057cda3bcaeeef072c1550267c0299fb0657d2f",
+        "raw_bytes": 10762,
+        "gzip_opportunity_bytes": 3453,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/music-editor.js",
+        "url": "/music-editor.js",
+        "sha256": "4250cb03ab2b89f1996d20cfe4451baac562712c39bc6fd0328cf8061f94acda",
+        "raw_bytes": 3448,
+        "gzip_opportunity_bytes": 1409,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/paperdoll-equipment.css",
+        "url": "/paperdoll-equipment.css",
+        "sha256": "f326cfdb720f411d2b1ccd15174c144e3a0e622d4adc72a135f4d58d6d25c373",
+        "raw_bytes": 2039,
+        "gzip_opportunity_bytes": 815,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/paperdoll-equipment.js",
+        "url": "/paperdoll-equipment.js",
+        "sha256": "af8a32da78ac2b1fc60e949b8c2cf12decac3ae81a9f3e4d8df6df60e0a9508a",
+        "raw_bytes": 9666,
+        "gzip_opportunity_bytes": 3237,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/pet-union.js",
+        "url": "/pet-union.js",
+        "sha256": "ab87faffd3b77b8b8fbe97d3093b1cd2a3e07f13e132e5405f1da116207b1002",
+        "raw_bytes": 5197,
+        "gzip_opportunity_bytes": 1987,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/pixel-art-model.js",
+        "url": "/pixel-art-model.js",
+        "sha256": "27357bf628fe8fcdb2e3a53a8735dd786102d1b038a7c68c2a5205e1bd8e8c3f",
+        "raw_bytes": 2897,
+        "gzip_opportunity_bytes": 1361,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/pixel-studio.css",
+        "url": "/pixel-studio.css",
+        "sha256": "43a865eff6a828a9997a99ca6211e9d9d9794ab8aea1b9b3d5391e99136a1fba",
+        "raw_bytes": 4960,
+        "gzip_opportunity_bytes": 1634,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/pixel-studio.js",
+        "url": "/pixel-studio.js",
+        "sha256": "bc22ffec5e32909b162043c76e76d2d191dacc627a174a270d9fff4de8ae5931",
+        "raw_bytes": 19095,
+        "gzip_opportunity_bytes": 6470,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/planet-globe.js",
+        "url": "/planet-globe.js",
+        "sha256": "551f28fef3a47d7d98944f4309a8f75d0d0859da11c3bf3492c4305fcf5143cc",
+        "raw_bytes": 17085,
+        "gzip_opportunity_bytes": 6324,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/play-windows.css",
+        "url": "/play-windows.css",
+        "sha256": "3a06f59d4ef9f8e1da092a898688064f73656147c9b600b71236b9921ee38f1c",
+        "raw_bytes": 13597,
+        "gzip_opportunity_bytes": 3205,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/play-windows.js",
+        "url": "/play-windows.js",
+        "sha256": "a2c7204cd0e8f04230afa4b07cadbb8aad6ea42ffe1a9a93731d600628b7f679",
+        "raw_bytes": 5713,
+        "gzip_opportunity_bytes": 2003,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/player-calendar.css",
+        "url": "/player-calendar.css",
+        "sha256": "14d5819d2f22902d589e9122d7c302c760d572a220284d2bd93e7cb1b0cd9ef8",
+        "raw_bytes": 1593,
+        "gzip_opportunity_bytes": 670,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/player-calendar.js",
+        "url": "/player-calendar.js",
+        "sha256": "2a63fc806856074fe3ec990998b3b6275bdaa80c956c2e10a8ea21e1fdef15e7",
+        "raw_bytes": 14773,
+        "gzip_opportunity_bytes": 5306,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/player-controls.css",
+        "url": "/player-controls.css",
+        "sha256": "902a6b4a62cc3e8bf68d1db4f5e65513d584990b958808eb1ba86fb4babfde0e",
+        "raw_bytes": 2489,
+        "gzip_opportunity_bytes": 983,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/player-controls.js",
+        "url": "/player-controls.js",
+        "sha256": "cff3d2381ea0969bb953f449b392e6b42dbb39045d2a22391aba98de5d6e9647",
+        "raw_bytes": 21849,
+        "gzip_opportunity_bytes": 7109,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/player-lists.css",
+        "url": "/player-lists.css",
+        "sha256": "65381859e9a264481a6146694a9f91a908eafe726ae8a9a046300f9b16cd5d6f",
+        "raw_bytes": 3784,
+        "gzip_opportunity_bytes": 1238,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/player-lists.js",
+        "url": "/player-lists.js",
+        "sha256": "50752f2ae2595a8a96f3d5835fa541b21917e6ff8cde2aa21d929f1bdc0cd072",
+        "raw_bytes": 15433,
+        "gzip_opportunity_bytes": 4947,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/playtest-feedback.css",
+        "url": "/playtest-feedback.css",
+        "sha256": "f9cb4a4466ef8c801a0cc814296641253d84a544b481733705cfdbb5282e86ae",
+        "raw_bytes": 2590,
+        "gzip_opportunity_bytes": 859,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/playtest-feedback.js",
+        "url": "/playtest-feedback.js",
+        "sha256": "dee042391b06d69264a1368cf21215142b9a4ca9c7fc488e8c58edac2e9acd95",
+        "raw_bytes": 11932,
+        "gzip_opportunity_bytes": 4269,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/population-editor.js",
+        "url": "/population-editor.js",
+        "sha256": "a5eb4babda185056e9b3ff9c7acc807a217e1460203981cba4f17a42b381a096",
+        "raw_bytes": 14441,
+        "gzip_opportunity_bytes": 5147,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/resident-watch.js",
+        "url": "/resident-watch.js",
+        "sha256": "e25de03bd7bebd6747a351bb8b2bd6613de773301b135c6650dc4a78ee1857c9",
+        "raw_bytes": 6035,
+        "gzip_opportunity_bytes": 2373,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/rest-controls.js",
+        "url": "/rest-controls.js",
+        "sha256": "354e38865920cff4bd0369e31697c2e78ae56561357c0f2f4c356006748669e7",
+        "raw_bytes": 2718,
+        "gzip_opportunity_bytes": 1247,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/save-browser.js",
+        "url": "/save-browser.js",
+        "sha256": "9e62253ebd37e54403e38b5192639dae38ffe160da0de701ceff8351f01b4518",
+        "raw_bytes": 11092,
+        "gzip_opportunity_bytes": 3912,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/saves.css",
+        "url": "/saves.css",
+        "sha256": "8adc4d10d86b6ef99e086ea8a4637a52e05792404bfb577e1a20995f98f74144",
+        "raw_bytes": 3292,
+        "gzip_opportunity_bytes": 1237,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/session-menu.js",
+        "url": "/session-menu.js",
+        "sha256": "edf05099c2685cb133a8d9fe4835f1a50a2e3387c3608bd9bd761484dff1ad9c",
+        "raw_bytes": 4638,
+        "gzip_opportunity_bytes": 1906,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/settlements-ui.js",
+        "url": "/settlements-ui.js",
+        "sha256": "5df735c45a748eac872e8e90d0e2163e79a970eaa006ff50adba2c97980f4fb9",
+        "raw_bytes": 6302,
+        "gzip_opportunity_bytes": 2466,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/sky-weather.js",
+        "url": "/sky-weather.js",
+        "sha256": "5fa2dce0de7cbc7e73a3eec68ea1572ea0b3b5283d1fac298d9a9fa632c2853a",
+        "raw_bytes": 5190,
+        "gzip_opportunity_bytes": 2233,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/society-ui.js",
+        "url": "/society-ui.js",
+        "sha256": "b0ee71cae97c2d1d24d2a828ee81cc8f25f9f576880e9127f50018fe27e6c351",
+        "raw_bytes": 18619,
+        "gzip_opportunity_bytes": 6206,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/soundscape.js",
+        "url": "/soundscape.js",
+        "sha256": "e6006423892475f23d5a800dd85643a6cdd6bb257e8b5daeeaf902361940ea06",
+        "raw_bytes": 11245,
+        "gzip_opportunity_bytes": 3779,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/source-quests.js",
+        "url": "/source-quests.js",
+        "sha256": "7f04fbc9e283c0c27c54091600618c057cad2d78c55687c040174d0590bcc3c7",
+        "raw_bytes": 8959,
+        "gzip_opportunity_bytes": 3053,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/street-actions.js",
+        "url": "/street-actions.js",
+        "sha256": "f864e38032234e9e9ad9c16e61a469754905b955cabca44d07147875a60e0dba",
+        "raw_bytes": 7818,
+        "gzip_opportunity_bytes": 2908,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/tax-editor.js",
+        "url": "/tax-editor.js",
+        "sha256": "d6fc3e95daac979f406bb28bca43ddc3af2d7d94b01f91e398e174c5dc034212",
+        "raw_bytes": 6364,
+        "gzip_opportunity_bytes": 2673,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/title-screen.css",
+        "url": "/title-screen.css",
+        "sha256": "61610e38fa0f71aed3d9703011f52aee55c4c82a20b465383cad222f9995fb89",
+        "raw_bytes": 122368,
+        "gzip_opportunity_bytes": 91710,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/trade-ui.css",
+        "url": "/trade-ui.css",
+        "sha256": "cd7b1fcf5a3fee986328d1063c1a3a7625305c13b8a5a3a5b6241fde9692452b",
+        "raw_bytes": 1256,
+        "gzip_opportunity_bytes": 588,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/trade-ui.js",
+        "url": "/trade-ui.js",
+        "sha256": "6421221c912223e0d971feb67879e4c08114504044ecb7cb08797337526d64ea",
+        "raw_bytes": 8045,
+        "gzip_opportunity_bytes": 2950,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/travel-viewport.js",
+        "url": "/travel-viewport.js",
+        "sha256": "f4e551826e57b78c9baf08e1167515027ec4b0bb620ef742a4aeadb56d6d403e",
+        "raw_bytes": 6443,
+        "gzip_opportunity_bytes": 2225,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/visual-map.css",
+        "url": "/visual-map.css",
+        "sha256": "f41fbfe6ec4d3b6dc4a777a60cbf72765d489d25b4422509cb4b460a4e2f67a2",
+        "raw_bytes": 7792,
+        "gzip_opportunity_bytes": 2384,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/visual-map.js",
+        "url": "/visual-map.js",
+        "sha256": "f959ff162aee5e9fef0b3d6105871208e3bbc63c4de8f90873e7cdfcddaeeb4c",
+        "raw_bytes": 88842,
+        "gzip_opportunity_bytes": 28614,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/waystones.js",
+        "url": "/waystones.js",
+        "sha256": "ad9061089cd95a7067185905f6c50a848680006a370e5f33413ce3a1d8c16b48",
+        "raw_bytes": 1001,
+        "gzip_opportunity_bytes": 518,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/weather-editor.js",
+        "url": "/weather-editor.js",
+        "sha256": "71d2808b5e050cb061b05630e862068f2c416db48b8b840cc481031cea66c8fb",
+        "raw_bytes": 9881,
+        "gzip_opportunity_bytes": 3527,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/window-controls.css",
+        "url": "/window-controls.css",
+        "sha256": "3febb25308236ae5ffc740f7f19321efc89cc76924fc8e2c59874faeea78cfdf",
+        "raw_bytes": 3952,
+        "gzip_opportunity_bytes": 1316,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/window-controls.js",
+        "url": "/window-controls.js",
+        "sha256": "85f816680de2cf1d655aaf2048088424135fa5efe7c8ff288547ca396f715bb9",
+        "raw_bytes": 8243,
+        "gzip_opportunity_bytes": 2736,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/workspace.css",
+        "url": "/workspace.css",
+        "sha256": "09dcb7f261e676bfb474ce8a233c52312eb10320f00243a39059ffedfe3b6f7a",
+        "raw_bytes": 7469,
+        "gzip_opportunity_bytes": 2136,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/workspace.js",
+        "url": "/workspace.js",
+        "sha256": "30bb7a54d6317f71f1837af2e66c0b31c6db95097ee6745d4fee50f5473bd97c",
+        "raw_bytes": 13505,
+        "gzip_opportunity_bytes": 4914,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/world-assets.js",
+        "url": "/world-assets.js",
+        "sha256": "6cfa8499a73a821c424cd5ed7e451a4fb37111ffa7c78ad1a965ae4b40cd693f",
+        "raw_bytes": 2000,
+        "gzip_opportunity_bytes": 860,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/world-atlas.css",
+        "url": "/world-atlas.css",
+        "sha256": "aef3fbfe6c73fde468d220f6261aa98b85b0ca58061083235c3ea962ae19e843",
+        "raw_bytes": 4776,
+        "gzip_opportunity_bytes": 1589,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/world-atlas.js",
+        "url": "/world-atlas.js",
+        "sha256": "8a75836d4a1ce2dbc1bef9d446306fa64c011694ed1534bbfc6ab6bee4265adf",
+        "raw_bytes": 50066,
+        "gzip_opportunity_bytes": 15612,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/world-audio.js",
+        "url": "/world-audio.js",
+        "sha256": "ed8c995a7426c3991dfde742d188e2af2045672244f9d02515fd6b3fb2d7b01e",
+        "raw_bytes": 8363,
+        "gzip_opportunity_bytes": 2876,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/world-import.css",
+        "url": "/world-import.css",
+        "sha256": "75c64decd1e304b6556ded8288d61e6b5a556ddb733373dc02d4f4ecc58fe1e8",
+        "raw_bytes": 1150,
+        "gzip_opportunity_bytes": 482,
+        "brotli_opportunity_bytes": null
+      },
+      {
+        "path": "web/world-import.js",
+        "url": "/world-import.js",
+        "sha256": "a4f1c2388057c3a03c2e73df76c7ae2443e7f260fc9e35215527a766e87e606b",
+        "raw_bytes": 5091,
+        "gzip_opportunity_bytes": 1853,
+        "brotli_opportunity_bytes": null
+      }
+    ]
+  },
+  "world": {
+    "archive": "Expanse-Wild-Lands-1.9.15.expanse",
+    "archive_bytes": 12454900,
+    "archive_sha256": "b4ceb676d0eebcce77d0394e6375cd5e65800eab5c0b8a44c1356cabfe5c76c6",
+    "transport_eligible_media": {
+      "files": 65,
+      "raw_bytes": 68801192,
+      "gzip_opportunity_bytes": 9022729,
+      "brotli_opportunity_bytes": null
+    },
+    "categories": {
+      "other_transport_eligible_requires_review": {
+        "files": 2,
+        "raw_bytes": 134679,
+        "gzip_opportunity_bytes": 35330,
+        "brotli_opportunity_bytes": null,
+        "archive_compressed_bytes": 35413,
+        "uncompressed_response_json_bytes": 179893,
+        "uncompressed_request_json_bytes": 199
+      },
+      "presentation_candidate_pending_host_authorization": {
+        "files": 49,
+        "raw_bytes": 7271850,
+        "gzip_opportunity_bytes": 5714920,
+        "brotli_opportunity_bytes": null,
+        "archive_compressed_bytes": 5718635,
+        "uncompressed_response_json_bytes": 9712558,
+        "uncompressed_request_json_bytes": 10667
+      },
+      "server_update_payload_excluded_from_presentation_cache": {
+        "files": 14,
+        "raw_bytes": 61394663,
+        "gzip_opportunity_bytes": 3272479,
+        "brotli_opportunity_bytes": null,
+        "archive_compressed_bytes": 3362140,
+        "uncompressed_response_json_bytes": 81989815,
+        "uncompressed_request_json_bytes": 91274
+      }
+    },
+    "files": [
+      {
+        "path": "assets/audio/civic_hostile.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 261558,
+        "archive_compressed_bytes": 218988,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "26fa03c60b1561134121fb558d0149ba082ac4fc7046302a3c15f39e2782d837",
+        "gzip_opportunity_bytes": 218703,
+        "brotli_opportunity_bytes": null,
+        "chunks": 3,
+        "uncompressed_response_json_bytes": 349185,
+        "uncompressed_request_json_bytes": 282
+      },
+      {
+        "path": "assets/audio/civic_neutral.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 207380,
+        "archive_compressed_bytes": 174030,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "c74a0ff5705625192191365183592ca061a74553bef15ca91a677935f2a5619b",
+        "gzip_opportunity_bytes": 173857,
+        "brotli_opportunity_bytes": null,
+        "chunks": 3,
+        "uncompressed_response_json_bytes": 276949,
+        "uncompressed_request_json_bytes": 282
+      },
+      {
+        "path": "assets/audio/civic_wary.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 230548,
+        "archive_compressed_bytes": 193024,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "879044ad0e5c8819daab9789ce1e614443248aece273c63ba548460ae1d3a21a",
+        "gzip_opportunity_bytes": 192858,
+        "brotli_opportunity_bytes": null,
+        "chunks": 3,
+        "uncompressed_response_json_bytes": 307832,
+        "uncompressed_request_json_bytes": 273
+      },
+      {
+        "path": "assets/audio/civic_welcoming.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 194310,
+        "archive_compressed_bytes": 163587,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "4c20462922168870bcb3008d5fa72a59cf25b66043108dec7fb3c9cb96363cef",
+        "gzip_opportunity_bytes": 163389,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 259376,
+        "uncompressed_request_json_bytes": 190
+      },
+      {
+        "path": "assets/audio/cue_civic.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 4320,
+        "archive_compressed_bytes": 3477,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "b05bcd1e5fb082107c8f70302d1f977c2ae0d174fb9004d2f702d059d5ce0d1c",
+        "gzip_opportunity_bytes": 3495,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 5898,
+        "uncompressed_request_json_bytes": 87
+      },
+      {
+        "path": "assets/audio/cue_home.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 4175,
+        "archive_compressed_bytes": 3353,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "f9b7b935b69f3c082d684d6005607c7c9c4efb7db3c1eb1acd6eea94d150a0be",
+        "gzip_opportunity_bytes": 3369,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 5705,
+        "uncompressed_request_json_bytes": 86
+      },
+      {
+        "path": "assets/audio/cue_school.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 4433,
+        "archive_compressed_bytes": 3567,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "d03613ec13b14828a8ef4af7e792bbc24cd7d0503085601bea847f8094467613",
+        "gzip_opportunity_bytes": 3584,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 6051,
+        "uncompressed_request_json_bytes": 88
+      },
+      {
+        "path": "assets/audio/cue_street.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 5070,
+        "archive_compressed_bytes": 4444,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "45ac36087ab17e3e0c20744c9ef7a337f7e8cf09d2e1452e6a178c0f1bc0ca16",
+        "gzip_opportunity_bytes": 4462,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 6899,
+        "uncompressed_request_json_bytes": 88
+      },
+      {
+        "path": "assets/audio/cue_tavern.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 4378,
+        "archive_compressed_bytes": 3516,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "38443a5ab2b0481403b5dfeb3c72bec3f1aa4bd28afc82b84012688ff23a3de9",
+        "gzip_opportunity_bytes": 3534,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 5979,
+        "uncompressed_request_json_bytes": 88
+      },
+      {
+        "path": "assets/audio/hearth_hostile.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 145446,
+        "archive_compressed_bytes": 120308,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "29fdb863bb8252801b809da5566dae8050a1b8b1e56e4a744121a6692dcd9518",
+        "gzip_opportunity_bytes": 120219,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 194222,
+        "uncompressed_request_json_bytes": 188
+      },
+      {
+        "path": "assets/audio/hearth_neutral.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 114731,
+        "archive_compressed_bytes": 95162,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "59d6d2aebdd93c6a450f492f6447c2beda7117e195786c0700c3114ffe1161a9",
+        "gzip_opportunity_bytes": 95111,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 153270,
+        "uncompressed_request_json_bytes": 188
+      },
+      {
+        "path": "assets/audio/hearth_wary.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 83404,
+        "archive_compressed_bytes": 68135,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "a8a38b0e1b98519f0dd9fbe329ac081736fcfb18462e788052890471b43c7344",
+        "gzip_opportunity_bytes": 68103,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 111349,
+        "uncompressed_request_json_bytes": 89
+      },
+      {
+        "path": "assets/audio/hearth_welcoming.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 106019,
+        "archive_compressed_bytes": 88161,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "cee745e6eeea6edd00a521206bc07851489ab37aa94f2085c74082905a6fb6b2",
+        "gzip_opportunity_bytes": 88082,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 141658,
+        "uncompressed_request_json_bytes": 192
+      },
+      {
+        "path": "assets/audio/home_hostile.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 231286,
+        "archive_compressed_bytes": 192138,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "438e9f70399e9e7eed0ad74afcfb9c848c264b2964425d3f6809ddbecfe86feb",
+        "gzip_opportunity_bytes": 192007,
+        "brotli_opportunity_bytes": null,
+        "chunks": 3,
+        "uncompressed_response_json_bytes": 308822,
+        "uncompressed_request_json_bytes": 279
+      },
+      {
+        "path": "assets/audio/home_neutral.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 117686,
+        "archive_compressed_bytes": 95703,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "cbdac12b45f0b8c97a375eb6bfead0496c5edd46bf7ae8a545870c32570cfbd9",
+        "gzip_opportunity_bytes": 95627,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 157206,
+        "uncompressed_request_json_bytes": 184
+      },
+      {
+        "path": "assets/audio/home_wary.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 129943,
+        "archive_compressed_bytes": 105252,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "423a6e780c9346fe55eed66760d7c9cb2d217b83531876f08d982eddd93886bb",
+        "gzip_opportunity_bytes": 105176,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 173544,
+        "uncompressed_request_json_bytes": 178
+      },
+      {
+        "path": "assets/audio/home_welcoming.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 166136,
+        "archive_compressed_bytes": 138542,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "092fdd1dc18c83fdab2f2f727b07f40c7a6f4aafe71932c8533bf429751c2cc7",
+        "gzip_opportunity_bytes": 138468,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 221810,
+        "uncompressed_request_json_bytes": 188
+      },
+      {
+        "path": "assets/audio/lantern_hostile.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 166428,
+        "archive_compressed_bytes": 138919,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "ec37a5ba27af83fc4b393c2a9028d480d320944a39d9f23c3f876a96da97ee04",
+        "gzip_opportunity_bytes": 138829,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 222200,
+        "uncompressed_request_json_bytes": 190
+      },
+      {
+        "path": "assets/audio/lantern_neutral.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 130906,
+        "archive_compressed_bytes": 109454,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "08e5e333f72b5d18d0301e7b315fa5c5a65d35309fb00976f48f5d295fe41cae",
+        "gzip_opportunity_bytes": 109407,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 174840,
+        "uncompressed_request_json_bytes": 190
+      },
+      {
+        "path": "assets/audio/lantern_wary.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 100237,
+        "archive_compressed_bytes": 81021,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "22e662d3274cc3a7932ca979746acdfef1f92dd7332184a8ad905956a7e66c8e",
+        "gzip_opportunity_bytes": 80903,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 133942,
+        "uncompressed_request_json_bytes": 184
+      },
+      {
+        "path": "assets/audio/lantern_welcoming.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 122202,
+        "archive_compressed_bytes": 102709,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "702380341cc0668fc8be5588aadefdc25890e506fcf3bae73c33d619f990a7b3",
+        "gzip_opportunity_bytes": 102657,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 163236,
+        "uncompressed_request_json_bytes": 194
+      },
+      {
+        "path": "assets/audio/preview_music.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 15914,
+        "archive_compressed_bytes": 13220,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "65ad9a71682696f59dc42efd37ad9fef249b1287610aad28803901cecdbbc3ae",
+        "gzip_opportunity_bytes": 13243,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 21363,
+        "uncompressed_request_json_bytes": 91
+      },
+      {
+        "path": "assets/audio/river_hostile.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 164625,
+        "archive_compressed_bytes": 136743,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "dea4b8057bc18a77fcf6758e142660d655964706365ca93ac7f954a59023d412",
+        "gzip_opportunity_bytes": 136607,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 219792,
+        "uncompressed_request_json_bytes": 186
+      },
+      {
+        "path": "assets/audio/river_neutral.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 92271,
+        "archive_compressed_bytes": 74445,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "cd0a04ebb859405d627dee6c9a755b7f7ac492cfadafae6f921d115e882418b3",
+        "gzip_opportunity_bytes": 74316,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 123171,
+        "uncompressed_request_json_bytes": 91
+      },
+      {
+        "path": "assets/audio/river_wary.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 101776,
+        "archive_compressed_bytes": 81889,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "193316f27f5dd0f6803b23315f43cbc07760966aa30251bc9985f6764f2ef235",
+        "gzip_opportunity_bytes": 81749,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 135990,
+        "uncompressed_request_json_bytes": 180
+      },
+      {
+        "path": "assets/audio/river_welcoming.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 121914,
+        "archive_compressed_bytes": 102380,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "5f7e6601c9cfdfa9fffa0a6fa8f3a428e219bdcc1485a0d5332781245b5ea6f0",
+        "gzip_opportunity_bytes": 102289,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 162848,
+        "uncompressed_request_json_bytes": 190
+      },
+      {
+        "path": "assets/audio/school_hostile.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 203946,
+        "archive_compressed_bytes": 169347,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "fe377e222e0baea4654d75e0d741ec5d5ee74c5ae5f26a94c4993e22451c3e3d",
+        "gzip_opportunity_bytes": 169168,
+        "brotli_opportunity_bytes": null,
+        "chunks": 3,
+        "uncompressed_response_json_bytes": 272372,
+        "uncompressed_request_json_bytes": 285
+      },
+      {
+        "path": "assets/audio/school_neutral.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 116120,
+        "archive_compressed_bytes": 91377,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "c387ae8e84d4c5795c4a76d7869737b9c12c37868a0ef62a89b382c55daf137a",
+        "gzip_opportunity_bytes": 91130,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 155122,
+        "uncompressed_request_json_bytes": 188
+      },
+      {
+        "path": "assets/audio/school_wary.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 128632,
+        "archive_compressed_bytes": 101061,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "8310a6b232771dc7d9f99759fe7fe6cf8b66357848e79eed8501c80d91898595",
+        "gzip_opportunity_bytes": 100781,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 171800,
+        "uncompressed_request_json_bytes": 182
+      },
+      {
+        "path": "assets/audio/school_welcoming.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 147088,
+        "archive_compressed_bytes": 122507,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "6029efabb5ca795e81b0bff4910d8ab54c441c438a24e25847e17e7c31070d9b",
+        "gzip_opportunity_bytes": 122418,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 196418,
+        "uncompressed_request_json_bytes": 192
+      },
+      {
+        "path": "assets/audio/tavern_hostile.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 225284,
+        "archive_compressed_bytes": 189293,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "c0dabb6570d428f54629411f33b0c56803e2608a4851e179a0225ecf16d35c2f",
+        "gzip_opportunity_bytes": 189097,
+        "brotli_opportunity_bytes": null,
+        "chunks": 3,
+        "uncompressed_response_json_bytes": 300824,
+        "uncompressed_request_json_bytes": 285
+      },
+      {
+        "path": "assets/audio/tavern_neutral.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 175275,
+        "archive_compressed_bytes": 146749,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "42581da41e94d42cb0ec8421e31a92990a16fce376887d50f3bfc2b7ae308986",
+        "gzip_opportunity_bytes": 146606,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 233994,
+        "uncompressed_request_json_bytes": 188
+      },
+      {
+        "path": "assets/audio/tavern_wary.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 137465,
+        "archive_compressed_bytes": 110205,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "1a16dd727c9d213ae5428e8b8d8e0adc4cbb71e15cce26bc6a8d05dd6844ea35",
+        "gzip_opportunity_bytes": 109893,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 183576,
+        "uncompressed_request_json_bytes": 182
+      },
+      {
+        "path": "assets/audio/tavern_welcoming.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 163849,
+        "archive_compressed_bytes": 138830,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "62e0752b58308005671be58040bbcf44e41f6ae91507d8ab210c5aa59d854690",
+        "gzip_opportunity_bytes": 138718,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 218766,
+        "uncompressed_request_json_bytes": 192
+      },
+      {
+        "path": "assets/audio/thunder.ogg",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 11127,
+        "archive_compressed_bytes": 8636,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "d26a720aa0095d29d779c74aa7882138f76f81371b800472bb4962ffacf3ebad",
+        "gzip_opportunity_bytes": 8621,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 14973,
+        "uncompressed_request_json_bytes": 85
+      },
+      {
+        "path": "assets/chronicles/field-survey.json",
+        "category": "other_transport_eligible_requires_review",
+        "raw_bytes": 92764,
+        "archive_compressed_bytes": 32375,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "9ab5c8ed26cb525d8ebdfbf83507d416164094292e094f1670ad1e41bee077af",
+        "gzip_opportunity_bytes": 32335,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 123843,
+        "uncompressed_request_json_bytes": 96
+      },
+      {
+        "path": "assets/chronicles/resident-references.json",
+        "category": "other_transport_eligible_requires_review",
+        "raw_bytes": 41915,
+        "archive_compressed_bytes": 3038,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "d92e3d01cc8aa3b1556e536e27a20e9cacbcc2c548da9b73385ff115da49ab59",
+        "gzip_opportunity_bytes": 2995,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 56050,
+        "uncompressed_request_json_bytes": 103
+      },
+      {
+        "path": "assets/sprites/sprite-activities.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 1576,
+        "archive_compressed_bytes": 1213,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "7f8d0353bad17546a41407cd1b31eac2504c162609109bb320f076332ba6bfbb",
+        "gzip_opportunity_bytes": 1231,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 2260,
+        "uncompressed_request_json_bytes": 98
+      },
+      {
+        "path": "assets/sprites/sprite-bodies.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 6561,
+        "archive_compressed_bytes": 4488,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "4edd4dfc69d5656ca501dd1d70fa1e8ca86f91889ac6305ed658cfb78e148987",
+        "gzip_opportunity_bytes": 4506,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 8900,
+        "uncompressed_request_json_bytes": 94
+      },
+      {
+        "path": "assets/sprites/sprite-gear-average-average.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 311600,
+        "archive_compressed_bytes": 223472,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "1e3eb16d19a7cc4c94db2db984af5e93f6a9d205cbd44c022e3c643038aa1c23",
+        "gzip_opportunity_bytes": 223473,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 416154,
+        "uncompressed_request_json_bytes": 446
+      },
+      {
+        "path": "assets/sprites/sprite-gear-average-broad.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 312716,
+        "archive_compressed_bytes": 223854,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "d965a5f5efe335302e536a3f53f06f33e979ebf66490242463d06e26b245c3c0",
+        "gzip_opportunity_bytes": 223858,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 417634,
+        "uncompressed_request_json_bytes": 438
+      },
+      {
+        "path": "assets/sprites/sprite-gear-average-slim.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 309896,
+        "archive_compressed_bytes": 222313,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "56fb821ab51a2c1a6074ded4f99e33ea6bce0f6aa7f868cece49c4a52efc03e3",
+        "gzip_opportunity_bytes": 222308,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 413870,
+        "uncompressed_request_json_bytes": 434
+      },
+      {
+        "path": "assets/sprites/sprite-gear-short-average.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 301248,
+        "archive_compressed_bytes": 215479,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "a6907dcc8484bd6858b7ed7d5ae43b9d4fce99523c18375b200a672f81c0ee93",
+        "gzip_opportunity_bytes": 215467,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 402342,
+        "uncompressed_request_json_bytes": 438
+      },
+      {
+        "path": "assets/sprites/sprite-gear-short-broad.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 302792,
+        "archive_compressed_bytes": 216774,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "c70ce5bb97bafdb9d9d7d5d2f76bc709a2653dcacd6fad6aedaf15ac8885b12e",
+        "gzip_opportunity_bytes": 216764,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 404394,
+        "uncompressed_request_json_bytes": 430
+      },
+      {
+        "path": "assets/sprites/sprite-gear-short-slim.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 300768,
+        "archive_compressed_bytes": 215207,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "d8ff5a9b46d9a01fa067849e346eb064be21af0f08dad361fe0fbace52f11756",
+        "gzip_opportunity_bytes": 215194,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 401690,
+        "uncompressed_request_json_bytes": 426
+      },
+      {
+        "path": "assets/sprites/sprite-gear-tall-average.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 318564,
+        "archive_compressed_bytes": 229442,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "7d8abe25a1c8abcb4b609c0bd483ae7510a4ddbffb76db1b90b3f57e91f25d61",
+        "gzip_opportunity_bytes": 229411,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 425426,
+        "uncompressed_request_json_bytes": 434
+      },
+      {
+        "path": "assets/sprites/sprite-gear-tall-broad.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 318636,
+        "archive_compressed_bytes": 229024,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "d0ba778f85b7fc79f1783fc81c716fb5abbd0a92b5272b01bfe55ab3639139b9",
+        "gzip_opportunity_bytes": 228998,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 425514,
+        "uncompressed_request_json_bytes": 426
+      },
+      {
+        "path": "assets/sprites/sprite-gear-tall-slim.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 317156,
+        "archive_compressed_bytes": 227886,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "48db61e4b4078b77b62f58c63144cf93fb8397d6c446b1948b723675e01f4392",
+        "gzip_opportunity_bytes": 227871,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 423538,
+        "uncompressed_request_json_bytes": 422
+      },
+      {
+        "path": "assets/sprites/sprite-wildlife.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 14565,
+        "archive_compressed_bytes": 10733,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "bbb1cfff68eb23ce9cbe6571a82438096ff7d74b6f5e06c5c6d43f6da77b6665",
+        "gzip_opportunity_bytes": 10747,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 19575,
+        "uncompressed_request_json_bytes": 96
+      },
+      {
+        "path": "assets/terrain/index.json",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 467,
+        "archive_compressed_bytes": 234,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "d29a031366502384ba4998848ae99e615b8d14d0c4c68813ef8d290e3e7bab34",
+        "gzip_opportunity_bytes": 252,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 767,
+        "uncompressed_request_json_bytes": 86
+      },
+      {
+        "path": "assets/terrain/tiles.png",
+        "category": "presentation_candidate_pending_host_authorization",
+        "raw_bytes": 119423,
+        "archive_compressed_bytes": 108344,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "6c83564024cd3f4ce6f602c6405d52ee4d4478a5cefde61363bcb02401b5b84b",
+        "gzip_opportunity_bytes": 108364,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 159512,
+        "uncompressed_request_json_bytes": 174
+      },
+      {
+        "path": "assets/updates/27a2dab9ef6caca211f197cea08b30f3b1443ca0a35d69e29ab86ca51a150808.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 619,
+        "archive_compressed_bytes": 318,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "5578f6f30a4e30ff65e3a27fa6d50548ccd8d7da6cdebf45fa2ee5fca8d7e51d",
+        "gzip_opportunity_bytes": 336,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 1030,
+        "uncompressed_request_json_bytes": 145
+      },
+      {
+        "path": "assets/updates/2ba018e679b8d203abeccb56e92bc09348f42fca77e0b1817fc649631743844d.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 262,
+        "archive_compressed_bytes": 187,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "47586faf586df0b6e633b2d560319ceb330310f02e9f3100bf5187c3c2bb7278",
+        "gzip_opportunity_bytes": 205,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 554,
+        "uncompressed_request_json_bytes": 145
+      },
+      {
+        "path": "assets/updates/3dd914986be3551a3ab7ca282a0e7afd97f1ee9ea4862799b6d657ceead6c366.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 188531,
+        "archive_compressed_bytes": 10502,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "5922da2480481cab6314ecef67329df406267e8e2b91f762b412c7260d9e926e",
+        "gzip_opportunity_bytes": 10397,
+        "brotli_opportunity_bytes": null,
+        "chunks": 2,
+        "uncompressed_response_json_bytes": 251790,
+        "uncompressed_request_json_bytes": 294
+      },
+      {
+        "path": "assets/updates/77e0ec2524130eae0746c73bf4ed9c29baa18a9312fc25ea604da7f371b7fe69.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 500,
+        "archive_compressed_bytes": 276,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "650b3fe2996a7f9ae6c410e2aeeeacfd38fc892d125b1a1bf4639f93e90b4b07",
+        "gzip_opportunity_bytes": 294,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 870,
+        "uncompressed_request_json_bytes": 145
+      },
+      {
+        "path": "assets/updates/903552a03492b649a860d304e8c06a5f36edad80d4ff1984e39bfd553ae522e3.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 381,
+        "archive_compressed_bytes": 232,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "02f969f05803615b240f362f7a703e34af43662859d249cffd9b5493888d7edb",
+        "gzip_opportunity_bytes": 250,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 710,
+        "uncompressed_request_json_bytes": 145
+      },
+      {
+        "path": "assets/updates/ba80d83d03022d78c034b323a405c310dc9993c6ac754a0754b026c426ff375c.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 15195343,
+        "archive_compressed_bytes": 740664,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "cfa48c6912326b4163bd29e225023129a0ad7bb8b8041f65162ec208e84cb9d6",
+        "gzip_opportunity_bytes": 717974,
+        "brotli_opportunity_bytes": null,
+        "chunks": 155,
+        "uncompressed_response_json_bytes": 20293511,
+        "uncompressed_request_json_bytes": 23441
+      },
+      {
+        "path": "assets/updates/content-1.9.11-transaction.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 9397727,
+        "archive_compressed_bytes": 721286,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "85dd3ce1293c92fc8f080beb72da9477fbb2e4201451cd2beb258390bc76c8a9",
+        "gzip_opportunity_bytes": 705619,
+        "brotli_opportunity_bytes": null,
+        "chunks": 96,
+        "uncompressed_response_json_bytes": 12546991,
+        "uncompressed_request_json_bytes": 10831
+      },
+      {
+        "path": "assets/updates/content-1.9.12-transaction.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 448256,
+        "archive_compressed_bytes": 54960,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "3d4fc81d1e67d0f1b8fe67f989d62274b01aa91fdf7e30e3ec403647dd9ba7c6",
+        "gzip_opportunity_bytes": 54387,
+        "brotli_opportunity_bytes": null,
+        "chunks": 5,
+        "uncompressed_response_json_bytes": 598530,
+        "uncompressed_request_json_bytes": 554
+      },
+      {
+        "path": "assets/updates/content-1.9.14-transaction.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 283952,
+        "archive_compressed_bytes": 23694,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "1568adf907a4d70b7a1a5e77b0500f1de2d692fd114d2fb559e6e96bf01b9e35",
+        "gzip_opportunity_bytes": 23511,
+        "brotli_opportunity_bytes": null,
+        "chunks": 3,
+        "uncompressed_response_json_bytes": 379114,
+        "uncompressed_request_json_bytes": 330
+      },
+      {
+        "path": "assets/updates/content-1.9.15-transaction.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 388851,
+        "archive_compressed_bytes": 47485,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "d4cc65b5d5f80c3a462ae98d570f04c60e024ed6da2256f325400083c24cc29f",
+        "gzip_opportunity_bytes": 47151,
+        "brotli_opportunity_bytes": null,
+        "chunks": 4,
+        "uncompressed_response_json_bytes": 519150,
+        "uncompressed_request_json_bytes": 442
+      },
+      {
+        "path": "assets/updates/d98c3eab89ecbe95edd906328083221e4b83338eb0288d29e49b7778c40e7515.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 6181848,
+        "archive_compressed_bytes": 352819,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "2ccfbf279c59a8a529959df28fa7a98cf751692e4f83b4b2887e8fc17c6eab09",
+        "gzip_opportunity_bytes": 344370,
+        "brotli_opportunity_bytes": null,
+        "chunks": 63,
+        "uncompressed_response_json_bytes": 8255803,
+        "uncompressed_request_json_bytes": 9496
+      },
+      {
+        "path": "assets/updates/dd008eb3beb59374a259a568690605cdaa3c7e6c0ad79c25d85a46c2b420907c.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 14043032,
+        "archive_compressed_bytes": 661887,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "f055c04e8a1dd315f58915a265b0390ff781390209d4057825101cb9f2b93e81",
+        "gzip_opportunity_bytes": 641963,
+        "brotli_opportunity_bytes": null,
+        "chunks": 143,
+        "uncompressed_response_json_bytes": 18754527,
+        "uncompressed_request_json_bytes": 21617
+      },
+      {
+        "path": "assets/updates/e932a369ec8b4c7ea7346f4bce885083bf7e3ab8256baa070876e0ca804f2d12.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 15264153,
+        "archive_compressed_bytes": 747147,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "79a14a6c9d82b27b6d1c2d4237bab3bc13e5ff2d3281de8f86f7ade4c7e4f53f",
+        "gzip_opportunity_bytes": 725321,
+        "brotli_opportunity_bytes": null,
+        "chunks": 156,
+        "uncompressed_response_json_bytes": 20385469,
+        "uncompressed_request_json_bytes": 23593
+      },
+      {
+        "path": "assets/updates/rule-signatures.json",
+        "category": "server_update_payload_excluded_from_presentation_cache",
+        "raw_bytes": 1208,
+        "archive_compressed_bytes": 683,
+        "transport_readable_with_32_mib_limit": true,
+        "sha256": "1e0a9efa28e0c17206a15dabc505eb15202aa55117ea0eca245091e476b04b14",
+        "gzip_opportunity_bytes": 701,
+        "brotli_opportunity_bytes": null,
+        "chunks": 1,
+        "uncompressed_response_json_bytes": 1766,
+        "uncompressed_request_json_bytes": 96
+      }
+    ],
+    "limits": [
+      "Inventory is not a session trace or permission grant.",
+      "Presentation candidates still require explicit host allowlisting.",
+      "Update payloads are not presentation cache candidates.",
+      "JSON byte model excludes WebSocket compression, framing, TLS and unrelated gameplay."
+    ],
+    "websocket_model_assumptions": {
+      "request_id": 1,
+      "request_id_scope": "fixed integer placeholder for every asset/chunk",
+      "response_json": "Python json.dumps defaults",
+      "request_json": "compact JSON",
+      "observed_network_or_billable_bytes": false
+    }
+  },
+  "presentation_comparison": {
+    "baseline_archive": "Expanse-Wild-Lands-1.9.15.expanse",
+    "baseline_archive_sha256": "b4ceb676d0eebcce77d0394e6375cd5e65800eab5c0b8a44c1356cabfe5c76c6",
+    "candidate_archive": "Expanse-Wild-Lands-1.9.16.expanse",
+    "candidate_archive_sha256": "ce4aec536f72d3fd9c7d9aff2f959d0e1f4e554780167fbe4d65406b089c46c0",
+    "candidate_archive_bytes": 12857069,
+    "candidate_transport_eligible_media": {
+      "files": 67,
+      "raw_bytes": 91036914,
+      "gzip_opportunity_bytes": 9248190,
+      "brotli_opportunity_bytes": null
+    },
+    "candidate_categories": {
+      "other_transport_eligible_requires_review": {
+        "files": 2,
+        "raw_bytes": 134679,
+        "gzip_opportunity_bytes": 35330,
+        "brotli_opportunity_bytes": null,
+        "archive_compressed_bytes": 35413,
+        "uncompressed_response_json_bytes": 179893,
+        "uncompressed_request_json_bytes": 199
+      },
+      "presentation_candidate_pending_host_authorization": {
+        "files": 49,
+        "raw_bytes": 7271850,
+        "gzip_opportunity_bytes": 5714920,
+        "brotli_opportunity_bytes": null,
+        "archive_compressed_bytes": 5718635,
+        "uncompressed_response_json_bytes": 9712558,
+        "uncompressed_request_json_bytes": 10667
+      },
+      "server_update_payload_excluded_from_presentation_cache": {
+        "files": 16,
+        "raw_bytes": 83630385,
+        "gzip_opportunity_bytes": 3497940,
+        "brotli_opportunity_bytes": null,
+        "archive_compressed_bytes": 3701362,
+        "uncompressed_response_json_bytes": 111686115,
+        "uncompressed_request_json_bytes": 125850
+      }
+    },
+    "presentation_files_unchanged": 49,
+    "presentation_files_added": 0,
+    "presentation_files_changed": 0,
+    "presentation_files_removed": 0,
+    "ideal_warm_cache_missing_or_changed_raw_bytes": 0,
+    "added": [],
+    "removed": [],
+    "changed": [],
+    "unchanged": [
+      "assets/audio/civic_hostile.ogg",
+      "assets/audio/civic_neutral.ogg",
+      "assets/audio/civic_wary.ogg",
+      "assets/audio/civic_welcoming.ogg",
+      "assets/audio/cue_civic.ogg",
+      "assets/audio/cue_home.ogg",
+      "assets/audio/cue_school.ogg",
+      "assets/audio/cue_street.ogg",
+      "assets/audio/cue_tavern.ogg",
+      "assets/audio/hearth_hostile.ogg",
+      "assets/audio/hearth_neutral.ogg",
+      "assets/audio/hearth_wary.ogg",
+      "assets/audio/hearth_welcoming.ogg",
+      "assets/audio/home_hostile.ogg",
+      "assets/audio/home_neutral.ogg",
+      "assets/audio/home_wary.ogg",
+      "assets/audio/home_welcoming.ogg",
+      "assets/audio/lantern_hostile.ogg",
+      "assets/audio/lantern_neutral.ogg",
+      "assets/audio/lantern_wary.ogg",
+      "assets/audio/lantern_welcoming.ogg",
+      "assets/audio/preview_music.ogg",
+      "assets/audio/river_hostile.ogg",
+      "assets/audio/river_neutral.ogg",
+      "assets/audio/river_wary.ogg",
+      "assets/audio/river_welcoming.ogg",
+      "assets/audio/school_hostile.ogg",
+      "assets/audio/school_neutral.ogg",
+      "assets/audio/school_wary.ogg",
+      "assets/audio/school_welcoming.ogg",
+      "assets/audio/tavern_hostile.ogg",
+      "assets/audio/tavern_neutral.ogg",
+      "assets/audio/tavern_wary.ogg",
+      "assets/audio/tavern_welcoming.ogg",
+      "assets/audio/thunder.ogg",
+      "assets/sprites/sprite-activities.json",
+      "assets/sprites/sprite-bodies.json",
+      "assets/sprites/sprite-gear-average-average.json",
+      "assets/sprites/sprite-gear-average-broad.json",
+      "assets/sprites/sprite-gear-average-slim.json",
+      "assets/sprites/sprite-gear-short-average.json",
+      "assets/sprites/sprite-gear-short-broad.json",
+      "assets/sprites/sprite-gear-short-slim.json",
+      "assets/sprites/sprite-gear-tall-average.json",
+      "assets/sprites/sprite-gear-tall-broad.json",
+      "assets/sprites/sprite-gear-tall-slim.json",
+      "assets/sprites/sprite-wildlife.json",
+      "assets/terrain/index.json",
+      "assets/terrain/tiles.png"
+    ],
+    "limits": [
+      "Per-file SHA-256 comparison of explicit presentation candidates only.",
+      "Ideal warm-cache transfer assumes all unchanged objects already exist and verify; it is not current client behavior.",
+      "A host-supplied authorized manifest, network headers and any application update still require separate transfer."
+    ]
+  },
+  "local_http": {
+    "scope": "local checkout only; temporary owner; no worker/game started",
+    "files": [
+      {
+        "url": "/accounts-ui.js",
+        "status": 200,
+        "response_body_bytes": 3550,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3550
+      },
+      {
+        "url": "/adventures.js",
+        "status": 200,
+        "response_body_bytes": 7117,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7117
+      },
+      {
+        "url": "/application-controls.js",
+        "status": 200,
+        "response_body_bytes": 4580,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4580
+      },
+      {
+        "url": "/browser-support.js",
+        "status": 200,
+        "response_body_bytes": 1025,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1025
+      },
+      {
+        "url": "/character-frame.css",
+        "status": 200,
+        "response_body_bytes": 1788,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1788
+      },
+      {
+        "url": "/character-frame.js",
+        "status": 200,
+        "response_body_bytes": 5035,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5035
+      },
+      {
+        "url": "/character-sheets.js",
+        "status": 200,
+        "response_body_bytes": 4001,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4001
+      },
+      {
+        "url": "/character-style.js",
+        "status": 200,
+        "response_body_bytes": 8598,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8598
+      },
+      {
+        "url": "/chronicles.js",
+        "status": 200,
+        "response_body_bytes": 3924,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3924
+      },
+      {
+        "url": "/country-view.js",
+        "status": 200,
+        "response_body_bytes": 2166,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2166
+      },
+      {
+        "url": "/creator-assist.css",
+        "status": 200,
+        "response_body_bytes": 381,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 381
+      },
+      {
+        "url": "/creator-assist.js",
+        "status": 200,
+        "response_body_bytes": 8437,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8437
+      },
+      {
+        "url": "/creator-guide-data.js",
+        "status": 200,
+        "response_body_bytes": 48666,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 48666
+      },
+      {
+        "url": "/creator-guide.css",
+        "status": 200,
+        "response_body_bytes": 1554,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1554
+      },
+      {
+        "url": "/creator-guide.js",
+        "status": 200,
+        "response_body_bytes": 4240,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4240
+      },
+      {
+        "url": "/creator-search.css",
+        "status": 200,
+        "response_body_bytes": 567,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 567
+      },
+      {
+        "url": "/creator-search.js",
+        "status": 200,
+        "response_body_bytes": 9930,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 9930
+      },
+      {
+        "url": "/damage-feedback.css",
+        "status": 200,
+        "response_body_bytes": 1833,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1833
+      },
+      {
+        "url": "/damage-feedback.js",
+        "status": 200,
+        "response_body_bytes": 5046,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5046
+      },
+      {
+        "url": "/display-settings.js",
+        "status": 200,
+        "response_body_bytes": 3323,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3323
+      },
+      {
+        "url": "/dm-console.css",
+        "status": 200,
+        "response_body_bytes": 1779,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1779
+      },
+      {
+        "url": "/dm-console.js",
+        "status": 200,
+        "response_body_bytes": 13584,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 13584
+      },
+      {
+        "url": "/dock-layout.css",
+        "status": 200,
+        "response_body_bytes": 3386,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3386
+      },
+      {
+        "url": "/dock-layout.js",
+        "status": 200,
+        "response_body_bytes": 20786,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 20786
+      },
+      {
+        "url": "/editor-files.css",
+        "status": 200,
+        "response_body_bytes": 2142,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2142
+      },
+      {
+        "url": "/editor-files.js",
+        "status": 200,
+        "response_body_bytes": 11511,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11511
+      },
+      {
+        "url": "/expanse.ico",
+        "status": 200,
+        "response_body_bytes": 10466,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 10466
+      },
+      {
+        "url": "/expanse.svg",
+        "status": 200,
+        "response_body_bytes": 284,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 284
+      },
+      {
+        "url": "/fighting-poses.js",
+        "status": 200,
+        "response_body_bytes": 7754,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7754
+      },
+      {
+        "url": "/game-settings.css",
+        "status": 200,
+        "response_body_bytes": 1299,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1299
+      },
+      {
+        "url": "/game-settings.js",
+        "status": 200,
+        "response_body_bytes": 5291,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5291
+      },
+      {
+        "url": "/gazette.js",
+        "status": 200,
+        "response_body_bytes": 4878,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4878
+      },
+      {
+        "url": "/geology-editor.js",
+        "status": 200,
+        "response_body_bytes": 11355,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11355
+      },
+      {
+        "url": "/history-editor.js",
+        "status": 200,
+        "response_body_bytes": 8641,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8641
+      },
+      {
+        "url": "/interface-tour.css",
+        "status": 200,
+        "response_body_bytes": 6229,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6229
+      },
+      {
+        "url": "/interface-tour.js",
+        "status": 200,
+        "response_body_bytes": 30459,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 30459
+      },
+      {
+        "url": "/living-defaults.js",
+        "status": 200,
+        "response_body_bytes": 8551,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8551
+      },
+      {
+        "url": "/living-editor.js",
+        "status": 200,
+        "response_body_bytes": 82938,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 82938
+      },
+      {
+        "url": "/local-quests.js",
+        "status": 200,
+        "response_body_bytes": 6400,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6400
+      },
+      {
+        "url": "/locks-editor.js",
+        "status": 200,
+        "response_body_bytes": 6092,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6092
+      },
+      {
+        "url": "/locks-ui.js",
+        "status": 200,
+        "response_body_bytes": 6291,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6291
+      },
+      {
+        "url": "/map-effects.js",
+        "status": 200,
+        "response_body_bytes": 13441,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 13441
+      },
+      {
+        "url": "/mobile-layout.css",
+        "status": 200,
+        "response_body_bytes": 2281,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2281
+      },
+      {
+        "url": "/mobile-layout.js",
+        "status": 200,
+        "response_body_bytes": 10762,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 10762
+      },
+      {
+        "url": "/music-editor.js",
+        "status": 200,
+        "response_body_bytes": 3448,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3448
+      },
+      {
+        "url": "/paperdoll-equipment.css",
+        "status": 200,
+        "response_body_bytes": 2039,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2039
+      },
+      {
+        "url": "/paperdoll-equipment.js",
+        "status": 200,
+        "response_body_bytes": 9666,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 9666
+      },
+      {
+        "url": "/pet-union.js",
+        "status": 200,
+        "response_body_bytes": 5197,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5197
+      },
+      {
+        "url": "/pixel-art-model.js",
+        "status": 200,
+        "response_body_bytes": 2897,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2897
+      },
+      {
+        "url": "/pixel-studio.css",
+        "status": 200,
+        "response_body_bytes": 4960,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4960
+      },
+      {
+        "url": "/pixel-studio.js",
+        "status": 200,
+        "response_body_bytes": 19095,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 19095
+      },
+      {
+        "url": "/planet-globe.js",
+        "status": 200,
+        "response_body_bytes": 17085,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 17085
+      },
+      {
+        "url": "/play-windows.css",
+        "status": 200,
+        "response_body_bytes": 13597,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 13597
+      },
+      {
+        "url": "/play-windows.js",
+        "status": 200,
+        "response_body_bytes": 5713,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5713
+      },
+      {
+        "url": "/player-calendar.css",
+        "status": 200,
+        "response_body_bytes": 1593,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1593
+      },
+      {
+        "url": "/player-calendar.js",
+        "status": 200,
+        "response_body_bytes": 14773,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 14773
+      },
+      {
+        "url": "/player-controls.css",
+        "status": 200,
+        "response_body_bytes": 2489,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2489
+      },
+      {
+        "url": "/player-controls.js",
+        "status": 200,
+        "response_body_bytes": 21849,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 21849
+      },
+      {
+        "url": "/player-lists.css",
+        "status": 200,
+        "response_body_bytes": 3784,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3784
+      },
+      {
+        "url": "/player-lists.js",
+        "status": 200,
+        "response_body_bytes": 15433,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 15433
+      },
+      {
+        "url": "/playtest-feedback.css",
+        "status": 200,
+        "response_body_bytes": 2590,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2590
+      },
+      {
+        "url": "/playtest-feedback.js",
+        "status": 200,
+        "response_body_bytes": 11932,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11932
+      },
+      {
+        "url": "/population-editor.js",
+        "status": 200,
+        "response_body_bytes": 14441,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 14441
+      },
+      {
+        "url": "/resident-watch.js",
+        "status": 200,
+        "response_body_bytes": 6035,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6035
+      },
+      {
+        "url": "/rest-controls.js",
+        "status": 200,
+        "response_body_bytes": 2718,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2718
+      },
+      {
+        "url": "/save-browser.js",
+        "status": 200,
+        "response_body_bytes": 11092,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11092
+      },
+      {
+        "url": "/saves.css",
+        "status": 200,
+        "response_body_bytes": 3292,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3292
+      },
+      {
+        "url": "/session-menu.js",
+        "status": 200,
+        "response_body_bytes": 4638,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4638
+      },
+      {
+        "url": "/settlements-ui.js",
+        "status": 200,
+        "response_body_bytes": 6302,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6302
+      },
+      {
+        "url": "/sky-weather.js",
+        "status": 200,
+        "response_body_bytes": 5190,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5190
+      },
+      {
+        "url": "/society-ui.js",
+        "status": 200,
+        "response_body_bytes": 18619,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 18619
+      },
+      {
+        "url": "/soundscape.js",
+        "status": 200,
+        "response_body_bytes": 11245,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11245
+      },
+      {
+        "url": "/source-quests.js",
+        "status": 200,
+        "response_body_bytes": 8959,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8959
+      },
+      {
+        "url": "/street-actions.js",
+        "status": 200,
+        "response_body_bytes": 7818,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7818
+      },
+      {
+        "url": "/tax-editor.js",
+        "status": 200,
+        "response_body_bytes": 6364,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6364
+      },
+      {
+        "url": "/title-screen.css",
+        "status": 200,
+        "response_body_bytes": 122368,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 122368
+      },
+      {
+        "url": "/trade-ui.css",
+        "status": 200,
+        "response_body_bytes": 1256,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1256
+      },
+      {
+        "url": "/trade-ui.js",
+        "status": 200,
+        "response_body_bytes": 8045,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8045
+      },
+      {
+        "url": "/travel-viewport.js",
+        "status": 200,
+        "response_body_bytes": 6443,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6443
+      },
+      {
+        "url": "/visual-map.css",
+        "status": 200,
+        "response_body_bytes": 7792,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7792
+      },
+      {
+        "url": "/visual-map.js",
+        "status": 200,
+        "response_body_bytes": 88842,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 88842
+      },
+      {
+        "url": "/waystones.js",
+        "status": 200,
+        "response_body_bytes": 1001,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1001
+      },
+      {
+        "url": "/weather-editor.js",
+        "status": 200,
+        "response_body_bytes": 9881,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 9881
+      },
+      {
+        "url": "/window-controls.css",
+        "status": 200,
+        "response_body_bytes": 3952,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3952
+      },
+      {
+        "url": "/window-controls.js",
+        "status": 200,
+        "response_body_bytes": 8243,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8243
+      },
+      {
+        "url": "/workspace.css",
+        "status": 200,
+        "response_body_bytes": 7469,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7469
+      },
+      {
+        "url": "/workspace.js",
+        "status": 200,
+        "response_body_bytes": 13505,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 13505
+      },
+      {
+        "url": "/world-assets.js",
+        "status": 200,
+        "response_body_bytes": 2000,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2000,
+        "explicit_conditional_status": 304,
+        "explicit_conditional_body_bytes": 0
+      },
+      {
+        "url": "/world-atlas.css",
+        "status": 200,
+        "response_body_bytes": 4776,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4776
+      },
+      {
+        "url": "/world-atlas.js",
+        "status": 200,
+        "response_body_bytes": 50066,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 50066
+      },
+      {
+        "url": "/world-audio.js",
+        "status": 200,
+        "response_body_bytes": 8363,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8363
+      },
+      {
+        "url": "/world-import.css",
+        "status": 200,
+        "response_body_bytes": 1150,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1150
+      },
+      {
+        "url": "/world-import.js",
+        "status": 200,
+        "response_body_bytes": 5091,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5091
+      }
+    ],
+    "response_body_bytes": 1017457,
+    "repeat_without_validator_body_bytes": 1017457,
+    "limits": [
+      "No live Render traffic, proxy compression, TLS bytes, browser cache trace or billing was measured.",
+      "Explicit conditional request is a diagnostic; it is not evidence browsers reuse no-store responses."
+    ]
+  }
+}
