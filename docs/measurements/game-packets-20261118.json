@@ -1,0 +1,76 @@
+{
+  "mode": "single",
+  "passed": true,
+  "source_world_copied": true,
+  "production_world_changed": false,
+  "manual_save_called": false,
+  "initial_map_constructed_json_bytes": 77476,
+  "packet_counts": {
+    "welcome": 1,
+    "system": 1,
+    "response": 3,
+    "map": 1
+  },
+  "samples": [
+    {
+      "step": 0,
+      "kind": "resume",
+      "json_response_bytes": 3129,
+      "packets": [
+        {
+          "type": "system",
+          "bytes": 3129,
+          "pixel_asset_bytes": 0
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "kind": "look",
+      "json_response_bytes": 2056,
+      "packets": [
+        {
+          "type": "response",
+          "bytes": 2056,
+          "pixel_asset_bytes": 0
+        }
+      ]
+    },
+    {
+      "step": 2,
+      "kind": "tagged_move",
+      "json_response_bytes": 124317,
+      "packets": [
+        {
+          "type": "map",
+          "bytes": 122333,
+          "pixel_asset_bytes": 2
+        },
+        {
+          "type": "response",
+          "bytes": 1984,
+          "step_taken": true,
+          "pixel_asset_bytes": 0
+        }
+      ]
+    },
+    {
+      "step": 3,
+      "kind": "look",
+      "json_response_bytes": 1896,
+      "packets": [
+        {
+          "type": "response",
+          "bytes": 1896,
+          "pixel_asset_bytes": 0
+        }
+      ]
+    }
+  ],
+  "scope": "real GameServer.handle/map_for, temporary world and in-process socket; four actions only; no lifecycle timer",
+  "limitations": [
+    "Not a live network trace or multiplayer/concurrency test",
+    "No frame, compression, TLS, idle-period or whole-session measurement",
+    "Generated fixture state can vary; no per-hour or invoice estimate"
+  ]
+}

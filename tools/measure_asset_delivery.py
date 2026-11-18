@@ -227,10 +227,17 @@ async def local_http_probe(repo):
         with patch.dict(os.environ, settings, clear=True), patch.object(render_server, 'ROOT', root):
             app = render_server.make_app()
             async with TestClient(TestServer(app), cookie_jar=CookieJar(unsafe=True)) as client:
+                anonymous = await client.get('/world-assets.js')
+                anonymous_status = anonymous.status
+                await anonymous.read()
                 response = await client.post('/login', data={'name': settings['EXPANSE_OWNER_NAME'], 'password': settings['EXPANSE_OWNER_PASSWORD']},
                                              headers={'Origin': settings['EXPANSE_PUBLIC_URL']}, allow_redirects=False)
                 if response.status != 303:
                     raise RuntimeError('Local temporary owner login failed.')
+                gated = await client.post('/enter', data={'mode': 'mmo'},
+                                          headers={'Origin': settings['EXPANSE_PUBLIC_URL']}, allow_redirects=False)
+                mmo_status = gated.status
+                await gated.read()
                 for path in sorted((root / 'web').iterdir()):
                     if path.suffix not in STATIC_SUFFIXES or not path.is_file():
                         continue
@@ -251,6 +258,8 @@ async def local_http_probe(repo):
                         row['explicit_conditional_body_bytes'] = len(await conditional.read())
                     rows.append(row)
     return {'scope': 'local checkout only; temporary owner; no worker/game started',
+            'unauthenticated_static_status': anonymous_status,
+            'mmo_enter_status': mmo_status,
             'files': rows, 'response_body_bytes': sum(row['response_body_bytes'] for row in rows),
             'repeat_without_validator_body_bytes': sum(row['repeat_without_validator_body_bytes'] for row in rows),
             'limits': ['No live Render traffic, proxy compression, TLS bytes, browser cache trace or billing was measured.',

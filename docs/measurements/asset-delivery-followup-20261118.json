@@ -1,0 +1,1012 @@
+{
+  "schema_version": 1,
+  "measured_at_utc": "2026-11-18T09:53:17.385579+00:00",
+  "source_commit": "a783ddd9f8215934c0d607851cd76a09739c05d6",
+  "runtime_caching_changed": false,
+  "mmo_gate_changed": false,
+  "public_probe": {
+    "origin": "https://expanse-mud.onrender.com",
+    "requests": [
+      {
+        "path": "/healthz",
+        "status": 200,
+        "body_bytes": 2,
+        "truncated": false,
+        "headers": {
+          "content-type": "text/plain; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "cf-cache-status": "DYNAMIC"
+        }
+      },
+      {
+        "path": "/",
+        "status": 200,
+        "body_bytes": 5993,
+        "truncated": false,
+        "headers": {
+          "content-type": "text/html; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "cf-cache-status": "DYNAMIC"
+        }
+      },
+      {
+        "path": "/world-assets.js",
+        "status": 401,
+        "body_bytes": 27,
+        "truncated": false,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "cf-cache-status": "DYNAMIC"
+        }
+      },
+      {
+        "path": "/visual-map.js",
+        "status": 401,
+        "body_bytes": 27,
+        "truncated": false,
+        "headers": {
+          "content-type": "application/json; charset=utf-8",
+          "cache-control": "no-store",
+          "vary": "Accept-Encoding",
+          "cf-cache-status": "DYNAMIC"
+        }
+      }
+    ],
+    "authenticated": false,
+    "scope": "read-only public probes; no account, session or private-world requests"
+  },
+  "local_http": {
+    "scope": "local checkout only; temporary owner; no worker/game started",
+    "unauthenticated_static_status": 401,
+    "mmo_enter_status": 503,
+    "files": [
+      {
+        "url": "/accounts-ui.js",
+        "status": 200,
+        "response_body_bytes": 3550,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3550
+      },
+      {
+        "url": "/adventures.js",
+        "status": 200,
+        "response_body_bytes": 7117,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7117
+      },
+      {
+        "url": "/application-controls.js",
+        "status": 200,
+        "response_body_bytes": 4580,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4580
+      },
+      {
+        "url": "/browser-support.js",
+        "status": 200,
+        "response_body_bytes": 1025,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1025
+      },
+      {
+        "url": "/character-frame.css",
+        "status": 200,
+        "response_body_bytes": 1788,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1788
+      },
+      {
+        "url": "/character-frame.js",
+        "status": 200,
+        "response_body_bytes": 5035,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5035
+      },
+      {
+        "url": "/character-sheets.js",
+        "status": 200,
+        "response_body_bytes": 4001,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4001
+      },
+      {
+        "url": "/character-style.js",
+        "status": 200,
+        "response_body_bytes": 8598,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8598
+      },
+      {
+        "url": "/chronicles.js",
+        "status": 200,
+        "response_body_bytes": 3924,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3924
+      },
+      {
+        "url": "/country-view.js",
+        "status": 200,
+        "response_body_bytes": 2166,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2166
+      },
+      {
+        "url": "/creator-assist.css",
+        "status": 200,
+        "response_body_bytes": 381,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 381
+      },
+      {
+        "url": "/creator-assist.js",
+        "status": 200,
+        "response_body_bytes": 8437,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8437
+      },
+      {
+        "url": "/creator-guide-data.js",
+        "status": 200,
+        "response_body_bytes": 48666,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 48666
+      },
+      {
+        "url": "/creator-guide.css",
+        "status": 200,
+        "response_body_bytes": 1554,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1554
+      },
+      {
+        "url": "/creator-guide.js",
+        "status": 200,
+        "response_body_bytes": 4240,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4240
+      },
+      {
+        "url": "/creator-search.css",
+        "status": 200,
+        "response_body_bytes": 567,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 567
+      },
+      {
+        "url": "/creator-search.js",
+        "status": 200,
+        "response_body_bytes": 9930,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 9930
+      },
+      {
+        "url": "/damage-feedback.css",
+        "status": 200,
+        "response_body_bytes": 1833,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1833
+      },
+      {
+        "url": "/damage-feedback.js",
+        "status": 200,
+        "response_body_bytes": 5046,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5046
+      },
+      {
+        "url": "/display-settings.js",
+        "status": 200,
+        "response_body_bytes": 3323,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3323
+      },
+      {
+        "url": "/dm-console.css",
+        "status": 200,
+        "response_body_bytes": 1779,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1779
+      },
+      {
+        "url": "/dm-console.js",
+        "status": 200,
+        "response_body_bytes": 13584,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 13584
+      },
+      {
+        "url": "/dock-layout.css",
+        "status": 200,
+        "response_body_bytes": 3386,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3386
+      },
+      {
+        "url": "/dock-layout.js",
+        "status": 200,
+        "response_body_bytes": 20786,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 20786
+      },
+      {
+        "url": "/editor-files.css",
+        "status": 200,
+        "response_body_bytes": 2142,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2142
+      },
+      {
+        "url": "/editor-files.js",
+        "status": 200,
+        "response_body_bytes": 11511,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11511
+      },
+      {
+        "url": "/expanse.ico",
+        "status": 200,
+        "response_body_bytes": 10466,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 10466
+      },
+      {
+        "url": "/expanse.svg",
+        "status": 200,
+        "response_body_bytes": 284,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 284
+      },
+      {
+        "url": "/fighting-poses.js",
+        "status": 200,
+        "response_body_bytes": 7754,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7754
+      },
+      {
+        "url": "/game-settings.css",
+        "status": 200,
+        "response_body_bytes": 1299,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1299
+      },
+      {
+        "url": "/game-settings.js",
+        "status": 200,
+        "response_body_bytes": 5291,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5291
+      },
+      {
+        "url": "/gazette.js",
+        "status": 200,
+        "response_body_bytes": 4878,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4878
+      },
+      {
+        "url": "/geology-editor.js",
+        "status": 200,
+        "response_body_bytes": 11355,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11355
+      },
+      {
+        "url": "/history-editor.js",
+        "status": 200,
+        "response_body_bytes": 8641,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8641
+      },
+      {
+        "url": "/interface-tour.css",
+        "status": 200,
+        "response_body_bytes": 6229,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6229
+      },
+      {
+        "url": "/interface-tour.js",
+        "status": 200,
+        "response_body_bytes": 30459,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 30459
+      },
+      {
+        "url": "/living-defaults.js",
+        "status": 200,
+        "response_body_bytes": 8551,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8551
+      },
+      {
+        "url": "/living-editor.js",
+        "status": 200,
+        "response_body_bytes": 82938,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 82938
+      },
+      {
+        "url": "/local-quests.js",
+        "status": 200,
+        "response_body_bytes": 6400,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6400
+      },
+      {
+        "url": "/locks-editor.js",
+        "status": 200,
+        "response_body_bytes": 6092,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6092
+      },
+      {
+        "url": "/locks-ui.js",
+        "status": 200,
+        "response_body_bytes": 6291,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6291
+      },
+      {
+        "url": "/map-effects.js",
+        "status": 200,
+        "response_body_bytes": 13441,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 13441
+      },
+      {
+        "url": "/mobile-layout.css",
+        "status": 200,
+        "response_body_bytes": 2281,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2281
+      },
+      {
+        "url": "/mobile-layout.js",
+        "status": 200,
+        "response_body_bytes": 10762,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 10762
+      },
+      {
+        "url": "/music-editor.js",
+        "status": 200,
+        "response_body_bytes": 3448,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3448
+      },
+      {
+        "url": "/paperdoll-equipment.css",
+        "status": 200,
+        "response_body_bytes": 2039,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2039
+      },
+      {
+        "url": "/paperdoll-equipment.js",
+        "status": 200,
+        "response_body_bytes": 9666,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 9666
+      },
+      {
+        "url": "/pet-union.js",
+        "status": 200,
+        "response_body_bytes": 5197,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5197
+      },
+      {
+        "url": "/pixel-art-model.js",
+        "status": 200,
+        "response_body_bytes": 2897,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2897
+      },
+      {
+        "url": "/pixel-studio.css",
+        "status": 200,
+        "response_body_bytes": 4960,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4960
+      },
+      {
+        "url": "/pixel-studio.js",
+        "status": 200,
+        "response_body_bytes": 19095,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 19095
+      },
+      {
+        "url": "/planet-globe.js",
+        "status": 200,
+        "response_body_bytes": 17085,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 17085
+      },
+      {
+        "url": "/play-windows.css",
+        "status": 200,
+        "response_body_bytes": 13597,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 13597
+      },
+      {
+        "url": "/play-windows.js",
+        "status": 200,
+        "response_body_bytes": 5713,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5713
+      },
+      {
+        "url": "/player-calendar.css",
+        "status": 200,
+        "response_body_bytes": 1593,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1593
+      },
+      {
+        "url": "/player-calendar.js",
+        "status": 200,
+        "response_body_bytes": 14773,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 14773
+      },
+      {
+        "url": "/player-controls.css",
+        "status": 200,
+        "response_body_bytes": 2489,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2489
+      },
+      {
+        "url": "/player-controls.js",
+        "status": 200,
+        "response_body_bytes": 21849,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 21849
+      },
+      {
+        "url": "/player-lists.css",
+        "status": 200,
+        "response_body_bytes": 3784,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3784
+      },
+      {
+        "url": "/player-lists.js",
+        "status": 200,
+        "response_body_bytes": 15433,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 15433
+      },
+      {
+        "url": "/playtest-feedback.css",
+        "status": 200,
+        "response_body_bytes": 2590,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2590
+      },
+      {
+        "url": "/playtest-feedback.js",
+        "status": 200,
+        "response_body_bytes": 11932,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11932
+      },
+      {
+        "url": "/population-editor.js",
+        "status": 200,
+        "response_body_bytes": 14441,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 14441
+      },
+      {
+        "url": "/resident-watch.js",
+        "status": 200,
+        "response_body_bytes": 6035,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6035
+      },
+      {
+        "url": "/rest-controls.js",
+        "status": 200,
+        "response_body_bytes": 2718,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2718
+      },
+      {
+        "url": "/save-browser.js",
+        "status": 200,
+        "response_body_bytes": 11092,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11092
+      },
+      {
+        "url": "/saves.css",
+        "status": 200,
+        "response_body_bytes": 3292,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3292
+      },
+      {
+        "url": "/session-menu.js",
+        "status": 200,
+        "response_body_bytes": 4638,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4638
+      },
+      {
+        "url": "/settlements-ui.js",
+        "status": 200,
+        "response_body_bytes": 6302,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6302
+      },
+      {
+        "url": "/sky-weather.js",
+        "status": 200,
+        "response_body_bytes": 5190,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5190
+      },
+      {
+        "url": "/society-ui.js",
+        "status": 200,
+        "response_body_bytes": 18619,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 18619
+      },
+      {
+        "url": "/soundscape.js",
+        "status": 200,
+        "response_body_bytes": 11245,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 11245
+      },
+      {
+        "url": "/source-quests.js",
+        "status": 200,
+        "response_body_bytes": 8959,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8959
+      },
+      {
+        "url": "/street-actions.js",
+        "status": 200,
+        "response_body_bytes": 7818,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7818
+      },
+      {
+        "url": "/tax-editor.js",
+        "status": 200,
+        "response_body_bytes": 6364,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6364
+      },
+      {
+        "url": "/title-screen.css",
+        "status": 200,
+        "response_body_bytes": 122368,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 122368
+      },
+      {
+        "url": "/trade-ui.css",
+        "status": 200,
+        "response_body_bytes": 1256,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1256
+      },
+      {
+        "url": "/trade-ui.js",
+        "status": 200,
+        "response_body_bytes": 8045,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8045
+      },
+      {
+        "url": "/travel-viewport.js",
+        "status": 200,
+        "response_body_bytes": 6443,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 6443
+      },
+      {
+        "url": "/visual-map.css",
+        "status": 200,
+        "response_body_bytes": 7792,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7792
+      },
+      {
+        "url": "/visual-map.js",
+        "status": 200,
+        "response_body_bytes": 88842,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 88842
+      },
+      {
+        "url": "/waystones.js",
+        "status": 200,
+        "response_body_bytes": 1001,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1001
+      },
+      {
+        "url": "/weather-editor.js",
+        "status": 200,
+        "response_body_bytes": 9881,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 9881
+      },
+      {
+        "url": "/window-controls.css",
+        "status": 200,
+        "response_body_bytes": 3952,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 3952
+      },
+      {
+        "url": "/window-controls.js",
+        "status": 200,
+        "response_body_bytes": 8243,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8243
+      },
+      {
+        "url": "/workspace.css",
+        "status": 200,
+        "response_body_bytes": 7469,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 7469
+      },
+      {
+        "url": "/workspace.js",
+        "status": 200,
+        "response_body_bytes": 13505,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 13505
+      },
+      {
+        "url": "/world-assets.js",
+        "status": 200,
+        "response_body_bytes": 2000,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 2000,
+        "explicit_conditional_status": 304,
+        "explicit_conditional_body_bytes": 0
+      },
+      {
+        "url": "/world-atlas.css",
+        "status": 200,
+        "response_body_bytes": 4776,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 4776
+      },
+      {
+        "url": "/world-atlas.js",
+        "status": 200,
+        "response_body_bytes": 50066,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 50066
+      },
+      {
+        "url": "/world-audio.js",
+        "status": 200,
+        "response_body_bytes": 8363,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 8363
+      },
+      {
+        "url": "/world-import.css",
+        "status": 200,
+        "response_body_bytes": 1150,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 1150
+      },
+      {
+        "url": "/world-import.js",
+        "status": 200,
+        "response_body_bytes": 5091,
+        "cache_control": "no-store",
+        "content_encoding": "identity",
+        "etag_present": true,
+        "repeat_without_validator_status": 200,
+        "repeat_without_validator_body_bytes": 5091
+      }
+    ],
+    "response_body_bytes": 1017457,
+    "repeat_without_validator_body_bytes": 1017457,
+    "limits": [
+      "No live Render traffic, proxy compression, TLS bytes, browser cache trace or billing was measured.",
+      "Explicit conditional request is a diagnostic; it is not evidence browsers reuse no-store responses."
+    ]
+  },
+  "limitations": [
+    "No authenticated live Render session or billing access",
+    "No browser cold/warm trace, compression/frame measurement or actual monthly charge",
+    "The local gate check does not certify a shared-world release or identify the deployed commit"
+  ]
+}

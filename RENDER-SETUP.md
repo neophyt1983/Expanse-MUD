@@ -350,3 +350,7 @@ python render_server.py
 Visit **http://127.0.0.1:10000**. On Render, the server binds to `0.0.0.0:$PORT`, uses the Render-provided public URL and requires the configured persistent disk mount. The health endpoint is `/healthz`. Private game processes use authenticated loopback connections. Application access logging is disabled; Render has its own platform and service logs.
 
 Render references: [Blueprints](https://render.com/docs/infrastructure-as-code), [persistent disks](https://render.com/docs/disks), [WebSockets](https://render.com/docs/websocket), [current pricing](https://render.com/pricing).
+
+## Shared engine/client direction
+
+Read [EXPANSE-COORDINATION.md](EXPANSE-COORDINATION.md) and the [asset delivery audit](docs/ASSET-DELIVERY.md) before changing caching or shared hosting. The [follow-up measurements](docs/ASSET-DELIVERY-FOLLOWUP.md) add cache-behavior and gameplay-packet evidence. Persistent synchronization remains proposed. Keep shared MMO disabled until its existing gate passes; never broadly cache private APIs, accounts or saves.
