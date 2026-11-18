@@ -25,8 +25,7 @@ from aiohttp import web
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from engine.public_media import PUBLIC_PRESENTATION, PublicMedia
-from engine.world_package import asset_packet
+from engine.public_media import PUBLIC_PRESENTATION, PublicMedia, presentation_packet
 
 
 def digest(data):
@@ -213,7 +212,7 @@ async def probe(args):
                     kind = 'metadata_json_bytes'
                 elif packet.get('command') == 'world asset':
                     trace['asset_requests'] += 1
-                    row = asset_packet(folder,packet.get('name'),packet.get('offset',0))
+                    row = await asyncio.to_thread(presentation_packet,folder,packet.get('name'),packet.get('offset',0))
                     row['request_id'] = packet['request_id']
                     trace['raw_asset_bytes'] += len(base64.b64decode(row.get('data','')))
                     kind = 'asset_json_bytes'
@@ -298,7 +297,7 @@ async def probe(args):
                   'public_media_source_sha256':digest((ROOT/'engine/public_media.py').read_bytes()),
                   'candidate_source_sha256':source_hashes,
                   'measurement':'actual Qt WebEngine HTML, WebSocket, WebCrypto SHA256 and IndexedDB; private profile reused across four processes',
-                  'executed_modules':['web/world-assets.js','engine/public_media.py','engine/world_package.py'],
+                  'executed_modules':['web/world-assets.js','engine/public_media.py'],
                   'runtime':{'browser_engine':'PySide6 / QtWebEngine 6.10.3' if args.qt_python else 'installed QtWebEngine 5.15.2 / Chromium 83',
                              'qt_plugins':'runtime bundled Qt6 offscreen plugin' if args.qt_python else 'system Qt5 offscreen plugin',
                              'qt_platform':'offscreen','chromium_flags':'--disable-gpu --no-sandbox' if args.qt_python else '--disable-gpu',
@@ -306,7 +305,7 @@ async def probe(args):
                              'standalone_chromium_limit':'AF_UNIX socket() is forbidden; installed Qt engine uses socketpair',
                              'engine_limit':'Browser subprocess sandbox disabled for isolated local fixtures; runtime security controls remain unchanged.' if args.qt_python else 'QtWebEngine5.15.2 Chromium83, older than shipped desktop Qt6.10.3; bundled Slicer emits sandbox-disabled message without probe override'},
                   'scope_limits':['Loopback fixture authenticates no real game account and mutates no live world, account or save.',
-                                  'Fixture uses actual PublicMedia.info policy and asset_packet with exact bundled reviewed bytes; not full GameServer gameplay.',
+                                  'Fixture uses actual v1 PublicMedia.info and presentation_packet runtime handlers with exact bundled reviewed bytes; not full GameServer gameplay.',
                                   'Trace counts UTF8 WebSocket JSON application payloads only; excludes HTTP/TLS/WebSocket frame bytes and compression.',
                                   'PNG createImageBitmap decoding is an optional separate rendering probe; no visible display or physical device is exercised.',
                                   'No native installed-asset bridge is exercised; pure browser persistent cache only.',

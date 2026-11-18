@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "status": "pass",
-  "source_commit": "447efd6e540af87a62b59135a6cedc0407595a11",
+  "source_commit": "8ccc4496e7d9a4ab61059123c128e356206d80a9",
   "world_archive_sha256": "b4ceb676d0eebcce77d0394e6375cd5e65800eab5c0b8a44c1356cabfe5c76c6",
   "world_assets_source_sha256": "899a5a46b315cdeff6c7c595ac18d528ff27bd6f96881cc3e8769c2e865ab1b7",
-  "public_media_source_sha256": "86330b4e3234ce1d81cdb8f6acfe6e7f6a1a8812c4481e1a724dda9b0b9108ff",
+  "public_media_source_sha256": "f843d5c0795ff2876e28b990885efa3a53f462a8aa65a14d0c00c016118b4d29",
   "candidate_source_sha256": {
     "web/world-assets.js": "899a5a46b315cdeff6c7c595ac18d528ff27bd6f96881cc3e8769c2e865ab1b7",
-    "engine/public_media.py": "86330b4e3234ce1d81cdb8f6acfe6e7f6a1a8812c4481e1a724dda9b0b9108ff",
+    "engine/public_media.py": "f843d5c0795ff2876e28b990885efa3a53f462a8aa65a14d0c00c016118b4d29",
     "engine/world_package.py": "18491fad5ec17290ab8a4564ce94b6416be7d1564e6a7d1963b1af80fcec3ab2",
     "server/game_server.py": "6be4fdcafd28bc276cbbc42a3b662fbf153bf5cbf9e1d980a8ae39ff5239e024",
     "web/index.html": "e5b9743f888a632b1edbc77cdb89e6c28825e8cb9a770b29cb3207d19d83619c",
@@ -18,8 +18,7 @@
   "measurement": "actual Qt WebEngine HTML, WebSocket, WebCrypto SHA256 and IndexedDB; private profile reused across four processes",
   "executed_modules": [
     "web/world-assets.js",
-    "engine/public_media.py",
-    "engine/world_package.py"
+    "engine/public_media.py"
   ],
   "runtime": {
     "browser_engine": "PySide6 / QtWebEngine 6.10.3",
@@ -32,7 +31,7 @@
   },
   "scope_limits": [
     "Loopback fixture authenticates no real game account and mutates no live world, account or save.",
-    "Fixture uses actual PublicMedia.info policy and asset_packet with exact bundled reviewed bytes; not full GameServer gameplay.",
+    "Fixture uses actual v1 PublicMedia.info and presentation_packet runtime handlers with exact bundled reviewed bytes; not full GameServer gameplay.",
     "Trace counts UTF8 WebSocket JSON application payloads only; excludes HTTP/TLS/WebSocket frame bytes and compression.",
     "PNG createImageBitmap decoding is an optional separate rendering probe; no visible display or physical device is exercised.",
     "No native installed-asset bridge is exercised; pure browser persistent cache only.",
@@ -65,7 +64,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 783,
+      "elapsed_ms": 1009,
       "host": "a"
     },
     {
@@ -92,7 +91,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 87,
+      "elapsed_ms": 103,
       "host": "a"
     },
     {
@@ -119,7 +118,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 89,
+      "elapsed_ms": 87,
       "host": "a"
     },
     {
@@ -146,7 +145,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 78,
+      "elapsed_ms": 163,
       "host": "a"
     },
     {
@@ -194,7 +193,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 556,
+      "elapsed_ms": 583,
       "host": "b"
     },
     {
@@ -221,7 +220,7 @@
       "validated_assets": 15,
       "png_decoded": true,
       "memory_repeat_no_traffic": true,
-      "elapsed_ms": 74,
+      "elapsed_ms": 84,
       "host": "a"
     }
   ],
@@ -315,22 +314,22 @@
     {
       "process": "cold-and-reload",
       "exit_code": 0,
-      "elapsed_ms": 1252
+      "elapsed_ms": 1570
     },
     {
       "process": "browser-restart",
       "exit_code": 0,
-      "elapsed_ms": 517
+      "elapsed_ms": 462
     },
     {
       "process": "corruption-and-world-switch",
       "exit_code": 0,
-      "elapsed_ms": 408
+      "elapsed_ms": 682
     },
     {
       "process": "changed-host-and-return",
       "exit_code": 0,
-      "elapsed_ms": 984
+      "elapsed_ms": 1068
     }
   ],
   "persistent_storage": {

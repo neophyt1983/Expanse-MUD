@@ -50,11 +50,14 @@ def _released_archive():
     if before.st_size != ARCHIVE_SIZE:
         raise ValueError('Released seed size mismatch.')
     with archive.open('rb') as stream:
-        if _identity(os.fstat(stream.fileno())) != _identity(before):
+        opened = os.fstat(stream.fileno())
+        # Compare identity across the path/handle APIs. Their timestamp views
+        # can differ on Windows immediately after a file is written.
+        if not os.path.samestat(opened, before) or not stat.S_ISREG(opened.st_mode) or opened.st_size != ARCHIVE_SIZE:
             raise ValueError('Released seed changed while opening.')
         raw = stream.read(ARCHIVE_SIZE + 1)
         after = os.fstat(stream.fileno())
-    if (len(raw) != ARCHIVE_SIZE or _identity(after) != _identity(before) or
+    if (len(raw) != ARCHIVE_SIZE or _identity(after) != _identity(opened) or
             _identity(_checked(archive)) != _identity(before)):
         raise ValueError('Released seed changed while reading.')
     if any(_identity(_checked(path, directory=True)) != previous for path, previous in parents):

@@ -75,7 +75,7 @@ class MediaSnapshot(unittest.TestCase):
             try:
                 path.symlink_to(target, target_is_directory=directory)
             except OSError as error:
-                self.skipTest('Creating symbolic links is unavailable: ' + str(error))
+                self.skipTest('Creating symbolic links is unavailable: ' + type(error).__name__)
 
         access_paths = (False, True) if self.native_descriptors else (True,)
         original = self.root / 'original.png'
@@ -135,13 +135,48 @@ class MediaSnapshot(unittest.TestCase):
             with patch.object(public_media, '_directory_descriptors', return_value=not portable), \
                  patch.object(public_media.os, 'read', side_effect=replace):
                 result = registry.info(NAME)
-            self.assertTrue(attempted)
+            fields = ('st_dev', 'st_ino', 'st_mode', 'st_size', 'st_mtime_ns', 'st_ctime_ns')
+            differing = []
+            probe_error = None
+            if not attempted:
+                try:
+                    named = self.path.lstat()
+                    fd = os.open(self.path, os.O_RDONLY | getattr(os, 'O_BINARY', 0))
+                    try:
+                        opened = os.fstat(fd)
+                    finally:
+                        os.close(fd)
+                    differing = [key for key in fields if getattr(named, key) != getattr(opened, key)]
+                except OSError as error:
+                    probe_error = type(error).__name__
+            diagnostic = (f'platform={os.name}; portable={portable}; read_attempted={attempted}; '
+                          f'write_denied={denied}; approved={result is not None}; '
+                          f'path_descriptor_different_fields={differing}; probe_error={probe_error}')
+            if os.name == 'nt':
+                print('Windows media mutation check: ' + diagnostic)
+            self.assertTrue(attempted, diagnostic)
             if denied:
                 self.assertEqual(self.path.read_bytes(), BODY)
                 self.assertTrue(result is None or result['sha256'] == REVIEWED[NAME][1])
             else:
                 self.assertEqual(self.path.read_bytes(), b'X' * len(BODY))
                 self.assertIsNone(result)
+
+    def test_portable_path_and_descriptor_timestamp_views_may_differ_for_unchanged_bytes(self):
+        lstat = Path.lstat
+        def path_view(path):
+            info = lstat(path)
+            if path != self.path:
+                return info
+            fields = ('st_dev', 'st_ino', 'st_mode', 'st_size', 'st_mtime_ns',
+                      'st_ctime_ns', 'st_file_attributes')
+            view = SimpleNamespace(**{key: getattr(info, key) for key in fields if hasattr(info, key)})
+            view.st_mtime_ns -= 1000
+            view.st_ctime_ns -= 1000
+            return view
+        with patch.object(public_media, '_directory_descriptors', return_value=False), \
+             patch.object(Path, 'lstat', new=path_view):
+            self.assertIsNotNone(self.registry.info(NAME))
 
     def test_correlation_is_bounded(self):
         self.assertEqual(12, public_media.correlation(12))

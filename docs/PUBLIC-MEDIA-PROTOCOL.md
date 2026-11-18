@@ -62,7 +62,7 @@ and registry update before persistent caching is permitted.
 
 Verification runs off the event loop, reads only the requested allowlisted
 path, and has bounded file/cache sizes. It never enumerates media directories.
-Linux uses no-follow directory descriptors and reuses an unchanged file's
+Authored visible image and audio filenames can use Unicode, spaces, apostrophes and literal percent signs. On Windows the host checks the actual path spelling and refuses aliases of protected paths. Linux uses no-follow directory descriptors and reuses an unchanged file's
 identity check. The portable Windows path checks file/directory identities
 before and after reading and rejects reparse points; it rehashes on each small
 version negotiation because Windows creation timestamps do not reliably detect

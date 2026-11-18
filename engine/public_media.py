@@ -17,7 +17,6 @@ import base64
 import hashlib
 import os
 from pathlib import Path
-import re
 import stat
 from threading import Lock
 from types import MappingProxyType
@@ -29,10 +28,11 @@ MAX_SIZE = 16 * 1024 * 1024
 # These are source/migration documents, never a player's rendering payload.
 # This delivery rule does not alter archive import/export preservation rules.
 PRIVATE_NAMESPACES = ('assets/updates/', 'assets/chronicles/')
-_PORTABLE_COMPONENT = re.compile(r'[A-Za-z0-9_ .-]+\Z')
+_UNSAFE_COMPONENT_CHARACTERS = frozenset('<>:"\\|?*')
 _DEVICE_NAMES = frozenset(('con', 'prn', 'aux', 'nul', 'clock$', 'conin$', 'conout$',
                            *(f'com{i}' for i in range(1, 10)),
-                           *(f'lpt{i}' for i in range(1, 10))))
+                           *(f'lpt{i}' for i in range(1, 10)),
+                           *(f'{prefix}{digit}' for prefix in ('com', 'lpt') for digit in '¹²³')))
 # path: (exact byte size, lowercase SHA-256, MIME type)
 PUBLIC_PRESENTATION = MappingProxyType({
     'assets/terrain/index.json': (467, 'd29a031366502384ba4998848ae99e615b8d14d0c4c68813ef8d290e3e7bab34', 'application/json'),
@@ -62,6 +62,26 @@ def _identity(info):
             info.st_mtime_ns, info.st_ctime_ns)
 
 
+def _file_identity(info):
+    return info.st_dev, info.st_ino, info.st_mode, info.st_size
+
+
+def _windows_filesystem():
+    return os.name == 'nt'
+
+
+def _unaliased(root, name):
+    if not _windows_filesystem():
+        return
+    # Resolve the trusted host root first: Windows may itself provide a short
+    # TEMP/install root. Only requested relative components need exact spelling.
+    canonical_root = os.path.realpath(root, strict=True)
+    requested = os.path.abspath(os.path.join(canonical_root, *name.split('/')))
+    canonical = os.path.realpath(requested, strict=True)
+    if os.path.normcase(requested) != os.path.normcase(canonical):
+        raise OSError('Aliased media path refused.')
+
+
 def _linked(info):
     if os.name == 'nt' and not hasattr(info, 'st_file_attributes'):
         raise OSError('Reparse point detection is unavailable.')
@@ -75,6 +95,7 @@ def _directory_descriptors():
 
 @contextmanager
 def _portable_regular(root, name):
+    _unaliased(root, name)
     paths = [Path(root)]
     for part in name.split('/'):
         paths.append(paths[-1] / part)
@@ -87,15 +108,19 @@ def _portable_regular(root, name):
                          | getattr(os, 'O_NONBLOCK', 0) | getattr(os, 'O_NOFOLLOW', 0))
     try:
         opened = os.fstat(descriptor)
-        if _linked(opened) or _identity(opened) != _identity(before[-1]):
+        if _linked(opened) or _file_identity(opened) != _file_identity(before[-1]):
             raise OSError('Media changed before verification.')
         # Windows ctime can be creation time. Rehash on each *negotiation* in
         # this fallback rather than trusting timestamps restored by an editor.
         # Maps and chunk delivery still never hash a file.
         yield descriptor, opened, False
         after = [path.lstat() for path in paths]
+        # Windows pathname metadata and descriptor metadata can expose different
+        # timestamps immediately after rewriting a closed file. Compare path
+        # identities across all stages, and content revisions fstat-to-fstat.
         if (any(_linked(info) for info in after)
-                or [_identity(info) for info in before] != [_identity(info) for info in after]
+                or [_identity(info) for info in before[:-1]] != [_identity(info) for info in after[:-1]]
+                or _file_identity(after[-1]) != _file_identity(opened)
                 or _identity(os.fstat(descriptor)) != _identity(opened)):
             raise OSError('Media changed during verification.')
     finally:
@@ -193,8 +218,9 @@ def legacy_presentation(name):
     # A single portable spelling prevents local Windows path aliases from
     # changing the scope of a reviewed media request. This is a delivery rule,
     # not an archive filename/import validation change.
-    if any(not _PORTABLE_COMPONENT.fullmatch(part) or part.startswith('.')
-           or part != part.strip() or part.endswith('.')
+    if any(part.startswith('.')
+           or any(character in _UNSAFE_COMPONENT_CHARACTERS for character in part)
+           or part.endswith((' ', '.'))
            or part.split('.', 1)[0].rstrip(' ').casefold() in _DEVICE_NAMES
            for part in parts):
         return False

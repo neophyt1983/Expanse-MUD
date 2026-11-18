@@ -13,7 +13,9 @@ import test_world_media_protocol as media_fixtures
 class MediaPathPolicy(unittest.TestCase):
     def test_known_renderer_json_and_ordinary_images_audio_remain_deliverable(self):
         for name in (*public_media.RENDER_JSON, 'images/title.jpg',
-                     'assets/audio/tavern_neutral.ogg', 'assets/Custom Art/Portrait.PNG'):
+                     'assets/audio/tavern_neutral.ogg', 'assets/Custom Art/Portrait.PNG',
+                     'assets/音楽/旅人の歌 (夜).ogg', "images/Élodie's garden (100%).png",
+                     'assets/audio/literal%20title.ogg', 'assets/audio/song~version.ogg'):
             with self.subTest(name=name):
                 self.assertTrue(public_media.legacy_presentation(name))
         for name in ('assets/terrain/private-records.json', 'assets/audio/catalogue.json',
@@ -29,8 +31,9 @@ class MediaPathPolicy(unittest.TestCase):
             'assets/terrain/tiles.png ', 'assets/terrain/tiles.png.',
             'assets/audio/part:audio.ogg', 'assets/audio/NUL.ogg',
             'assets/COM1/tone.ogg', 'assets/LPT9/tone.ogg',
-            'assets/audio/abbrev~1.ogg', 'assets/audio/.private.ogg',
-            'assets/audio/encoded%20name.ogg', 'assets/audio/invalid?.ogg',
+            'assets/COM¹/tone.ogg', 'assets/lpt²/tone.ogg', 'assets/LPT³/tone.ogg',
+            'assets/.private/tone.ogg', 'assets/audio/.private.ogg',
+            'assets/audio/invalid?.ogg',
             'assets/audio/invalid*.ogg', 'assets/audio/invalid|.ogg',
             'assets/audio/../other.ogg', 'assets\\audio\\tone.ogg',
         )
@@ -41,6 +44,36 @@ class MediaPathPolicy(unittest.TestCase):
                     row = public_media.presentation_packet('/unused', name, 0)
                     self.assertTrue(row['missing'])
                     self.assertNotIn('data', row)
+
+    def test_windows_short_spelling_check_uses_the_canonical_host_root(self):
+        base = Path(tempfile.gettempdir()).resolve()
+        root = str(base / 'trusted-short-root')
+        canonical_root = str(base / 'trusted-long-root')
+        normal = str(Path(canonical_root) / 'assets/audio/ordinary.ogg')
+        with patch.object(public_media, '_windows_filesystem', return_value=True), \
+             patch.object(public_media.os.path, 'realpath', side_effect=[canonical_root, normal]):
+            public_media._unaliased(root, 'assets/audio/ordinary.ogg')
+        canonical = str(Path(canonical_root) / 'assets/audio/long-authored-name.ogg')
+        with patch.object(public_media, '_windows_filesystem', return_value=True), \
+             patch.object(public_media.os.path, 'realpath', side_effect=[canonical_root, canonical]):
+            with self.assertRaises(OSError):
+                public_media._unaliased(root, 'assets/audio/short~1.ogg')
+
+    def test_localized_punctuation_paths_are_literal_and_work_on_both_readers(self):
+        with tempfile.TemporaryDirectory(prefix='expanse-literal-media-') as temporary:
+            root = Path(temporary)
+            names = ('assets/音楽/旅人の歌 (夜).ogg', "images/Élodie's garden (100%).png",
+                     'assets/audio/literal%20title.ogg', 'assets/audio/literal title.ogg')
+            for index, name in enumerate(names):
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(str(index).encode())
+            for native in (False, True) if public_media._directory_descriptors() else (False,):
+                with patch.object(public_media, '_directory_descriptors', return_value=native):
+                    for index, name in enumerate(names):
+                        with self.subTest(native=native, name=name):
+                            row = public_media.presentation_packet(root, name, 0)
+                            self.assertEqual(str(index).encode(), base64.b64decode(row['data']))
 
     def test_legacy_chunks_use_safe_link_checks_on_both_capability_paths(self):
         with tempfile.TemporaryDirectory(prefix='expanse-media-path-') as temporary:
