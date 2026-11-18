@@ -1,0 +1,29 @@
+name: MMO authorization contract
+
+on:
+  pull_request:
+    paths:
+      - "server/mmo_access.py"
+      - "server/mmo_roles.py"
+      - "server/mmo_ownership.py"
+      - "server/accounts.py"
+      - "tests/test_mmo_access.py"
+      - "tests/test_mmo_modes_roles.py"
+      - ".github/workflows/mmo-authorization.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - name: Test MMO account, permission and ownership contracts
+        run: |
+          python -m unittest discover -s tests -p 'test_mmo_access.py' -v
+          python -m unittest discover -s tests -p 'test_mmo_modes_roles.py' -v
