@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "scope": "local Render app-shell only; prechange adapter and current adapter receive identical copied candidate web bytes",
+  "baseline_adapter_commit": "447efd6e540af87a62b59135a6cedc0407595a11",
+  "candidate_parent_commit": "447efd6e540af87a62b59135a6cedc0407595a11",
+  "runtime_source_sha256": {
+    "render_server.py": "8983d2d3cb2e646b03d019312221a45ba1f2078715e7059272a68ae27c0caeb7",
+    "server/app_assets.py": "926bf6a0d7d47f64bab0716fb420e97dee69d4d159f203694a206af6c92f51c3"
+  },
+  "candidate_web_release": "631876022cbda26c4dfa2599c54620b710595fcc36c4ce115a03183d5492010f",
+  "authentication": "temporary local owner; credentials/cookies not exported",
+  "prechange_measured": {
+    "html": {
+      "url": "/play",
+      "status": 200,
+      "encoded_body_bytes": 99114,
+      "content_encoding": "identity",
+      "cache_control": "no-store",
+      "etag": "\"18e93131ccbce399-1832a\"",
+      "vary": null
+    },
+    "direct_static_requests": 86,
+    "direct_static_encoded_body_bytes": 875482,
+    "repeat_direct_static_encoded_body_bytes": 875482,
+    "page_encoded_body_bytes": 974596,
+    "asset_cache_controls": [
+      "no-store"
+    ],
+    "asset_content_encodings": [
+      "identity"
+    ]
+  },
+  "candidate_cold_measured": {
+    "html": {
+      "url": "/play",
+      "status": 200,
+      "encoded_body_bytes": 105436,
+      "content_encoding": "identity",
+      "cache_control": "no-store",
+      "etag": null,
+      "vary": null
+    },
+    "direct_static_requests": 86,
+    "direct_static_identity_body_bytes": 875482,
+    "direct_static_encoded_body_bytes": 298455,
+    "page_encoded_body_bytes": 403891,
+    "asset_cache_controls": [
+      "private, max-age=31536000, immutable"
+    ],
+    "asset_content_encodings": [
+      "gzip"
+    ]
+  },
+  "candidate_explicit_revalidation_measured": {
+    "html_body_bytes": 105436,
+    "static_requests": 86,
+    "static_response_body_bytes": 0,
+    "static_statuses": [
+      304
+    ]
+  },
+  "candidate_fresh_warm_cache_modeled": {
+    "html_body_bytes": 105436,
+    "static_requests": 0,
+    "static_response_body_bytes": 0,
+    "page_body_bytes": 105436,
+    "assumptions": "A conforming ordinary browser retains all same-origin private immutable assets, honors freshness, and does not force reload or clear/evict its cache. No browser cache was exercised by this aiohttp probe."
+  },
+  "candidate_one_file_change": {
+    "changed_filename": "world-assets.js",
+    "changed_urls": 1,
+    "unchanged_direct_urls": 85,
+    "measured_changed_asset_requests": 1,
+    "measured_changed_asset_encoded_body_bytes": 4049,
+    "measured_new_html_body_bytes": 105436,
+    "modeled_warm_page_body_bytes": 109485,
+    "old_startup_snapshot_still_correct": true,
+    "old_hash_status_after_release_restart": 404
+  },
+  "boundaries": {
+    "unauthenticated_versioned_asset": {
+      "url": "/app-assets/899a5a46b315cdeff6c7c595ac18d528ff27bd6f96881cc3e8769c2e865ab1b7/world-assets.js",
+      "status": 401,
+      "encoded_body_bytes": 27,
+      "content_encoding": "identity",
+      "cache_control": "no-store",
+      "etag": null,
+      "vary": null
+    },
+    "unknown_hash": {
+      "url": "/app-assets/0000000000000000000000000000000000000000000000000000000000000000/world-assets.js",
+      "status": 404,
+      "encoded_body_bytes": 56,
+      "content_encoding": "identity",
+      "cache_control": "no-store",
+      "etag": null,
+      "vary": null
+    },
+    "no_acceptable_encoding": {
+      "url": "/app-assets/899a5a46b315cdeff6c7c595ac18d528ff27bd6f96881cc3e8769c2e865ab1b7/world-assets.js",
+      "status": 406,
+      "encoded_body_bytes": 43,
+      "content_encoding": "identity",
+      "cache_control": "no-store",
+      "etag": null,
+      "vary": null
+    },
+    "legacy_asset": {
+      "url": "/world-assets.js",
+      "status": 200,
+      "encoded_body_bytes": 11691,
+      "content_encoding": "identity",
+      "cache_control": "no-store",
+      "etag": "\"18e9316d2af22e70-2dab\"",
+      "vary": null
+    },
+    "legacy_explicit_revalidation": {
+      "url": "/world-assets.js",
+      "status": 304,
+      "encoded_body_bytes": 0,
+      "content_encoding": "identity",
+      "cache_control": "no-store",
+      "etag": "\"18e9316d2af22e70-2dab\"",
+      "vary": null
+    },
+    "mmo_enter_status": 503,
+    "mmo_cache_control": "no-store",
+    "user_save_sentinel_preserved": true,
+    "simulation_workers_started": 0
+  },
+  "limitations": [
+    "No production Render request, deployment, bill or host setting changed.",
+    "Body bytes exclude HTTP headers, requests, TLS framing, proxy behavior and Render billing accounting.",
+    "Fresh warm-cache reuse is a header-based model; explicit conditional 304 requests are the measured warm diagnostic.",
+    "Changed-file scenario appends a marker only inside a disposable copied web tree.",
+    "This measures application shell HTTP delivery, not world assets, browser/Qt persistence, native seed reuse or gameplay WebSocket traffic."
+  ]
+}

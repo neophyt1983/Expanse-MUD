@@ -1,5 +1,11 @@
 # Expanse shared implementation direction
 
+The [asset cache v1 implementation and test results](docs/ASSET-CACHE-V1.md) supersede the delivery status in the November 18 audit below. The host now selects content versions for 15 reviewed public media files. The Render gateway source also serves versioned scripts and styles. Desktop bundling and live Render rollout are tracked separately in [issue #10](https://github.com/neophyt1983/Expanse-MUD/issues/10).
+
+[Shared-host staging in PR #14](https://github.com/neophyt1983/Expanse-MUD/pull/14) owns multiplayer testing and MMO saves on exit, disconnect and timeout. Single Player keeps manual saving. The public MMO gate remains closed.
+
+## November 18 audit and work assignments
+
 Owner direction recorded November 18, 2026. Canonical technical handoff: [asset delivery audit and contract](docs/ASSET-DELIVERY.md). Measured evidence: [baseline JSON](docs/measurements/asset-delivery-baseline-20261118.json).
 
 Online MMO/MUD players join one authoritative world hosted by a player's local computer or Render. Device-side presentation assets can reduce repeated downloads; the host selects their versions and remains authoritative for simulation, accounts, permissions and persistence. Clients should ultimately fetch only missing/changed verified resources. This is a planned capability: current browser media caching is page-memory-only, desktop Qt caching is disabled, and no host-versioned persistent asset protocol has been implemented.

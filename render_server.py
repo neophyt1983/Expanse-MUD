@@ -30,6 +30,7 @@ from server.save_slots import DB as SLOTS_DB
 from server.public_access import PublicGuests, GuestLimit
 from server.player_accounts import RegisteredPlayers, RegistrationError
 from server.mmo_roles import MMORoles, ROLES
+from server.app_assets import AppAssets, CACHE_CONTROL as APP_CACHE_CONTROL, accepted_encoding
 
 ROOT = Path(__file__).resolve().parent
 CSS = """body{background:#10171c;color:#e2e9e6;font:1rem/1.6 system-ui;margin:auto;padding:2rem 1rem;max-width:37rem}
@@ -87,7 +88,7 @@ button:hover,a.button:hover{background:#c4e9cc}a{color:#a9dfbd}
 """
 LIMIT = 128 * 1024 * 1024
 # Server release identity is separate from the shared desktop engine build.
-RENDER_SERVER_BUILD = '2026-11-17-parity-merge-1.9.17'
+RENDER_SERVER_BUILD = '2026-11-18-asset-cache-v1'
 
 
 def disk_mounted(path):
@@ -322,6 +323,7 @@ class Service:
         self.editors = {}
         self.editor_lock = asyncio.Lock()
         self.assets = {p.name:p for p in (ROOT/'web').iterdir() if p.suffix in {'.css','.js','.svg','.ico'}}
+        self.app_assets = AppAssets(ROOT/'web')
 
     def bundle(self, ident):
         if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-f]{64}',ident) or not (self.worlds/ident/'info.json').is_file():
@@ -1042,7 +1044,8 @@ class Service:
 
     async def editor(self, req):
         await self.editor_service(req, req.query.get('game'))
-        return web.FileResponse(ROOT/'web'/'index.html')
+        return web.Response(body=self.app_assets.shell(), content_type='text/html', charset='utf-8',
+                            headers={'X-Expanse-App-Release': self.app_assets.release})
 
     async def editor_api(self, req):
         editor = await self.editor_service(req)
@@ -1250,7 +1253,11 @@ def make_app():
             return page('Expanse',escape(str(exc))+'<p><a href="/">Back</a></p>',400)
     app=web.Application(middlewares=[guard],client_max_size=LIMIT+65536)
     async def prepare(req,resp):
-        resp.headers.update({'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
+        # Only successful immutable application snapshots opt into browser
+        # caching. HTML, legacy paths, private APIs and errors stay uncacheable.
+        if not resp.get('immutable_application_asset') or resp.status not in (200, 304):
+            resp.headers['Cache-Control'] = 'no-store'
+        resp.headers.update({'X-Content-Type-Options':'nosniff',
                              'Referrer-Policy':'same-origin','X-Frame-Options':'DENY',
                              'Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; media-src 'self' blob: data:; connect-src 'self' "+service.origin.replace('https://','wss://').replace('http://','ws://')+"; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"})
     app.on_response_prepare.append(prepare)
@@ -1259,7 +1266,8 @@ def make_app():
         return web.Response(text='ok', headers={'X-Expanse-Server-Build': RENDER_SERVER_BUILD})
     async def play(req):
         service.active_client(req)
-        return web.FileResponse(ROOT/'web'/'index.html')
+        return web.Response(body=service.app_assets.shell(), content_type='text/html', charset='utf-8',
+                            headers={'X-Expanse-App-Release': service.app_assets.release})
     async def world(req):
         bundle=service.bundle(req.query.get('game'))
         slug=json.loads((bundle/'info.json').read_bytes())['slug']
@@ -1268,6 +1276,22 @@ def make_app():
         path=service.assets.get(req.match_info['filename'])
         if not path:raise web.HTTPNotFound()
         return web.FileResponse(path)
+    async def application_asset(req):
+        snapshot = service.app_assets.get(req.match_info['digest'], req.match_info['filename'])
+        if snapshot is None:
+            raise web.HTTPNotFound(text='This application release is unavailable. Reload Expanse.')
+        encoding = accepted_encoding(req.headers.get('Accept-Encoding'))
+        if encoding is None:
+            raise web.HTTPNotAcceptable(text='Accept gzip or identity application assets.')
+        body, etag = snapshot.representation(encoding)
+        headers = {'Cache-Control': APP_CACHE_CONTROL, 'Vary': 'Accept-Encoding',
+                   'ETag': etag, 'Content-Type': snapshot.content_type}
+        if encoding == 'gzip':
+            headers['Content-Encoding'] = 'gzip'
+        matched = any(tag.value in ('*', etag[1:-1]) for tag in (req.if_none_match or ()))
+        response = web.Response(status=304, headers=headers) if matched else web.Response(body=body, headers=headers)
+        response['immutable_application_asset'] = True
+        return response
     app.add_routes([web.get('/healthz',health),web.get('/',service.landing),web.get('/mode.html',service.landing),
                     web.post('/login',service.login),web.post('/logout',service.logout),web.post('/enter',service.enter),
                     web.get('/mmo',service.mmo_status),web.get('/mmo/roles',service.mmo_roles_page),
@@ -1286,7 +1310,8 @@ def make_app():
                     web.get('/editor',service.editor),
                     web.get('/playtest',service.playtest_report),
                     web.get('/manual-saves.zip',service.backup),web.get('/play',play),web.get('/ws',service.socket_route),
-                    web.get('/api/{path:.*}',service.api),web.post('/api/{path:.*}',service.api),web.get('/{filename}',asset)])
+                    web.get('/api/{path:.*}',service.api),web.post('/api/{path:.*}',service.api),
+                    web.get('/app-assets/{digest:[0-9a-f]{64}}/{filename}',application_asset),web.get('/{filename}',asset)])
     return app
 
 

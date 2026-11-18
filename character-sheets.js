@@ -1,8 +1,8 @@
 /* Decoded once per needed anatomy. Every tile preserves its registration point. */
 (()=>{'use strict';
-const sheets=new Map(), tinted=new Map(), waiting=new Map();
+const sheets=new Map(), tinted=new Map(), waiting=new Map(), failures=new Map(), retryTimers=new Map();
 let revision=0;
-function clear(){revision++;waiting.clear();sheets.clear();tinted.clear();}
+function clear(){revision++;for(const timer of retryTimers.values())clearTimeout(timer);retryTimers.clear();failures.clear();waiting.clear();sheets.clear();tinted.clear();}
 window.addEventListener('expanse:world-assets',clear);
 window.addEventListener('expanse:art-selection',clear);
 async function source(name){
@@ -12,16 +12,33 @@ async function source(name){
   return response.ok?response.json():null;
  }
  const asset=await window.ExpanseAssets.get(path);
- return asset?JSON.parse(await asset.blob.text()):null;
+ if(!asset)return null;
+ try{return JSON.parse(await asset.blob.text());}finally{asset.release?.();}
 }
 function load(name){
+ if(sheets.has(name))return Promise.resolve(sheets.get(name));
  if(waiting.has(name))return waiting.get(name);
+ const failed=failures.get(name);
+ if(failed&&(failed.attempts>=3||Date.now()<failed.next))return Promise.resolve(null);
  const generation=revision;
  const task=source(name).then(async doc=>{
-  if(!doc)return null;
+  if(!doc||generation!==revision)return null;
   const bitmap=new Image();bitmap.src=doc.png;await bitmap.decode();if(generation!==revision)return null;delete doc.png;
   sheets.set(name,{...doc,bitmap});window.dispatchEvent(new Event('expanse:sprite-ready'));return sheets.get(name);
- }).catch(()=>{waiting.delete(name);return null;});
+ }).catch(()=>null).then(result=>{
+  if(waiting.get(name)===task)waiting.delete(name);
+  if(generation===revision){
+   if(result)failures.delete(name);
+   else{
+    const attempts=(failures.get(name)?.attempts||0)+1,delay=attempts===1?1000:3000;
+    failures.set(name,{attempts,next:Date.now()+delay});
+    if(attempts<3)retryTimers.set(name,setTimeout(()=>{
+     retryTimers.delete(name);if(generation===revision){load(name);window.dispatchEvent(new Event('expanse:sprite-ready'));}
+    },delay));
+   }
+  }
+  return result;
+ });
  waiting.set(name,task);return task;
 }
 function ready(name){if(!sheets.has(name))load(name);return sheets.get(name);}

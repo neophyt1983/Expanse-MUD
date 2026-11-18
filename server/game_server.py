@@ -306,6 +306,8 @@ class GameServer(SocietyServer):
             raise
         if self.adventure_storage and target != Path(self.world.game_dir):
             self.world.game_dir=target
+            from engine.public_media import invalidate
+            invalidate(self.world)
             engine_loader.set_game_dir(target)
             adventures.finish_publish(SAVE_DIR,slug)
         self.capture_checkpoint()
@@ -599,6 +601,33 @@ class GameServer(SocietyServer):
                 result.setdefault(player.location, []).append(player.name)
         return result
 
+    async def world_asset_info(self, websocket, player_id, packet):
+        from engine import public_media
+        name = packet.get('name')
+        if not isinstance(name, str) or len(name) > 512:
+            name = None
+        reply = {'type': 'world_asset_info', 'name': name,
+                 'request_id': public_media.correlation(packet.get('request_id')),
+                 'scope': 'transient'}
+        world = self.world
+        actor = world.entities.get(player_id)
+        # An account/host connection alone does not disclose media existence.
+        # Only the player actually joined on this socket may negotiate it.
+        if actor is not None and actor.is_player and self.clients.get(websocket) == player_id:
+            folder = Path(world.game_dir)
+            media_session = public_media.session(world)
+            registry = getattr(world, '_public_media', None)
+            if registry is None or registry.folder != folder:
+                registry = world._public_media = public_media.PublicMedia(folder)
+            info = await asyncio.to_thread(registry.info, name)
+            if (info is not None and self.world is world
+                    and world.entities.get(player_id) is actor
+                    and self.clients.get(websocket) == player_id
+                    and Path(world.game_dir) == folder
+                    and public_media.session(world) == media_session):
+                reply.update(info)
+        await websocket.send(json.dumps(reply))
+
     def map_for(self, player_id):
         from engine.mapping import render, room_records
         player = self.mark_explored(player_id)
@@ -703,10 +732,10 @@ class GameServer(SocietyServer):
             npcs=[dict(id=e.id,name=e.name,merchant=_is_merchant(self.world,e),trade_available=trade_view.available(self.world,player,e,commerce_by_id.get(e.id)),description=self.world.npcs.get(e.source_def,{}).get('description',''),title=self.world.npcs.get(e.source_def,{}).get('title',''),location=room.name) for e in self.world.entities_in_room(room.id) if not e.is_player],
             players=[p for p in active if p['location']==room.id])
         from engine import gathering, civic_program, soundtrack, streets
-        if not hasattr(self.world,'media_session'):
-            from uuid import uuid4
-            self.world.media_session=uuid4().hex
-        packet['media_world']=self.world.media_session
+        from engine import public_media
+        packet['media_world']=public_media.session(self.world)
+        if player.is_player and player_id in self.clients.values():
+            packet['media_protocol'] = public_media.PROTOCOL
         from engine import magic_visuals
         packet['magic_visuals']={'session':magic_visuals.cursor(self.world)['session']}
         packet['visual']['passages']=streets.doorways(self.world,player,packet['visual'],blocked_exits)
@@ -1194,10 +1223,23 @@ class GameServer(SocietyServer):
                         self.last_maps[websocket] = map_packet
                     continue
 
+                if cmd == 'world asset info':
+                    await self.world_asset_info(websocket, player_id, packet)
+                    continue
+
                 if cmd == 'world asset':
-                    from engine.world_package import asset_packet
-                    asset=asset_packet(self.world.game_dir,packet.get('name'),packet.get('offset',0))
-                    await websocket.send(json.dumps({**asset,'request_id':packet.get('request_id')}))
+                    from engine import public_media
+                    name=packet.get('name')
+                    if not isinstance(name,str) or len(name)>512:name=None
+                    offset=packet.get('offset',0)
+                    actor=self.world.entities.get(player_id)
+                    if (actor is not None and actor.is_player
+                            and self.clients.get(websocket)==player_id
+                            and public_media.legacy_presentation(name)):
+                        asset=await asyncio.to_thread(public_media.presentation_packet,self.world.game_dir,name,offset)
+                    else:
+                        asset={'type':'world_asset','name':name,'offset':offset if type(offset) is int and 0<=offset<=32*1024*1024 else None,'missing':True}
+                    await websocket.send(json.dumps({**asset,'request_id':public_media.correlation(packet.get('request_id'))}))
                     continue
 
                 if cmd == 'public chart':
@@ -1648,6 +1690,8 @@ class GameServer(SocietyServer):
                 raise RuntimeError("Disconnect players before switching to another world.")
             self._stage_players_and_world()
             self.world = build_world()
+            from engine.public_media import invalidate
+            invalidate(self.world)
             from engine import magic_visuals
             from server import magic_delivery
             magic_visuals.reset(self.world)
@@ -1744,6 +1788,8 @@ class GameServer(SocietyServer):
         spawn_npcs(new_world)
         living.restore(new_world, living_saved)
         self.world = new_world
+        from engine.public_media import invalidate
+        invalidate(self.world)
         from engine import magic_visuals
         from server import magic_delivery
         magic_visuals.reset(self.world)
