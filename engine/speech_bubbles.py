@@ -23,6 +23,18 @@ def valid_phrase(value):
     return isinstance(value, str) and len(value) <= 30 and 1 <= len(value.split()) <= 3 and value.isprintable()
 
 
+def turn_seconds(text):
+    """A complete utterance needs reading time; short greetings remain brisk."""
+    return max(TURN_SECONDS, min(20, 1 + len(str(text or '').split()) / 3))
+
+
+def durations(actor, record):
+    marked, lines = getattr(actor, '_town_words', (None, None))
+    if lines and marked == record:
+        return turn_seconds(lines[1]), turn_seconds(lines[2])
+    return TURN_SECONDS, TURN_SECONDS
+
+
 def visible(w, viewer, occupants):
     now = monotonic()
     chosen = None
@@ -31,7 +43,8 @@ def visible(w, viewer, occupants):
         if not record or actor.location != viewer.location:
             continue
         when, room, first, second, emotion, reply = record
-        if (room != viewer.location or now - when >= TURN_SECONDS * (2 if reply else 1)
+        first_seconds, second_seconds = durations(actor, record)
+        if (room != viewer.location or now - when >= first_seconds + (second_seconds if reply else 0)
                 or first not in occupants or second not in occupants):
             continue
         if any(not occupants[i].alive or occupants[i].location != room for i in (first, second)):
@@ -42,7 +55,8 @@ def visible(w, viewer, occupants):
     if chosen is None:
         return None, None
     _, (when, _, first, second, emotion, reply) = chosen
-    answering = now - when >= TURN_SECONDS
+    first_seconds, _ = durations(occupants[first], chosen[1])
+    answering = now - when >= first_seconds
     speaker = occupants[second if answering else first]
     feeling = reply if answering else emotion
     from engine.social import EMOTIONS
@@ -56,6 +70,13 @@ def visible(w, viewer, occupants):
         words = society.speech(phrase, society.friendliness(w, speaker, viewer))
     marked, lines = getattr(speaker, '_town_words', (None, None))
     bubble = {'symbol': EMOTIONS[feeling], 'words': words}
+    if not speaker.is_player:
+        from engine import npc_emotions
+        other=occupants[first if answering else second]
+        expression=npc_emotions.project(w,speaker,partner=other)
+        bubble['emotions']=expression['emotions']
+        bubble['emotion_summary']=expression['summary']
+        bubble['symbol']=''.join(row['symbol'] for row in expression['emotions'][:3])
     if lines and marked == chosen[1] and not speaker.is_player:
         tone, first_line, answer = lines
         bubble['tone'] = 'says' if answering else tone

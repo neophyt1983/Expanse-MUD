@@ -13,7 +13,8 @@ from uuid import uuid4
 KEY = 'singing_v1'
 EVENT_SECONDS = 20
 EVENT_ROOMS = 128
-CONTEXTS = ('work', 'leisure', 'performance')
+CONTEXTS = ('work', 'leisure', 'performance', 'festival')
+THEMES = ('celebration', 'remembrance', 'work', 'danger', 'togetherness', 'hope')
 
 
 def config(world):
@@ -162,6 +163,56 @@ def _events(world):
     return events
 
 
+def _delivery(world, person, audience, authored, sequence):
+    """Choose this performance once, using known life and an actual audience.
+
+    Cultural prose remains direction, not lyrics or a fixed racial emotion.
+    Existing authored melodies and voice registers carry the musical style.
+    """
+    from engine import npc_emotions
+    expression = npc_emotions.project(world, person, topic='singing',
+                                      audience=audience, theme=authored.get('theme'))
+    values = {row['id']: row['intensity'] for row in expression['emotions']}
+    energy = max(-50, min(50, values.get('excited', 0) * .45 + values.get('angry', 0) * .4
+                          + values.get('happy', 0) * .2 - values.get('sad', 0) * .3
+                          - values.get('tired', 0) * .5 - values.get('anxious', 0) * .1))
+    phase = (int.from_bytes(sha256(person.id.encode()).digest()[:2], 'big') + sequence) % 4
+    return dict(expression=expression, energy=round(energy, 2), phase=phase)
+
+
+def _express_score(score, deliveries):
+    """Bounded vocal dynamics; authored pitch, beats and release stay intact."""
+    if not score:
+        return
+    accents = ((1.04, .96, 1.0, 1.02), (.98, 1.03, .97, 1.02),
+               (1.0, .97, 1.04, .99), (1.02, 1.0, .96, 1.03))
+    for track in score['tracks']:
+        if track['role'] == 'accompaniment':
+            continue
+        delivery = deliveries.get(track['performer_id'])
+        if not delivery:
+            continue
+        factor = 1 + delivery['energy'] / 200
+        pattern = accents[delivery['phase']]
+        track['notes'] = [[pitch, start, duration, round(max(0, min(1, velocity * factor * pattern[index % 4])), 4)]
+                          for index, (pitch, start, duration, velocity) in enumerate(track['notes'])]
+        envelope = track.get('envelope')
+        if envelope:
+            envelope['attack'] = round(max(0, min(1, envelope['attack'] * (2 - factor))), 4)
+
+
+def _delivery_words(person, delivery, sequence):
+    if person.is_player:
+        return ''  # A command never infers a player's private feelings.
+    summary = delivery['expression']['summary']
+    if not summary:
+        return ''
+    feelings = summary.rsplit(', ', 1)
+    phrase = ' and '.join(feelings) if len(feelings) == 2 else summary
+    openings = ('The delivery is ', 'The phrasing sounds ', 'The voice sounds ')
+    return openings[sequence % len(openings)] + phrase + '.'
+
+
 def clear(world):
     """Discard transient cues when the owning world/session is discarded."""
     for name in ('_singing_events', '_singing_player_times'):
@@ -169,7 +220,7 @@ def clear(world):
             delattr(world, name)
 
 
-def _perform(world, lead, song=None):
+def _perform(world, lead, song=None, *, festival=None):
     if not _available(world, lead):
         raise ValueError('Sing when you are awake, safe and available.')
     cfg = config(world)
@@ -190,8 +241,15 @@ def _perform(world, lead, song=None):
     others = _partners(world, lead, song['id'], len(successors)) if successors else []
     people = [lead, *others]
     voices = [voice(world, person) for person in people]
+    from engine import relationships, sleep_movement
+    performers = {person.id for person in people}
+    audience = [person for person in world.entities_in_room(lead.location)
+                if person.id not in performers and person.alive and relationships.sentient(world, person)
+                and not sleep_movement.asleep(world, person)][:32]
+    deliveries = {person.id: _delivery(world, person, audience, authored, sequence) for person in people}
     instruments = _instruments(world, people)
     score = _score(authored.get('score'), people, voices, instruments, form)
+    _express_score(score, deliveries)
     actual_tags = list(dict.fromkeys(track['instrument'] for track in (score or {}).get('tracks', [])
                                    if track['role'] == 'accompaniment'))
     # Unscored songs can still describe genuinely carried preferred instruments.
@@ -199,10 +257,11 @@ def _perform(world, lead, song=None):
         actual_tags = [tag for tag in _race(world, lead).get('preferred_instruments', []) if tag in instruments]
     names = [world.items[instruments[tag][1]].get('name', instruments[tag][1]) for tag in actual_tags]
     register = ' in a ' + voices[0]['label'] + ' voice' if voices[0]['label'] else ''
-    style = authored.get('style', '')
-    text = lead.name + (' sings “' + title + '”' if song else ' sings without words') + register + '.'
-    if style:
-        text += ' ' + style
+    phrase = (' sings “', ' begins “', ' takes up “')[sequence % 3]
+    text = lead.name + (phrase + title + '”' if song else ' sings without words') + register + '.'
+    delivery_words = _delivery_words(lead, deliveries[lead.id], sequence)
+    if delivery_words:
+        text += ' ' + delivery_words
     text += (' Accompaniment: ' + ', '.join(names) + '.') if names else ' Unaccompanied.'
     lyrics = []
     if verse:
@@ -222,7 +281,9 @@ def _perform(world, lead, song=None):
             progress['voice'] = voices[index]['id']
         progress['last_song'] = song['id'] if song else ''
         npc_cfg = _definition(world, person).get('singing', {})
-        progress['next_minute'] = minute + npc_cfg.get('interval_minutes', cfg.get('npc_interval_minutes', 60))
+        interval = (cfg.get('festival_npc_interval_minutes', 30) if festival else
+                    npc_cfg.get('interval_minutes', cfg.get('npc_interval_minutes', 60)))
+        progress['next_minute'] = minute + interval
         npc_activity.note(person, 'music', 'Singing ' + title, EVENT_SECONDS)
     lead.progress[KEY]['sequence'] = sequence + 1
     if song:
@@ -244,14 +305,37 @@ def _perform(world, lead, song=None):
         world.dirty_players.add(lead.id)
     roles = ['lead'] + [('response' if form == 'call_response' else 'relay')] * len(others)
     event = dict(id=uuid4().hex, room_id=lead.location, title=title, rendering='synthesized', score=score,
-                 performers=[dict(id=person.id, name=person.name, role=role, voice=chosen['label'])
+                 directions=list(dict.fromkeys(value for value in (_race(world,lead).get('style'), authored.get('style'))
+                                                if isinstance(value,str) and value.strip())),
+                 performers=[dict(id=person.id, name=person.name, role=role, voice=chosen['label'],
+                                  expression=deliveries[person.id]['expression'])
                              for person, role, chosen in zip(people, roles, voices)], lyrics=lyrics)
+    if festival:
+        event['festival'] = dict(id=festival['id'], name=festival['name'])
+    from engine import task_skills
+    for person in people:
+        tracks = [track for track in (score or {}).get('tracks', [])
+                  if track.get('performer_id') == person.id and track.get('role') != 'accompaniment']
+        seconds = max((note[1] + note[2] for track in tracks for note in track.get('notes', [])), default=0)
+        seconds = seconds * 60 / score['tempo'] if seconds and score else 0
+        # Unscored authored lines still constitute a short real performance.
+        effort = max(.25, min(EVENT_SECONDS, seconds or 3) / 5)
+        task_skills.practice(world, person, 'singing', effort=effort,
+                             event_id='singing:' + event['id'] + ':' + person.id)
+    if others:
+        from engine import npc_emotions
+        for person in people:
+            npc_emotions.record(world,person,'performance welcomed',event_id='singing:'+event['id'])
+    from engine import npc_emotions
+    for person in people:
+        npc_emotions.context(world,person,topic='singing',audience=audience,theme=authored.get('theme'))
     events = _events(world)
     for room, entry in list(events.items()):
         if now - entry['created'] >= EVENT_SECONDS and entry['next_minute'] <= minute:
             del events[room]
     events.pop(lead.location, None)
-    events[lead.location] = dict(created=now, next_minute=minute + cfg.get('room_interval_minutes', 15), event=event)
+    interval = cfg.get('festival_room_interval_minutes', 10) if festival else cfg.get('room_interval_minutes', 15)
+    events[lead.location] = dict(created=now, next_minute=minute + interval, event=event)
     while len(events) > EVENT_ROOMS:
         events.popitem(last=False)
     excluded = lead.id if lead.is_player else None
@@ -262,12 +346,30 @@ def _perform(world, lead, song=None):
     return text
 
 
+def active_festival(world, person):
+    """Only an assigned, present singer can use a currently scheduled festival."""
+    from engine import worldtime
+    authored = _definition(world, person).get('singing', {})
+    if 'festival' not in authored.get('contexts', []):
+        return None
+    assigned = authored.get('festivals', [])
+    minute = _minute(world)
+    weekday = worldtime.date(minute)['weekday']
+    clock = minute % worldtime.MINUTES_PER_DAY
+    return next((row for row in config(world).get('festivals', [])
+                 if row['id'] in assigned and row['room'] == person.location
+                 and row['weekday'] == weekday and row['start_minute'] <= clock < row['end_minute']), None)
+
+
 def npc_step(world, person, context):
     """Called within an existing stationary routine, never a new global scan."""
     if not enabled(world) or person.is_player:
         return False
     cfg = _definition(world, person).get('singing', {})
-    if context not in cfg.get('contexts', []):
+    festival = active_festival(world, person)
+    if context not in CONTEXTS or (context == 'festival' and not festival):
+        return False
+    if context not in cfg.get('contexts', []) and not festival:
         return False
     minute = _minute(world)
     if minute < person.progress.get(KEY, {}).get('next_minute', -1):
@@ -279,7 +381,7 @@ def npc_step(world, person, context):
         return False
     songs = repertoire(world, person)
     sequence = person.progress.get(KEY, {}).get('sequence', 0)
-    _perform(world, person, songs[sequence % len(songs)] if songs else None)
+    _perform(world, person, songs[sequence % len(songs)] if songs else None, festival=festival)
     return True
 
 
@@ -391,6 +493,29 @@ def validate(data, metadata):
             if not items.get(ident, {}).get('song'):
                 error(where, 'unknown songbook ' + ident)
 
+    # The 1.9.16 authored worlds add a distinct festival context. It is not an
+    # alias for unrestricted performance: preserve its actual venue and clock.
+    music = object_field(metadata, 'singing', 'metadata')
+    festivals = music.get('festivals', [])
+    if not isinstance(festivals, list) or len(festivals) > 128:
+        error('metadata.singing', 'festivals must contain at most 128 scheduled events')
+        festivals = []
+    festival_ids = set()
+    rooms = {row.get('id') for row in data.get('room', []) if isinstance(row, dict)}
+    for row in festivals:
+        if not isinstance(row, dict):
+            error('metadata.singing.festivals', 'each festival must be an object'); continue
+        if (not text(row.get('id'), 128) or not text(row.get('name'), 160)
+                or not text(row.get('room'), 128) or ('room' in data and row['room'] not in rooms)
+                or type(row.get('weekday')) is not int or not 1 <= row['weekday'] <= 9
+                or type(row.get('start_minute')) is not int or type(row.get('end_minute')) is not int
+                or not 0 <= row['start_minute'] < row['end_minute'] <= 1500):
+            error('metadata.singing.festivals', 'festival needs id, name, real room, weekday 1–9 and a start/end within the 1500-minute day')
+            continue
+        if row['id'] in festival_ids:
+            error('metadata.singing.festivals', 'duplicate festival ' + row['id'])
+        festival_ids.add(row['id'])
+
     for ident, row in items.items():
         instrument = object_field(row, 'instrument', str(ident))
         if instrument:
@@ -428,9 +553,12 @@ def validate(data, metadata):
         where = str(row.get('id')) + '.singing'
         cfg = object_field(row, 'singing', str(row.get('id')))
         song_ids(cfg.get('songs', []), where + '.songs')
-        contexts = strings(cfg.get('contexts', []), where + '.contexts', 3)
+        contexts = strings(cfg.get('contexts', []), where + '.contexts', len(CONTEXTS))
         if any(context not in CONTEXTS for context in contexts):
-            error(where, 'contexts must be work, leisure or performance')
+            error(where, 'contexts must be work, leisure, performance or festival')
+        for ident in strings(cfg.get('festivals', []), where + '.festivals', 128):
+            if ident not in festival_ids:
+                error(where, 'unknown festival ' + ident)
         if 'respond' in cfg and type(cfg['respond']) is not bool:
             error(where, 'respond must be true or false')
         if 'interval_minutes' in cfg and (type(cfg['interval_minutes']) is not int or not 1 <= cfg['interval_minutes'] <= 1500):
@@ -518,6 +646,8 @@ def validate(data, metadata):
         for key in ('tradition', 'style'):
             if key in song and not text(song[key], empty=True):
                 error(where, key + ' must be text of at most 240 characters')
+        if 'theme' in song and song['theme'] not in THEMES:
+            error(where, 'theme must be celebration, remembrance, work, danger, togetherness or hope')
         verses = song.get('verses')
         if not isinstance(verses, list) or not 1 <= len(verses) <= 16:
             error(where, 'verses must have 1–16 entries')
@@ -546,7 +676,9 @@ def validate(data, metadata):
     if cfg:
         if type(cfg.get('version')) is not int or cfg['version'] != 1 or type(cfg.get('enabled')) is not bool:
             error('metadata.singing', 'requires version 1 and boolean enabled')
-        for key, maximum in (('npc_interval_minutes', 1500), ('room_interval_minutes', 1500), ('player_interval_seconds', 60)):
+        for key, maximum in (('npc_interval_minutes', 1500), ('room_interval_minutes', 1500),
+                             ('festival_npc_interval_minutes', 1500), ('festival_room_interval_minutes', 1500),
+                             ('player_interval_seconds', 60)):
             if key in cfg and (type(cfg[key]) is not int or not 1 <= cfg[key] <= maximum):
                 error('metadata.singing', key + ' must be 1–' + str(maximum))
         wordless = cfg.get('wordless', {})

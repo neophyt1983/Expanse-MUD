@@ -116,6 +116,10 @@ def strike(w,actor,victim,power=None,ignore_defense=False,credit=None,counter=Tr
     controller=credit or actor
     if society.enabled(w) and not lawful:mortality.assault(w,controller,victim)
     before=victim.hp
+    from engine import task_skills
+    if power is None:
+        task_skills.practice(w,actor,'fighting',difficulty=task_skills.level(w,victim,'fighting'),effort=1)
+    task_skills.practice(w,victim,'fighting',difficulty=task_skills.level(w,actor,'fighting'),effort=1)
     hit=victim.take_damage(cmd.effective_attack(w,actor) if power is None else power,0 if ignore_defense else cmd.effective_defense(w,victim),source=actor,cause='attack',kind='combat')
     combat_rewards.contribute(w,actor,victim,before-victim.hp,credit)
     from engine import encounter_stories
@@ -140,6 +144,8 @@ def strike(w,actor,victim,power=None,ignore_defense=False,credit=None,counter=Tr
         except ValueError as exc:return text+' '+victim.name+' cannot counterattack: '+str(exc)
         fighting_pose.mark(victim,projectile=any(w.items.get(i,{}).get('requires_ammo') for i in victim.equipped.values()))
         before=actor.hp
+        task_skills.practice(w,victim,'fighting',difficulty=task_skills.level(w,actor,'fighting'),effort=1)
+        task_skills.practice(w,actor,'fighting',difficulty=task_skills.level(w,victim,'fighting'),effort=1)
         damage=actor.take_damage(cmd.effective_attack(w,victim),cmd.effective_defense(w,actor),source=victim,cause='counterattack',kind='combat')
         combat_rewards.contribute(w,victim,actor,before-actor.hp)
         encounter_stories.hit(w,victim,actor,before-actor.hp)

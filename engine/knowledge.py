@@ -104,8 +104,29 @@ keeps creator edits live and performs one final teach, without a stale cache.
     return state(player)
 
 
+def known_ids(world, actor, kind):
+    """Pure learned/authored view for eligibility and projections."""
+    valid = getattr(world, KINDS[kind], {})
+    if actor is None: return set(valid)
+    known = {value for value in actor.progress.get('knowledge', {}).get(kind, []) if isinstance(value, str)}
+    definition = {} if actor.is_player else world.npcs.get(actor.source_def, {})
+    authored = definition.get('knowledge', {})
+    known.update(value for value in authored.get(kind, []) if isinstance(value, str))
+    if kind == 'rooms':
+        known.update([actor.location, *actor.explored_rooms, definition.get('home_room'),
+                      definition.get('work_room'), definition.get('workplace_room')])
+    elif kind == 'items':
+        known.update([*actor.inventory, *actor.equipped.values()])
+        known.update(row.get('item') for row in definition.get('stock', []))
+        for recipe_id in authored.get('recipes', []):
+            recipe = getattr(world, 'recipes', {}).get(recipe_id, {})
+            known.update([*recipe.get('ingredients', {}), *recipe.get('outputs', {})])
+    return {value for value in known if value in valid}
+
+
 def ids(world, player, kind):
-    if player is None or not player.is_player: return set(getattr(world, KINDS[kind], {}))
+    if player is None or not player.is_player:
+        return known_ids(world, player, kind)
     valid=getattr(world,KINDS[kind],{})
     return {key for key in sync(world,player)[kind] if key in valid}
 
@@ -115,11 +136,12 @@ def local_offers(world, player):
     from engine.quest_discovery import sourced
     disclosed=sourced(player)
     from engine.living import quest_blocked
+    from engine import guilds
     already_accepted=accepted(world,player)
     return [q for q in world.quests.values()
             if q['id'] in disclosed and not q.get('relationship_quest', {}).get('enabled')
             and (not q.get('offer_room') or q.get('offer_room') == player.location)
-            and (q['id'] not in already_accepted or
+            and (q['id'] not in already_accepted or guilds.available_again(world,player,q) and player.progress.get('quests',{}).get(q['id'])=='complete' or
                  (q.get('repeatable') and player.progress['quests'].get(q['id'])=='complete'
                   and getattr(world,'living_state',{}).get('minute',0)-player.progress.get('quest_times',{}).get(q['id'],-100000)>=q.get('cooldown_minutes',1500)))
             and not quest_blocked(world, player, q)]
@@ -137,19 +159,17 @@ def learn_local_recipes(world, player):
     local_designs = {rid for rid in designs if isinstance(rid, str)} if isinstance(designs, list) else set()
     learned = [rid for rid, r in rows.items() if
                rid in local_designs or
-               (r.get('location') and r['location'] == player.location) or
-               (set(r.get('outputs', {})) and set(r.get('outputs', {})) <= known_items
+               (r.get('knowledge_scope') != 'private' and r.get('location') and r['location'] == player.location) or
+               (r.get('knowledge_scope') == 'public'
+                and set(r.get('outputs', {})) and set(r.get('outputs', {})) <= known_items
                 and set(r.get('ingredients', {})) <= known_items)]
     teach(world, player, {'recipes': learned})
 
 
 def npc_topics(world, npc):
-    definition = world.npcs.get(npc.source_def, {})
-    # An NPC knows its immediate exits and explicitly authored places, not every
-    # live person's location or every room in a creator's world.
-    rooms = {npc.location, *world.rooms[npc.location].exits.values()} if npc.location in world.rooms else set()
-    rooms.update(definition.get('knowledge', {}).get('rooms', []))
-    return rooms & set(world.rooms)
+    # Knowing a name does not add a route. Posted local exits are read only by
+    # actual direction/conversation actions in town_talk, not this projection.
+    return ids(world, npc, 'rooms')
 
 
 def from_npc(world, player, npc):
@@ -157,6 +177,53 @@ def from_npc(world, player, npc):
     from engine.quest_discovery import disclose
     disclose(world, player, definition.get('knowledge', {}), 'npc', npc.source_def)
     teach(world, player, {'items': [s.get('item') for s in definition.get('stock', [])]})
+    from engine import knowledge_sources
+    minute = int(getattr(world, 'living_state', {}).get('minute', 0))
+    knowledge_sources.record(world, player, definition.get('knowledge', {}),
+        source={'kind': 'npc', 'id': npc.source_def}, certainty='sourced',
+        event_id='conversation:' + npc.id + ':' + str(minute))
+
+
+def read_source(world, actor, item_id):
+    """An actual full read; called after its action counter, never by a journal."""
+    from engine import publications, knowledge_sources, task_skills
+    identity = publications.source(world, item_id)
+    previous = actor.progress.get(publications.MEMORY, {}).get((identity or {}).get('edition_id'), {})
+    source = publications.record_read(world, actor, item_id)
+    from engine import worldtime
+    minute = int(getattr(world, 'living_state', {}).get('minute', worldtime.initial_minute(world.metadata)))
+    if minute <= previous.get('read_minute', -10**15): return source
+    item = world.items[item_id]
+    table = item.get('knowledge', {})
+    if not isinstance(table, dict): table = {}
+    table = {**table, 'items': [item_id, *(table.get('items', []) if isinstance(table.get('items'), list) else [])]}
+    teach(world, actor, table)
+    event = 'read:' + source['edition_id'] + ':' + str(minute)
+    knowledge_sources.record(world, actor, table,
+                             source=source, certainty='sourced', event_id=event)
+    text = item.get('read_text', '')
+    task_skills.practice(world, actor, 'reading', effort=max(.25, min(3, len(text.split()) / 150)),
+                         event_id=event)
+    return source
+
+
+def observe_room(world, actor, *, event_id=None):
+    """Remember an executed look/arrival, never a passive map refresh."""
+    from engine import knowledge_sources, local_visibility, worldtime
+    if (actor.location not in world.rooms or not actor.alive
+            or world.entities.get(actor.id) is not actor or local_visibility.blind(world, actor)):
+        return False
+    room = world.rooms[actor.location]
+    people = [person for person in world.entities_in_room(actor.location)
+              if person.alive and not person.is_player and person.id != actor.id]
+    definitions = [world.npcs.get(person.source_def, {}) for person in people]
+    table = {'rooms': [room.id], 'items': list(room.items), 'npcs': [person.source_def for person in people],
+             'species': [definition.get('species') or definition.get('social_profile', {}).get('species') for definition in definitions]}
+    teach(world, actor, table)
+    minute = int(getattr(world, 'living_state', {}).get('minute', worldtime.initial_minute(world.metadata)))
+    return knowledge_sources.record(world, actor, table,
+        source={'kind': 'observation', 'id': actor.id + ':' + room.id}, certainty='observed',
+        event_id=event_id or 'look:' + room.id + ':' + str(minute))
 
 
 def validate(data):
@@ -173,7 +240,28 @@ def validate(data):
                 valid={r['id'] for r in data.get(target, [])}
                 if not isinstance(values,list) or any(not isinstance(v,str) or v not in valid for v in values):
                     issues.append(where+'.'+field+' must contain existing '+target+' IDs')
+    readable = {row['id'] for row in data.get('item', []) if row.get('read_text')}
+    for recipe in data.get('recipe', []):
+        if recipe.get('knowledge_scope', 'local') not in ('public', 'local', 'private'):
+            issues.append(recipe['id']+': knowledge_scope must be public, local or private')
+        required = recipe.get('requires_reading', [])
+        if (not isinstance(required, list) or len(required) > 8
+                or any(not isinstance(ident, str) or ident not in readable for ident in required)):
+            issues.append(recipe['id']+': requires_reading must contain at most eight real readable items')
     return issues
+
+
+def recipe_source_ready(actor, recipe):
+    """Copying a work requires an actually read source, including old journals."""
+    required = recipe.get('requires_reading', [])
+    if not required: return True
+    from engine import publications
+    known = set(actor.progress.get('reading_journal_v1', []))
+    known.update(record.get('source', {}).get('id') for record in actor.progress.get(publications.MEMORY, {}).values())
+    known.update(key[5:] for key, count in actor.progress.get('actions', {}).items() if count and key.startswith('read:'))
+    known.update(row.get('id') for row in actor.progress.get('npc_background_v1', {}).get('sources', [])
+                 if row.get('kind') == 'item')
+    return set(required) <= known
 
 
 def crafting_choice(world, player, query):
@@ -186,10 +274,14 @@ an interaction. Unavailable unknown designs return no metadata or hints.
     learn_local_recipes(world, player)
     rows=getattr(world,'recipes',{})
     known=[rows[rid] for rid in ids(world,player,'recipes')]
-    if item_catalog.matches(known,query):return item_catalog.choose(known,query)
+    if item_catalog.matches(known,query):
+        selected = item_catalog.choose(known,query)
+        if not recipe_source_ready(player, selected):raise ValueError('Read the source text before copying this work.')
+        return selected
     exact=[r for rid,r in rows.items() if rid==query or r.get('name','').casefold()==query.strip().casefold()]
     if len(exact)!=1:raise ValueError('That recipe has not been learned or is not available here.')
     r=exact[0];station=r.get('station','hand')
+    if not recipe_source_ready(player, r):raise ValueError('Read the source text before copying this work.')
     facilities=getattr(world,'room_details',{}).get(player.location,{}).get('facilities',[])
     camp=getattr(world,'living_state',{}).get('camps',{}).get(player.id,{})
     usable=station=='hand' or station in facilities or (station=='kitchen' and camp.get('room')==player.location and camp.get('fire'))
@@ -212,20 +304,51 @@ Ambiguous short place nicknames never invent geographic anchors.
     lower=text.casefold()
     for kind,attr in KINDS.items():
         records=getattr(world,attr,{})
-        names={}
+        # Keep duplicate-name checks local to this text. Unmentioned names
+        # cannot match, and do not need lists or a second complete catalog
+        # walk. There is no cache: live Creator edits remain visible.
+        names={};candidates=[]
         for ident,obj in records.items():
             name=obj.name if kind=='rooms' else obj.get('name','')
-            if name:names.setdefault(name.casefold(),[]).append(ident)
-        for ident,obj in records.items():
-            name=obj.name if kind=='rooms' else obj.get('name','')
+            folded=name.casefold() if name else ''
+            mentioned=bool(folded and folded in lower)
+            if mentioned:names[folded]=names.get(folded,0)+1
             explicit_id=('_' in ident or ':' in ident or ('`'+ident+'`') in text)
-            id_match=explicit_id and ident.casefold() in lower and re.search(r'(?<![\w])'+re.escape(ident)+r'(?![\w])',text)
-            name_match=name and len(name)>=4 and len(names[name.casefold()])==1 and name.casefold() in lower and re.search(r'(?<![\w])'+re.escape(name)+r'(?![\w])',text,re.I)
+            id_candidate=explicit_id and ident.casefold() in lower
+            name_candidate=mentioned and len(name)>=4
+            if id_candidate or name_candidate:
+                candidates.append((ident,name,folded,id_candidate,name_candidate))
+        for ident,name,folded,id_candidate,name_candidate in candidates:
+            id_match=id_candidate and re.search(r'(?<![\w])'+re.escape(ident)+r'(?![\w])',text)
+            name_match=name_candidate and names[folded]==1 and re.search(r'(?<![\w])'+re.escape(name)+r'(?![\w])',text,re.I)
             if id_match or name_match:disclosed[kind].append(ident)
             if id_match and name:replacements[ident]=name
     if source:
         from engine.quest_discovery import disclose
-        disclose(world,player,disclosed,*source)
+        # Exact mentions establish a name, not proof of a remote location or a
+        # complete design. Explicit authored grants and quest leads retain
+        # their existing semantics; casual names are qualified separately.
+        kind, source_id = source
+        definition = (world.items if kind == 'item' else world.npcs).get(source_id, {})
+        explicit = definition.get('knowledge', {})
+        certain = {**disclosed, 'rooms': [value for value in disclosed['rooms']
+                                         if value in explicit.get('rooms', [])],
+                   'recipes': [value for value in disclosed['recipes']
+                               if value in explicit.get('recipes', [])]}
+        disclose(world,player,certain,*source)
+        from engine import knowledge_sources
+        reference = {'kind': kind, 'id': source_id}
+        if kind == 'item':
+            from engine import publications
+            reference = publications.source(world, source_id) or reference
+        fiction = definition.get('publication', {}).get('kind') == 'fiction'
+        qualities = {claim.get('certainty', 'sourced') for claim in reference.get('claims', [])}
+        certainty = ('opinion' if fiction else next(iter(qualities))
+                     if len(qualities) == 1 and qualities <= {'rumor', 'opinion', 'uncertain'} else 'uncertain')
+        minute = int(getattr(world, 'living_state', {}).get('minute', 0))
+        knowledge_sources.record(world, player, disclosed, source=reference,
+            certainty=certainty,
+            event_id='mention:' + kind + ':' + source_id + ':' + str(minute))
     else:
         teach(world,player,{**disclosed,'quests':[]})
     for ident,name in sorted(replacements.items(),key=lambda row:-len(row[0])):

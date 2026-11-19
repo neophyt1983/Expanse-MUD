@@ -184,14 +184,13 @@
    for(let i=0;i<4;i++)r(3+i*5,6,5,5,i%2?'#e6c78b':'#a74c43');
    r(7,15,3,2,'#cdb76a');r(13,15,4,2,'#769359');
   }else{
-   r(5,10,14,11,'#c2ac83');r(5,20,14,1,'#67513b');
-   c.fillStyle=kind==='lodging'?'#9e493e':kind==='forge'?'#545662':'#697a58';
-   c.beginPath();c.moveTo(3,11);c.lineTo(12,3);c.lineTo(21,11);c.closePath();c.fill();
-   r(10,14,4,7,'#3a302b');r(6,13,3,3,'#efcb72');r(15,13,3,3,'#efcb72');
-   if(kind==='residence'){r(15,3,2,6,'#854d3b');r(5,17,4,1,'#558659');r(6,18,2,2,'#97745d');}
-   if(kind==='lodging'){r(19,11,1,7,'#55432f');r(18,12,5,4,'#d8b864');r(19,14,3,1,'#755238');}
-   if(kind==='forge'){r(16,3,3,7,'#48474b');r(6,17,3,3,'#e88b39');r(17,1,2,1,'#c2c2b9');}
-   if(kind==='workshop'){r(4,17,5,2,'#6b4930');r(5,16,3,1,'#b5b8b8');r(16,4,3,5,'#776451');}
+   // A facility label is a service sign, not evidence of another building.
+   // Only the server's real room footprints may draw roofs on this map.
+   r(11,12,2,10,'#67513b');r(5,5,14,9,'#d4c49d');r(6,6,12,7,'#394f4c');
+   if(kind==='residence'){r(9,10,6,1,'#e7d5aa');r(9,8,1,5,'#e7d5aa');}
+   if(kind==='lodging'){r(8,10,8,2,'#e7d5aa');r(8,8,2,3,'#e7d5aa');r(15,9,1,4,'#e7d5aa');}
+   if(kind==='forge'){r(8,8,8,2,'#b8c6c2');r(10,10,4,2,'#b8c6c2');r(9,12,6,1,'#b8c6c2');}
+   if(kind==='workshop'){r(11,8,2,5,'#c4a577');r(8,7,8,2,'#b8c6c2');}
   }
   c.restore();
  }
@@ -203,9 +202,10 @@
   if(land==='farm'){r(1,1,22,22,'#796449');for(let yy=4;yy<23;yy+=4)r(2,yy,20,1,'#b09a63');}
   if(land==='ranch'){r(2,2,20,20,'#64764b');for(const yy of [3,19]){r(2,yy,20,1,'#c5b68a');r(2,yy+2,20,1,'#8c835f');}for(const xx of [3,10,20])r(xx,2,1,20,'#c5b68a');}
   if(['house','rental','business'].includes(land)){
-   r(1,1,22,22,'#617052');
-   if(land==='business'){r(4,8,16,13,'#b6ac8d');r(2,6,20,4,'#786c5c');r(3,11,18,3,'#bf995e');for(let xx=3;xx<21;xx+=4)r(xx,11,2,3,'#d5c5a1');r(6,15,4,6,'#455951');r(13,16,5,3,'#6b8790');}
-   else{for(const [xx,yy] of [[2,3],[13,12]]){r(xx+1,yy+5,8,7,'#c6b99a');for(let i=0;i<5;i++)r(xx+i,yy+4-i,10-2*i,1,'#985f4f');r(xx+4,yy+8,2,4,'#43554f');r(xx+2,yy+7,1,2,'#e2cd83');}if(land==='rental')r(11,2,1,20,'#b4aa80');}
+   // Land use reserves a parcel; it does not create dwellings or shops.
+   // Real materialized units arrive as distinct surveyed building tiles.
+   const color=land==='business'?'#c6ad7d':land==='rental'?'#b1c6b6':'#bcb498';
+   for(const [xx,yy]of [[2,2],[18,2],[2,18],[18,18]]){r(xx,yy,4,1,color);r(xx,yy,1,4,color);}
   }
   if(land==='recreation'){r(1,1,22,22,'#718556');r(10,1,4,22,'#b4ad88');r(3,9,5,2,'#9e8057');r(3,12,5,1,'#c3ad7c');r(4,13,1,3,'#76694c');r(7,13,1,3,'#76694c');r(17,4,3,5,'#456347');r(18,9,1,3,'#776342');}
   // Hunting and reserve do not imply any individual tree was cut or planted.
@@ -760,7 +760,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   const locations=make('select','atlas-zoom');locations.setAttribute('aria-label','Discovered map locations');locations.setAttribute('aria-describedby',host.id+'-tooltip');toolbar.append(locations);
   const viewport=make('div','atlas-viewport'),canvas=make('canvas','atlas-canvas');canvas.tabIndex=0;canvas.setAttribute('role','img');canvas.setAttribute('aria-label','Explored and currently visible terrain map. Select a tile to walk, or select a doorway to enter or leave. Arrow keys pan this view.');
   const tip=make('div','atlas-tip'),empty=make('div','atlas-empty','Create or resume a character to chart your surroundings.');tip.hidden=true;tip.id=host.id+'-tooltip';tip.setAttribute('role','tooltip');const arrival=make('div','atlas-arrival');arrival.hidden=true;arrival.setAttribute('role','status');viewport.append(canvas,tip,empty);
-  const bubble=make('div','atlas-speech');bubble.hidden=true;bubble.setAttribute('role','status');viewport.append(bubble);state.bubble=bubble;
+  const bubble=make('div','atlas-speech');bubble.hidden=true;bubble.tabIndex=0;bubble.setAttribute('role','status');viewport.append(bubble);state.bubble=bubble;
   const positionHeader=make('div','atlas-position-header'),sightBadge=make('div','atlas-sight-badge');sightBadge.hidden=true;positionHeader.append(locationStatus,sightBadge,arrival);
   const inspect=make('div','atlas-inspect',options.designer?'Select a tile to inspect.':'Click a tile to walk there, or select the marked doorway for a passage.');inspect.setAttribute('role','status');
   const impactStatus=make('div','atlas-impact-status');impactStatus.hidden=true;impactStatus.setAttribute('role','status');impactStatus.setAttribute('aria-live','polite');
@@ -823,7 +823,8 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   views.set(host.id,state);return state;
  }
  function drawGround(c,tile,banks,left,top,tileSize){
-  c.drawImage(terrainTile(tile.terrain,hash(tile.surface_id || tile.id),tile.route_surface),left,top,tileSize,tileSize);
+  const ground=['town','settlement'].includes(tile.terrain)?'road':tile.terrain;
+  c.drawImage(terrainTile(ground,hash(tile.surface_id || tile.id),tile.route_surface),left,top,tileSize,tileSize);
   const art=customArt(tile.pixel_art);
   if(art)c.drawImage(art,left,top,tileSize,tileSize);
   drawShore(c,banks.get(tile.id),left,top,tileSize);
@@ -935,7 +936,8 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   if(speaker&&!s.options.designer&&speaker.x>=0&&speaker.x<width&&speaker.y>=0&&speaker.y<height){
    const {actor,x,y}=speaker,msg=actor.speech_bubble;
    const text=actor.name+(msg.tone?' '+msg.tone:'')+'\n'+msg.symbol+(msg.words?' '+msg.words:'');
-   if(s.bubble.textContent!==text)s.bubble.textContent=text;s.bubble.title=text;s.bubble.setAttribute('aria-label',text);
+   const accessible=text+(msg.emotion_summary?'\nExpression: '+msg.emotion_summary:'');
+   if(s.bubble.textContent!==text){s.bubble.textContent=text;s.bubble.scrollTop=0;}s.bubble.title=accessible;s.bubble.setAttribute('aria-label',accessible);
    s.bubble.hidden=false;
    const bw=s.bubble.offsetWidth,bh=s.bubble.offsetHeight;
    s.bubble.style.left=Math.max(2,Math.min(width-bw-2,x-bw/2))+'px';
@@ -1013,7 +1015,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
  window.ExpanseActorRenderer={drawActor,playerActor,latestPacket:window.latestMap||null};
  window.dispatchEvent(new Event('expanse:actor-renderer-ready'));
  // Read-only cached terrain artwork for the full-window room atlas.
- function reset(){window.ExpanseCustody?.reset();window.ExpanseStreet?.reset();window.ExpanseMapEffects?.reset();window.ExpanseCountryView?.reset();for(const s of views.values()){if(s.options.designer)continue;if(s.frame)cancelAnimationFrame(s.frame);s.frame=0;s.motion=null;s.data=null;s.packet=null;s.lastCenter=null;s.lastContext=null;s.lastCharacter=null;s.arrival.hidden=true;s.arrival.textContent='';s.sightBadge.hidden=true;s.sightBadge.textContent='';s.locationStatus.hidden=s.sightStatus.hidden=true;s.actors.replaceChildren();s.accessible.textContent='';s.tip.hidden=true;s.tipId=null;s.locations.replaceChildren();s.locationSignature=null;s.selected=null;s.drag=null;s.schedule();}}
+ function reset(){window.ExpanseSkills?.reset();window.ExpanseWorkServices?.reset();window.ExpanseGuilds?.reset();window.ExpanseTheft?.reset();window.ExpanseCustody?.reset();window.ExpanseStreet?.reset();window.ExpanseMapEffects?.reset();window.ExpanseCountryView?.reset();for(const s of views.values()){if(s.options.designer)continue;if(s.frame)cancelAnimationFrame(s.frame);s.frame=0;s.motion=null;s.data=null;s.packet=null;s.lastCenter=null;s.lastContext=null;s.lastCharacter=null;s.arrival.hidden=true;s.arrival.textContent='';s.sightBadge.hidden=true;s.sightBadge.textContent='';s.locationStatus.hidden=s.sightStatus.hidden=true;s.actors.replaceChildren();s.accessible.textContent='';s.tip.hidden=true;s.tipId=null;s.locations.replaceChildren();s.locationSignature=null;s.selected=null;s.drag=null;s.schedule();}}
  window.ExpanseMap={render,reset,drawWatchScene,drawFacility,customArt,loadPixelAssets,pointerPoint,redraw:()=>{for(const s of views.values())s.schedule();},getTerrainTile:(terrain,roomId,route)=>terrainTile(terrain,hash(String(roomId)),route)};
  if(window.latestMap)(window.ExpanseCountryView?.render || render)(window.latestMap);
  else{const host=document.getElementById('player-visual-map');if(host)build(host,{});}

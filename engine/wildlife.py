@@ -20,12 +20,14 @@ def recovery_allowed(w,room,spawner,index):
     count=sum(e.alive and not e.is_player and not e.progress.get('companion_owner') and e.source_def==spawner.get('npc') for e in w.entities_in_room(room.id))
     return count<cfg.get('minimum',1)
 
-def advance(w):
+def advance(w, *, stepped_entities=()):
+    from engine import animal_life
+    animal_life.advance(w,stepped_entities=stepped_entities)
     if not w.metadata.get('wildlife_ecology'):return
     now=living.state(w)['minute'];stats=living.state(w).setdefault('wildlife',{'last':-100000,'forage':{},'meals':0,'hunts':0})
     if now-stats['last']<30:return
     stats['last']=now
-    animals={e.id:species(w,e) for e in w.entities.values() if e.alive and not e.is_player and not e.progress.get('zoo_exhibit')}
+    animals={e.id:species(w,e) for e in w.entities.values() if e.alive and not e.is_player and not e.progress.get('zoo_exhibit') and not animal_life.config(w,e)}
     for e in list(w.entities.values()):
         s=animals.get(e.id,{})
         if not s or not e.alive or s.get('consumption') not in ('herbivore','omnivore','carnivore'):continue
@@ -104,4 +106,5 @@ def validate(data):
         for sp in r.get('spawners',[]):
             c=sp.get('recovery',{})
             if c.get('enabled') and (type(c.get('minimum')) is not int or not 1<=c['minimum']<=sp.get('count',1)):out.append(r['id']+': invalid recovery minimum')
-    return out
+    from engine import animal_life
+    return out+animal_life.validate(data)

@@ -234,6 +234,8 @@ def supplies(w,n):
         if n.gold<cost:continue
         if rid==n.location:
             n.gold-=cost;stock['gold']+=cost;stock['stock'][iid]-=1;n.inventory.append(iid);receive(w,n,iid)
+            from engine import task_skills
+            task_skills.transaction(w,n)
         else:
             state.update(target=rid,work_search=working);move_towards(w,n,rid)
         n.activity='seeking '+w.items[iid]['name'];return True
@@ -255,12 +257,16 @@ def supplies(w,n):
             if configured:
                 if resource_nodes.harvest(w,rid,r,n):
                     for item,count in r['yields'].items():n.inventory.extend([item]*count)
+                    from engine import task_skills
+                    task_skills.practice(w,n,task_skills.resource_task(w,r),difficulty=r.get('required_skill_level',10),effort=max(1,r.get('gather_minutes',1)))
                     n.activity='harvesting';return True
                 continue
             key=rid+':'+resource_id;times=living.state(w).setdefault('shared_resource_times',{}) if r.get('shared_renewal') else society.economy(w).setdefault('harvest_times',{})
             if now-times.get(key,-100000)>=r.get('renewal_minutes',60):
                 times[key]=now
                 for item,count in r['yields'].items():n.inventory.extend([item]*count)
+                from engine import task_skills
+                task_skills.practice(w,n,task_skills.resource_task(w,r),difficulty=r.get('required_skill_level',10),effort=max(1,r.get('gather_minutes',1)))
                 n.activity='harvesting';return True
     return False
 

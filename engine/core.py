@@ -183,6 +183,10 @@ class World:
         ent.location = new_room_id
         self.rooms[new_room_id].entities.append(entity_id)
         if new_room_id!=old.id:community_quests.movement(self,ent,old.id,new_room_id)
+        if new_room_id!=old.id:
+            from engine import employment,artworks
+            employment.movement(self,ent,old.id,new_room_id)
+            artworks.interrupt(self,ent,'you left the work site')
         if new_room_id!=old.id and getattr(self,'living_state',{}).get('resident_watches'):
             from engine import resident_watch
             resident_watch.note(self,[ent.id],f'Left {old.name} for {self.rooms[new_room_id].name}.')

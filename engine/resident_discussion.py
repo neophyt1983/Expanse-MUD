@@ -176,13 +176,22 @@ def read_local_paper(world, speaker):
     for day,article in sorted(records,key=lambda pair:(gazette.priority(pair[1]),-pair[1].get('last',0)))[:2]:
         key=str(day)+'/'+place['name']+'/'+str(article['key'])
         town_talk.remember(reports,key,dict(area=place['name'],headline=gazette.traffic_headline(world,article),section=article['section']),8)
+        from engine import npc_emotions
+        npc_emotions.read_article(world,speaker,key)
+        from engine import knowledge_sources, task_skills
+        event_id='paper:' + key + ':' + str(minute)
+        knowledge_sources.record(world,speaker,{'rooms':[speaker.location]},
+            source={'kind':'article','id':key},certainty='sourced',event_id=event_id)
+        task_skills.practice(world,speaker,'reading',effort=.25,event_id=event_id)
     return reports
 
 
 def news(world,speaker,turn=0):
     reports=read_local_paper(world,speaker)
     if not reports:return ''
-    article=_select(list(reports.values()),turn)
+    key,article=_select(list(reports.items()),turn)
+    from engine import npc_emotions
+    npc_emotions.context(world,speaker,topic='localnews',article_id=key)
     reaction={'Public safety':'That worries me; people need a clear warning about the danger.',
               'Watch':'I hope the watch follows up and keeps people informed.',
               'Education':'It is encouraging to hear about people learning something useful.',
@@ -195,11 +204,15 @@ def news(world,speaker,turn=0):
 TOPICS={'people':feelings,'work':work,'activities':activities,'plans':plans,'creatures':creatures,'localnews':news}
 
 
-def discuss(world,speaker,topic):
+def discuss(world,speaker,topic,*,listener=None):
     notes=_notes(speaker)
     turns=notes.setdefault('topic_turns',{})
     turn=turns.get(topic,0);turns[topic]=turn+1
     text=TOPICS[topic](world,speaker,turn)
+    from engine import npc_emotions
+    current=getattr(speaker,'_emotion_context',{})
+    npc_emotions.context(world,speaker,partner=listener,topic=topic,
+                         article_id=current.get('article_id') if topic=='localnews' else None)
     if not text and topic=='creatures':
         from engine import encounter_stories
         accounts=encounter_stories.accounts(world,speaker,speaker)
@@ -215,6 +228,21 @@ def discuss(world,speaker,topic):
 def everyday(world,speaker,listener,turn):
     """Two or three relevant sentences; the existing social loop owns cooldowns."""
     from time import monotonic
+    from engine import npc_emotions
+    # Reporting requires this person's own actual observation and an officer
+    # physically taking part in the conversation. A wanted record is not a
+    # telepathic conversation, and the same report is not repeated each turn.
+    for memory in reversed(speaker.progress.get('npc_life',{}).get('memories',[])):
+        if memory.get('kind') not in ('theft loss observed','theft attempt observed','theft witnessed'):
+            continue
+        if memory.get('id') and npc_emotions.report_received(world,speaker,listener,event_id=memory['id']):
+            words=('Someone took my belongings. I saw it happen, and I need to report the theft.'
+                   if memory['kind']=='theft loss observed' else
+                   'I saw an attempted theft and want to report what I witnessed.'
+                   if memory['kind']=='theft attempt observed' else
+                   'I witnessed a theft and want to report what I saw.')
+            npc_emotions.context(world,listener,partner=speaker,topic='work')
+            return npc_emotions.speech_tone(world,speaker),words,'I have heard your report. Tell me what you actually witnessed.'
     fight=getattr(speaker,'_fight_display',None)
     if fight and fight[0]==speaker.location and fight[1]>monotonic():
         return 'calls out','There is fighting here! Keep an eye on the attackers and make room for anyone trying to get to safety.','I see it. We need to be careful.'
@@ -227,6 +255,9 @@ def everyday(world,speaker,listener,turn):
         topic=topics[(counter+offset)%len(topics)]
         words=TOPICS[topic](world,speaker,counter//len(topics))
         if not words:continue
+        current=getattr(speaker,'_emotion_context',{})
+        article_id=current.get('article_id') if topic=='localnews' else None
+        npc_emotions.context(world,speaker,partner=listener,topic=topic,article_id=article_id)
         reply={'people':'It helps to hear why you feel that way. Relationships take time and care.',
                'work':'That sounds like a full day. Tell me if there is something practical I can help with.',
                'activities':'Now I understand what you are working on. I hope it goes well.',
@@ -238,5 +269,8 @@ def everyday(world,speaker,listener,turn):
             reports=_notes(listener).setdefault('news',{})
             for key,article in list(notes.get('news',{}).items())[-2:]:
                 town_talk.remember(reports,key,dict(article),8)
-        return 'says',words,reply
+            if article_id in reports:
+                npc_emotions.read_article(world,listener,article_id)
+        npc_emotions.context(world,listener,partner=speaker,topic=topic,article_id=article_id)
+        return npc_emotions.speech_tone(world,speaker),words,reply
     return None

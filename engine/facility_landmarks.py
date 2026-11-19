@@ -1,6 +1,6 @@
 """Explicit visual landmarks; never implies indoor space or shelter."""
 KINDS={'lodging','forge','workshop','market','residence'}
-LABELS={'residence':'Residential entrance','lodging':'Lodging exterior','forge':'Smithy exterior','workshop':'Workshop exterior','market':'Open market stalls'}
+LABELS={'residence':'Residential sign','lodging':'Lodging sign','forge':'Smithy sign','workshop':'Workshop sign','market':'Open market stalls'}
 def descriptor(room):
     value=room.get('facility_landmark')
     return {'kind':value,'label':LABELS[value]} if isinstance(value,str) and value in KINDS else None

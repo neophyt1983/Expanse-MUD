@@ -77,6 +77,9 @@ def self_care(w, n):
     cost, iid = min(candidates)
     if n.gold < cost: return False
     n.gold -= cost; s['gold'] += cost; s['stock'][iid] -= 1; n.inventory.append(iid)
+    from engine import task_skills
+    clerks=staff(w,cfg,n)
+    task_skills.transaction(w,n,next((c for c in clerks if c.id!=n.id),None))
     needs_market.use(w, n, iid)
     return True
 
@@ -190,6 +193,9 @@ def command(ctx, args, name):
         cfg = min(stocked, key=lambda c: price(w, c, iid)); s = depot(w, cfg); cost = price(w, cfg, iid)
         if p.gold < cost: raise ValueError(f'Not enough gold: this convenience purchase costs {cost} gold.')
         s['stock'][iid] -= 1; p.gold -= cost; s['gold'] += cost; p.inventory.append(iid)
+        from engine import task_skills
+        clerks=staff(w,cfg,p)
+        task_skills.transaction(w,p,clerks[0] if clerks else None)
         return f'Purchased {item["name"]} for {cost} gold at {cfg["name"]}.'
     iid = living.choose([w.items[i] for i in known_items], query)['id'] if query else None
     lines = ['Rotating markets: finite goods, paid convenience; 25-hour day. Restocking requires paid, reachable, open staffed suppliers.']

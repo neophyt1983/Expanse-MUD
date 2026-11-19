@@ -5,6 +5,7 @@ import unittest
 from engine import locks
 from engine.core import Entity, Room, World
 from server.game_server import GameServer
+from test_burglary import Rolls
 
 
 class Socket:
@@ -32,13 +33,16 @@ def fixture():
     world.entities[witness.id]=witness;world.rooms['kitchen'].entities.append(witness.id)
     server=GameServer.__new__(GameServer)
     server.world=world;server.clients={socket:ident for ident,socket in sockets.items()}
+    world.online_player_ids=set(sockets)
     return world,server,sockets
 
 
 class ConversationNotificationTests(unittest.IsolatedAsyncioTestCase):
     async def test_theft_shout_is_delivered_once_with_explicit_npc_emphasis(self):
         world,server,sockets=fixture()
-        result=locks.act(world,world.entities['thief'],'take','pantry')
+        # The owner notices. The online bystander misses the attempt itself and
+        # hears the resulting public shout, exactly once.
+        result=locks.act(world,world.entities['thief'],'take','pantry',rng=Rolls(.1,.1,0,.99))
         self.assertIn('You steal',result)
         self.assertNotIn('shouts',result,'The spoken alert has its own styled message.')
         # A prompt arrest can move the thief before notification flush. Their
@@ -61,6 +65,21 @@ class ConversationNotificationTests(unittest.IsolatedAsyncioTestCase):
         await server.flush_notifications()
         self.assertEqual(len(sockets['thief'].sent),1)
         self.assertEqual(len(sockets['bystander'].sent),1)
+
+    async def test_player_observation_is_delivered_privately_without_forced_dialogue(self):
+        world,server,sockets=fixture()
+        # Only the player bystander notices; the NPC does not automatically
+        # become a witness just because it shares the room.
+        result=locks.act(world,world.entities['thief'],'take','pantry',rng=Rolls(.1,.1,.99,0))
+        self.assertIn('Your attempt was noticed.',result)
+        await server.flush_notifications()
+        self.assertEqual(sockets['thief'].sent,[])
+        self.assertEqual(sockets['remote'].sent,[])
+        self.assertEqual(len(sockets['bystander'].sent),1)
+        packet=sockets['bystander'].sent[0]
+        self.assertTrue(packet['text'].startswith('You notice Thief steal'))
+        self.assertNotIn('conversation',packet)
+        self.assertNotIn('shouts',packet['text'])
 
     async def test_ordinary_npc_speech_is_scoped_and_old_system_events_still_work(self):
         world,server,sockets=fixture()

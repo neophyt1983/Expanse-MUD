@@ -6,10 +6,10 @@
     if(!ws||ws.readyState!==WebSocket.OPEN){append('error','Connect to the game first.');return;}
     ws.send(JSON.stringify({command}));append('user','> '+(label||'Action')); 
   }
-  function action(label,command){const b=make('button','ed-btn',label);b.type='button';b.title=label;b.dataset.action=command;b.onclick=()=>{if(command==='watch'&&window.ExpanseResidentWatch){window.ExpanseResidentWatch.open();return;}if(command==='history'&&window.ExpanseChronicles){window.ExpanseChronicles.open();return;}if((command==='news'||command==='news editions')&&window.ExpanseGazette){window.ExpanseGazette.open(command==='news editions');return;}const lists={inventory:'inventory',quests:'quests',adventures:'adventures',journal:'journal',market:'markets',survey:'survey',catalog:'catalog',wardrobe:'wardrobe',recipes:'recipes',condition:'condition'};if(lists[command]&&window.ExpansePlayerLists)window.ExpansePlayerLists.open(lists[command]);else send(command,label);};return b;}
+  function action(label,command){const b=make('button','ed-btn',label);b.type='button';b.title=label;b.dataset.action=command;b.onclick=()=>{if(command==='skills'&&window.ExpanseSkills){window.ExpanseSkills.open();return;}if(command==='watch'&&window.ExpanseResidentWatch){window.ExpanseResidentWatch.open();return;}if(command==='history'&&window.ExpanseChronicles){window.ExpanseChronicles.open();return;}if((command==='news'||command==='news editions')&&window.ExpanseGazette){window.ExpanseGazette.open(command==='news editions');return;}const lists={inventory:'inventory',quests:'quests',adventures:'adventures',journal:'journal',market:'markets',survey:'survey',catalog:'catalog',wardrobe:'wardrobe',recipes:'recipes',condition:'condition'};if(lists[command]&&window.ExpansePlayerLists)window.ExpansePlayerLists.open(lists[command]);else send(command,label);};return b;}
   const game=$('tab-game'),conversation=make('div','workspace-panel conversation');
   conversation.append(make('h2','panel-title','Conversation'));
-  const quick=make('div','quick-actions');for(const [l,c] of [['Look','look'],['Watch','watch'],['Inventory','inventory'],['Status','score'],['Help','help'],['Guide','guide'],['Bookshelves','books'],['Newspaper','news'],['Chronicles','history'],['Quests','quests'],['Adventures','adventures'],['Markets','market'],['Survey','survey'],['Catalog','catalog'],['Wardrobe','wardrobe'],['Recipes','recipes'],['Condition','condition']])quick.append(action(l,c));conversation.append(quick,$('log'),$('input-form'));
+  const quick=make('div','quick-actions');for(const [l,c] of [['Look','look'],['Watch','watch'],['Inventory','inventory'],['Status','score'],['Skills','skills'],['Help','help'],['Guide','guide'],['Bookshelves','books'],['Newspaper','news'],['Chronicles','history'],['Quests','quests'],['Adventures','adventures'],['Markets','market'],['Survey','survey'],['Catalog','catalog'],['Wardrobe','wardrobe'],['Recipes','recipes'],['Condition','condition']])quick.append(action(l,c));conversation.append(quick,$('log'),$('input-form'));
   const status=make('div');status.id='character-strip';status.setAttribute('role','status');status.textContent='Connecting to your character…';
   const location=make('aside','workspace-panel');location.id='location-panel';location.setAttribute('aria-label','Current location and actions');location.append(make('h2','panel-title','Current location'));
   const content=make('div','location-content');content.id='location-content';content.textContent='Create or resume a character to see your surroundings.';location.append(content);
@@ -197,6 +197,8 @@
     }
     section('Players here',r.players||[],x=>make('div','action-card',x.name+' ['+x.marker+']'));
     section('People and creatures',r.npcs||[],x=>{const card=make('div','action-card',x.name);
+      const expression=(m.social?.npcs||[]).find(n=>n.id===x.id)?.expression;
+      if(typeof expression?.summary==='string'&&expression.summary)card.append(make('small','npc-expression','Expression · '+expression.summary));
       const actor=(m.visual?.actors||[]).find(a=>a.id===x.id);
       if(actor&&window.ExpanseActorRenderer){
         const portrait=make('canvas','npc-portrait');portrait.width=portrait.height=64;portrait.setAttribute('role','img');portrait.setAttribute('aria-label',x.name+' portrait');

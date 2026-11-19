@@ -28,11 +28,15 @@ def reserve(world, owner, footprint, *, occupied=None):
 def install(world):
     if hasattr(world, '_street_origins'):
         return
+    from engine import civic_layout
+    civic_layout.repair(world)
     world._building_tiles = {}
     world._street_origins = origins = {}
     world._street_checks = checks = {}
     details = world.room_details
-    membership = {rid: b['id'] for b in world.buildings.values() for rid in b.get('rooms', [])}
+    membership = {}
+    for b in world.buildings.values():
+        for rid in b.get('rooms', []):membership.setdefault(rid,b['id'])
     def kind(rid):
         row = details[rid]
         return room_style(dict(row, _visual_building={'id':membership[rid]}) if rid in membership else row)[0]
@@ -82,11 +86,17 @@ def install(world):
     for rid in building:
         x,y,z = coords[rid]
         key = membership.get(rid,rid)
-        if z < 0:
+        street_level=world.buildings.get(key,{}).get('street_level',details[rid].get('street_level'))
+        if type(street_level) is int and street_level < 0:
+            if z < street_level:
+                continue
+            key=(key,street_level)
+        elif z < 0:
             if (key, z, region(details[rid])) not in street_levels:
                 continue
             key = (key, z)
-        ground = coords[public_access[rid]][2] if rid in public_access else z
+        ground = (street_level if type(street_level) is int else
+                  coords[public_access[rid]][2] if rid in public_access else z)
         floor[key] = min(floor.get(key, ground), ground)
         cells.setdefault((key,x,y),[]).append(rid)
     # Preserve uncontested surveyed sites, then move complete conflicting plans.

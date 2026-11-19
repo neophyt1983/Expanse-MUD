@@ -1,6 +1,6 @@
 """Nearby sight from real open edges; night dims terrain, never removes exits."""
 import math
-from engine.mapping import VECTORS
+from engine.mapping import VECTORS, adjacent_step
 from engine.visual_mapping import room_style, crosses_seam
 from engine import frontiers, worldtime, locks, geology_impacts
 
@@ -33,7 +33,6 @@ def sight(world,player,compiled):
     lock_index=locks.index(world)
     hazards=geology_impacts.route_sources(world)
     boat=any(world.items.get(item,{}).get('boat') for item in player.inventory)
-    vectors={(x,y):name for name,(x,y,z) in VECTORS.items() if not z}
     checked={}
 
     def edge(a,b):
@@ -42,14 +41,13 @@ def sight(world,player,compiled):
         src,dst=cells.get(a),cells.get(b)
         if src is None or dst is None:
             return False
-        direction=vectors[b[0]-a[0],b[1]-a[1]]
         exits=world.rooms[src].exits
-        if exits.get(direction)!=dst:
-            direction='approach '+direction
         detailed=(src in hazards or src in lock_index or world.room_details.get(src,{}).get('gates')
                   or world.room_details.get(dst,{}).get('property_unit_id'))
-        checked[a,b]=(exits.get(direction)==dst and not
-                      frontiers.path_blocked(world,src,direction,dst,player,detailed,lock_index,hazards,boat))
+        displacement=(b[0]-a[0],b[1]-a[1],0)
+        checked[a,b]=any(target==dst and adjacent_step(byid,positions,src,direction,dst)==displacement
+                        and not frontiers.path_blocked(world,src,direction,dst,player,detailed,lock_index,hazards,boat)
+                        for direction,target in exits.items())
         return checked[a,b]
 
     def in_view(x,y):

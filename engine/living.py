@@ -97,16 +97,25 @@ def advance(world,minutes=1):
     needs_market.advance(world,minutes)
     from engine import settlements
     settlements.advance(world)
-    from engine import npc_life
+    from engine import npc_life, npc_burglary, animal_life
     from engine import community_quests
     community_quests.advance(world)
+    from engine import artworks
+    artworks.advance(world,minutes)
+    animal_steps=[]
+    unavailable_workers=set()
     for e in list(world.entities.values()):
+        artistic_job=artworks.active(world,e)
+        if (artistic_job and not artistic_job.get('paused')) or e.progress.get('guild_work_v1',{}).get('operation'):
+            unavailable_workers.add(e.id)
         if spell_life.magical(e):
             if e.alive:
                 from engine import companions
                 companions.follow(world,e)
             continue
         if e.progress.get('zoo_exhibit'):
+            animal_steps.append(e)
+            animal_life.step(world,e)
             continue
         if civic_program.hold_carriage(world,e):
             continue
@@ -117,13 +126,25 @@ def advance(world,minutes=1):
         if e.is_player:
             pr=progress(e);pr['intoxication']=max(0,pr['intoxication']-minutes)
             continue
+        animal_steps.append(e)
+        if animal_life.step(world,e):continue
         if not e.alive or sheltering or sleep_movement.asleep(world,e):continue
         from engine import npc_attention
         if npc_attention.paused(world,e):continue
         if community_quests.assignment(world,e):continue
+        from engine import employment
         template=world.npcs.get(e.source_def,{})
         if template.get('city_perimeter') and not e.progress.get('escort_post') and community_quests.perimeter(world,e):continue
-        if template.get('expedition_role') or template.get('district_resident'):continue
+        regional_routine=bool(template.get('expedition_role') or template.get('district_resident'))
+        burglary_plan=template.get('burglary_plan')
+        may_burgle=isinstance(burglary_plan,dict) and burglary_plan.get('enabled') is True
+        guild_plan=template.get('guild_plan')
+        may_guild=isinstance(guild_plan,dict) and guild_plan.get('enabled') is True
+        art_plan=template.get('art_plan')
+        may_art=isinstance(art_plan,dict) and art_plan.get('enabled') is True
+        employment_plan=template.get('employment_plan')
+        may_employment=bool(employment.active(world,e)) or isinstance(employment_plan,dict) and employment_plan.get('enabled') is True
+        if regional_routine and ((not may_burgle and not may_guild and not may_art and not may_employment and not animal_life.is_keeper(world,e)) or e.progress.get('retired')):continue
         if e.progress.get('companion_owner'):
             from engine import companions
             companions.follow(world,e)
@@ -135,6 +156,21 @@ def advance(world,minutes=1):
             if home in world.rooms:livelihoods.move_towards(world,e,home)
             e.activity='enjoying retirement' if e.location==home or not home else 'walking home'
             continue
+        if animal_life.owner_step(world,e):continue
+        from engine import clinical_services
+        if clinical_services.step(world,e):continue
+        if may_employment and employment.step(world,e):continue
+        if may_burgle and npc_burglary.step(world,e,online_players=getattr(world,'online_player_ids',())):
+            continue
+        if may_art:
+            from engine import artwork_npc
+            if artwork_npc.step(world,e):
+                unavailable_workers.add(e.id);continue
+        if may_guild:
+            from engine import guilds
+            if guilds.step(world,e):
+                unavailable_workers.add(e.id);continue
+        if regional_routine:continue
         from engine import livelihoods
         if livelihoods.routine(world,e):continue
         if needs_market.act(world,e,minutes):continue
@@ -169,11 +205,11 @@ def advance(world,minutes=1):
             if exits:world.move_entity(e.id,random.choice(exits))
 
     from engine import society
-    society.produce(world)
+    society.produce(world,unavailable_workers=unavailable_workers)
     from engine import market_shifts
     market_shifts.advance(world)
     from engine import wildlife
-    wildlife.advance(world)
+    wildlife.advance(world,stepped_entities=animal_steps)
     if society.enabled(world):
         from engine import relationships, mortality
         messages=mortality.advance(world)
@@ -182,6 +218,8 @@ def advance(world,minutes=1):
         from engine import social
         social.advance(world)
 
+    from engine import employment
+    employment.advance(world,minutes)
     from engine import resting
     resting.advance(world,minutes)
     if getattr(world,'living_state',{}).get('resident_watches'):
@@ -333,7 +371,10 @@ def command(ctx,args,name):
             rows=gathering.listing(w,p)
             if not rows:return 'Nothing can be gathered at '+r.name+'.'
             return 'Gathering at '+r.name+'\n'+'\n'.join(row['label']+' — '+row['detail'] for row in rows)+'\nUse gather followed by the source or item name.'
-        obj=catalog(w,'resources')[args]
+        from engine import resource_nodes
+        local_sources=[catalog(w,'resources')[ident] for ident in resource_nodes.active_resources(w,r.id)
+                       if ident in catalog(w,'resources')]
+        obj=choose(local_sources,args)
         missing=gathering.prerequisite(w,p,obj)
         if missing:return missing
         from engine import ecology,resource_nodes
@@ -369,6 +410,8 @@ def command(ctx,args,name):
         from engine import community_quests
         community_quests.performed(w,p,'gather',obj['id'])
         from engine import progression
+        from engine import task_skills
+        task_skills.practice(w,p,task_skills.resource_task(w,obj),difficulty=obj.get('required_skill_level',10),effort=max(1,obj.get('gather_minutes',1)))
         advancement=progression.award(w,p,'gather',obj['id'])
         return 'Gathered: '+', '.join(goods_amount(w.items[i],n) for i,n in obj.get('yields',{}).items())+('\n'+advancement if advancement else '')
     if name=='harvest':
@@ -391,6 +434,8 @@ def command(ctx,args,name):
                 headline=p.name+' was hurt collecting '+w.items[product]['name']+' at '+r.name+'.'
                 gazette.record(w,r.id,'Public safety',headline,key='harvest:'+r.id+':'+obj['id']+':'+p.id,once=True)
         from engine import progression
+        from engine import task_skills
+        task_skills.practice(w,p,obj.get('task_skill',obj.get('required_skill') or 'ranching'),difficulty=obj.get('required_skill_level',10),effort=2)
         advancement=progression.award(w,p,'gather','encounter:'+obj['id'])
         return 'Harvested without destroying the source: '+gathering.goods(w,obj['harvest'])+(f'. Suffered {damage} damage.' if damage else '.')+('\n'+advancement if advancement else '')
     if name=='recipes':
@@ -400,6 +445,13 @@ def command(ctx,args,name):
         if impaired:return 'This workshop is temporarily unusable while hazard damage is repaired.'
         from engine import knowledge
         obj=knowledge.crafting_choice(w,p,args)
+        if obj.get('artwork'):
+            from engine import artworks
+            return artworks.begin(w,p,obj['id'])
+        from engine import gathering
+        missing=gathering.prerequisite(w,p,obj)
+        if missing:return missing
+        if obj.get('tool') and obj['tool'] not in p.inventory:return 'Bring '+w.items.get(obj['tool'],{}).get('name',obj['tool'])+'.'
         if any(i not in p.abilities for i in obj.get('required_abilities',[])):return 'Learn the required ability before preparing this recipe: '+', '.join(w.abilities.get(i,{}).get('name',i) for i in obj.get('required_abilities',[]))
         if name=='cook' and obj.get('kind')!='cooking':return 'Use craft for this recipe.'
         from engine.quest_progress import status as quest_status
@@ -411,7 +463,9 @@ def command(ctx,args,name):
         if not ecology.available(w,r.id,obj):return 'This activity needs a living, mature population of the required species here.'
         consume(p,obj['ingredients'],w)
         for iid,n in obj['outputs'].items():p.inventory.extend([iid]*n)
-        skill=obj.get('kind','crafting');pr['skills'][skill]=pr['skills'].get(skill,0)+1
+        from engine import task_skills
+        skill=obj.get('task_skill') or obj.get('kind','crafting')
+        task_skills.practice(w,p,skill,difficulty=obj.get('required_skill_level',10),effort=max(1,obj.get('minutes',5)))
         advance(w,obj.get('minutes',5))
         from engine import quest_progress
         quest_progress.action(p, name + ':' + obj['id'])
@@ -455,6 +509,8 @@ def command(ctx,args,name):
         obj=choose([dict(id=e.id,name=e.name) for e in entities],args);e=w.entities[obj['id']];d=w.npcs[e.source_def]
         bait=taming.requirement(w,p,e)
         if bait:consume(p,{bait:1},w)
+        from engine import task_skills
+        task_skills.practice(w,p,'ranching',difficulty=15,effort=3,event_id='tame:'+e.id)
         if society.enabled(w):
             e.progress.update(companion_owner=p.id,companion_order='follow',companion_mode='defend')
             pr['companions'].append(dict(id=e.id,source_def=e.source_def,name=e.name,kind=d.get('companion_kind','pet'),attack=d.get('companion_attack',1),description=d.get('description','')))
@@ -508,6 +564,9 @@ def command(ctx,args,name):
         if not livelihoods.room_open(w,r.id):return 'This business is closed. Return during opening hours.'
         name_service=args.strip().lower();fee=rd.get('services',{}).get(name_service)
         if fee is None:return 'Available services: '+command(ctx,'','services')
+        if name_service=='treatment':
+            from engine import clinical_services
+            if clinical_services.config(w,r.id):return clinical_services.treat(w,p)
         if p.gold<fee:return 'Not enough gold.'
         if name_service=='haircut':pr['hair']='neatly trimmed'
         elif name_service=='treatment':pr['injury']=0;pr['disease']=0
@@ -604,7 +663,7 @@ def on_hit(world,p,attacker,damage):
 def snapshot(world):
     if not enabled(world):
         # Real-world player appointments are not a simulation feature.
-        retained={k:v for k,v in getattr(world,'living_state',{}).items() if k in ('player_calendar','physical_locks','lock_incidents','resident_watches')}
+        retained={k:v for k,v in getattr(world,'living_state',{}).items() if k in ('player_calendar','physical_locks','lock_incidents','resident_watches','expedition_recoveries_v1')}
         return {'state':retained} if retained else {}
     from engine import population
     population.ensure(world)
@@ -622,13 +681,15 @@ def snapshot(world):
 def restore(world,saved):
     if not saved:return
     if not enabled(world):
-        for key in ('player_calendar','physical_locks','lock_incidents','resident_watches'):
+        for key in ('player_calendar','physical_locks','lock_incidents','resident_watches','expedition_recoveries_v1'):
             if key in saved.get('state',{}):
                 if not hasattr(world,'living_state'):world.living_state={}
                 world.living_state[key]=saved['state'][key]
         return
     from engine.core import Entity
     world.living_state=saved.get('state',{})
+    from engine import artworks
+    artworks.restore(world)
     from engine import wildlands
     wildlands.restore(world,world.living_state)
     from engine import country_edges
@@ -655,6 +716,8 @@ def restore(world,saved):
         names.migrate_saved(world,ent)
         if d.get('sleeping') is True:ent.activity='sleeping'
         world.add_entity(ent,ent.location)
+        from engine import npc_backgrounds
+        npc_backgrounds.initialize(world, ent)
     for rid,items in saved.get('floors',{}).items():
         rid=country_edges.saved_room(world,rid)
         if rid in world.rooms:world.rooms[rid].items=[i for i in items if i in world.items]
@@ -715,6 +778,9 @@ def quest_blocked(world,player,quest,*,alternatives=True,readonly=False):
     if q.get('class') and q['class']!=p.char_class:return 'This quest belongs to another class.'
     if q.get('race') and q['race']!=p.race:return 'This quest belongs to another race.'
     if any(pr.get('flags',{}).get(k)!=v for k,v in q.get('requires_character_flags',{}).items()):return 'Your earlier choices do not permit this quest.'
+    from engine import guilds
+    guild_reason=guilds.quest_blocked(world,player,quest)
+    if guild_reason:return guild_reason
     return ''
 
 
@@ -726,6 +792,9 @@ def quest_completion_blocked(world,player,quest):
     """
     from engine import interface_tours, quest_progress as qp
     p=player;q=quest
+    from engine import guilds
+    guild_reason=guilds.completion_blocked(world,player,quest)
+    if guild_reason is not None:return guild_reason
     if q.get('scope')=='world' and q['id'] in getattr(world,'living_state',{}).get('completed_world',[]):return 'This shared-world outcome has already been completed.'
     if p.progress.get('quests',{}).get(q['id'])!='active':return 'Accept the quest first.'
     if interface_tours.blocked(p,q):return 'Finish the interface guide first. Open Interface guide in Actions, or use interface resume and interface next.'
@@ -808,6 +877,8 @@ def quest_command(ctx,args,name):
     if q.get('relationship_quest',{}).get('enabled'):return 'Choose an NPC in the Social panel, then accept or complete this relationship quest with that individual.'
     if why:return why
     if q.get('scope')=='world' and qid in s.get('completed_world',[]):return 'This shared-world outcome has already been completed.'
+    from engine import guilds
+    if guilds.is_need(q):return guilds.act(w,p,guilds.affiliation(q)['id'],name,offer_id=qid)
     if name=='accept':
         if pr['quests'].get(qid)=='active':return 'Already active. Review your Quests.'
         if pr['quests'].get(qid)=='complete' and not q.get('repeatable'):return 'Already completed.'
@@ -1056,4 +1127,8 @@ def validate(data):
     from engine import interface_tours
     from engine import quest_chains
     from engine import quest_alternatives
-    return _knowledge_validate(data)+knowledge.validate(data)+progression.validate(data)+ability_rules.validate(data)+interface_tours.validate(data)+quest_chains.validate(data)+quest_alternatives.validate(data)
+    from engine import guilds
+    from engine import clinical_services
+    from engine import artworks
+    from engine import employment,publications
+    return _knowledge_validate(data)+knowledge.validate(data)+progression.validate(data)+ability_rules.validate(data)+interface_tours.validate(data)+quest_chains.validate(data)+quest_alternatives.validate(data)+guilds.validate(data)+clinical_services.validate(data)+artworks.validate(data)+employment.validate(data)+publications.validate(data)

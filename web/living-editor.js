@@ -21,6 +21,7 @@
   save.onclick=async()=>{const r=await apiPost(gpath('world-rules'),{travel_speed_multiplier:Number(travelSpeed.value),start_minute:startAtDawn.checked?null:Number(startHour.value)*60+Number(startMinute.value),progression:Object.fromEntries(Object.entries(advancementInputs).map(([key,input])=>[key,key==='enabled'?input.checked:Number(input.value)])),player_death:mode.value,max_players:Number(cap.value),pvp:pvp.checked,sunrise_minute:Number(dawnHour.value)*60+Number(dawnMinute.value)});setStatus(r.error||r.text,r.error?'warn':'');if(!r.error)dialog.remove();};close.onclick=()=>dialog.remove();dialog.append(document.createTextNode('Choose player mortality and maximum player count. Existing permanent deaths stay recorded. Apply after saving. '),mode,cap,document.createTextNode(' Allow player combat '),pvp,document.createTextNode(' Calendar: 25 hours/day, 9 days/week, 26 days/month, 8 months/year. Dawn: '),dawnHour,dawnMinute,startLabel,startHour,startMinute,startNote,travel,advancement,save,close);document.body.append(dialog);dialog.showModal();
  };document.getElementById('ed-save').parentElement.append(rules);
  const civic=document.createElement('button');civic.type='button';civic.className='ed-btn';civic.textContent='Enable civic rules';civic.onclick=async()=>{const result=await apiPost(gpath('civic-enable'),{});setStatus(result.error||result.text,result.error?'warn':'');};document.getElementById('ed-save').parentElement.append(civic);
+ for(const [type,fields] of Object.entries({species:{animal_behavior:{},flight:{}},npc:{livestock:{},employment_plan:{}},room:{animal_shelter:false,employment:[]}}))window.LIVING_DEFAULTS[type]={...fields,...window.LIVING_DEFAULTS[type]};
  const originalRender=renderFields,originalWidget=buildFieldWidget;
  renderFields=function(obj){
    obj={...(window.LIVING_DEFAULTS[ed.type]||{}),...obj};
@@ -225,13 +226,14 @@
   const object=x=>!!x&&typeof x==='object'&&!Array.isArray(x),strings=x=>Array.isArray(x)&&x.every(v=>typeof v==='string');
   const type=ed.type,source=val??{},kind=key==='song'?'song':key==='instrument'?'instrument':type;
   let supported=object(source)&&(source.version===undefined||source.version===1);
-  for(const name of ['tradition','style','voice','tag'])if(source?.[name]!==undefined&&typeof source[name]!=='string')supported=false;
+  for(const name of ['tradition','style','voice','tag','theme'])if(source?.[name]!==undefined&&typeof source[name]!=='string')supported=false;
   for(const name of ['songs','preferred_instruments','contexts'])if(source?.[name]!==undefined&&!strings(source[name]))supported=false;
-  if(Array.isArray(source?.contexts)&&source.contexts.some(context=>!['work','leisure','performance'].includes(context)))supported=false;
+  if(Array.isArray(source?.contexts)&&source.contexts.some(context=>!['work','leisure','performance','festival'].includes(context)))supported=false;
   if(source?.respond!==undefined&&typeof source.respond!=='boolean')supported=false;
   if(source?.interval_minutes!==undefined&&(!Number.isInteger(source.interval_minutes)||source.interval_minutes<1||source.interval_minutes>1500))supported=false;
   if(source?.voices!==undefined&&(!Array.isArray(source.voices)||source.voices.some(v=>!object(v)||typeof v.id!=='string'||typeof v.label!=='string'||(v.transpose!==undefined&&!Number.isInteger(v.transpose)))))supported=false;
   if(source?.form!==undefined&&!['solo','call_response','relay'].includes(source.form))supported=false;
+  if(source?.theme!==undefined&&!['celebration','remembrance','work','danger','togetherness','hope'].includes(source.theme))supported=false;
   if(source?.verses!==undefined&&(!Array.isArray(source.verses)||source.verses.some(v=>!object(v)||typeof v.call!=='string'||(v.response!==undefined&&typeof v.response!=='string')||(v.relay!==undefined&&!strings(v.relay)))))supported=false;
   if(Array.isArray(source?.verses)&&source.verses.some(v=>object(v)&&(((source.form||'solo')==='solo'&&(v.response!==undefined||v.relay!==undefined))||(source.form==='call_response'&&v.relay!==undefined)||(source.form==='relay'&&(v.response!==undefined||(Array.isArray(v.relay)&&v.relay.length>3))))))supported=false;
   if(source?.score!==undefined&&!object(source.score))supported=false;
@@ -259,7 +261,7 @@
   let collect;
   if(kind==='race'){
    fields.append(el('p','Author this tradition here. Each person receives a stable individual voice from this pool, independent of sex or gender. Leaving the pool empty does not borrow another tradition.'));
-   const tradition=field(fields,'Tradition ID (optional)','tradition',draft.tradition||''),style=field(fields,'Performance style','style',draft.style||'','textarea'),songs=songList();
+   const tradition=field(fields,'Tradition ID (optional)','tradition',draft.tradition||''),style=field(fields,'Performance direction (not lyrics)','style',draft.style||'','textarea'),songs=songList();
    const instruments=field(fields,'Preferred instrument tags (one per line)','preferred_instruments',(draft.preferred_instruments||[]).join('\n'),'textarea');
    const voiceHost=el('div');fields.append(voiceHost);const voices=(draft.voices||[]).map(v=>({...v}));let voiceRows=[];
    function drawVoices(){voiceHost.replaceChildren();voiceRows=voices.map((voice,index)=>{
@@ -278,7 +280,7 @@
   }else if(kind==='npc'){
    fields.append(el('p','Repertoire adds to this person’s race songs. Only selected contexts allow spontaneous singing. Responses and relays require an actual local, awake, cooperative NPC who knows the song. Other players never answer automatically.'));
    const voice=field(fields,'Voice ID from this person’s race pool (optional)','voice',draft.voice||''),songs=songList(),interval=numberField(fields,'Minutes between spontaneous performances (blank uses world setting)','interval_minutes',draft.interval_minutes,1,1500);
-   const contexts={};for(const name of ['work','leisure','performance']){const label=el('label',' Sing during '+name),input=el('input');input.type='checkbox';input.checked=(draft.contexts||[]).includes(name);input.dataset.musicContext=name;label.prepend(input);label.style.display='block';fields.append(label);contexts[name]=input;}
+   const contexts={};for(const name of ['work','leisure','performance','festival']){const label=el('label',' Sing during '+name),input=el('input');input.type='checkbox';input.checked=(draft.contexts||[]).includes(name);input.dataset.musicContext=name;label.prepend(input);label.style.display='block';fields.append(label);contexts[name]=input;}
    const respond=el('input');respond.type='checkbox';respond.checked=draft.respond===true;respond.dataset.musicField='respond';const responseLabel=el('label',' Willing to answer or pass along a known song');responseLabel.prepend(respond);fields.append(responseLabel);
    collect=value=>{
     if(interval.value!==''&&(!Number.isInteger(Number(interval.value))||Number(interval.value)<1||Number(interval.value)>1500))throw Error('The singing interval must be a whole number from 1 to 1500 minutes, or blank.');
@@ -291,9 +293,10 @@
    fields.append(el('small','Use normal item descriptions, recipes, ingredients and workshop stock to author construction and trade. Set producers’ recipes, work location and finite supplies separately.'));
    collect=value=>{if(!tag.value.trim())throw Error('Enter the instrument tag used by accompaniment tracks.');value.tag=tag.value;};
   }else{
-   fields.append(el('p','Use this field on an ordinary readable item. Its name, read_text, publication and physical location remain separate. One authored verse is performed at a time; no lyrics or musical style are generated by the engine.'));
-   const tradition=field(fields,'Tradition ID (optional)','tradition',draft.tradition||''),style=field(fields,'Performance style','style',draft.style||'','textarea'),form=field(fields,'Song form','form','','select');
+   fields.append(el('p','Use this field on an ordinary readable item. Its name, read_text, publication and physical location remain separate. One authored verse is performed at a time. Lyrics stay exactly as written; an NPC’s delivery reflects their current emotions, experiences and actual audience. Performance directions are not spoken lyrics.'));
+   const tradition=field(fields,'Tradition ID (optional)','tradition',draft.tradition||''),style=field(fields,'Performance direction (not lyrics)','style',draft.style||'','textarea'),form=field(fields,'Song form','form','','select');
    for(const [id,label] of [['solo','Solo'],['call_response','Call and response'],['relay','Relay between actual singers']])form.append(new Option(label,id));form.value=draft.form||'solo';
+   const theme=field(fields,'Song topic (optional)','theme','','select');for(const value of ['','celebration','remembrance','work','danger','togetherness','hope'])theme.append(new Option(value||'No topic specified',value));theme.value=draft.theme||'';
    const verses=(draft.verses||[]).map(v=>structuredClone(v)),verseHost=el('div');fields.append(verseHost);let verseRows=[];
    function drawVerses(){verseHost.replaceChildren();verseRows=verses.map((verse,index)=>{
     const row=el('fieldset');row.style.minWidth='0';row.dataset.musicVerse=String(index);row.append(el('legend','Verse '+(index+1)));verseHost.append(row);
@@ -315,7 +318,7 @@
      else if(form.value==='relay'){entry.relay=relay.map(input=>input.value);while(entry.relay.at(-1)==='')entry.relay.pop();delete entry.response;if(entry.relay.length<1||entry.relay.length>3||entry.relay.some(line=>!line.trim()||line.length>240))throw Error('Every relay verse needs 1–3 consecutive successor lines of 1–240 characters each.');}
      else{delete entry.response;delete entry.relay;}return entry;
     });
-    set(value,'tradition',tradition.value);set(value,'style',style.value);set(value,'form',form.value,'solo');value.verses=result;
+    set(value,'tradition',tradition.value);set(value,'style',style.value);set(value,'theme',theme.value);set(value,'form',form.value,'solo');value.verses=result;
     if(score.value.trim()){const parsed=JSON.parse(score.value);if(!object(parsed))throw Error('The score must be a JSON object.');value.score=parsed;}else delete value.score;
    };
   }
@@ -438,6 +441,14 @@
   box.append(el('p','Save interface lesson stages only this field on the selected quest. Validate and export the complete world through the usual Creator workflow.'),commit);return box;
  }
  buildFieldWidget=function(key,kind,val,objId){
+  if((ed.type==='room'&&key==='employment')||(ed.type==='npc'&&key==='employment_plan')){
+   const box=el('div'),help=key==='employment'?'Post up to 8 local vacancies. Each needs a unique id, title, employer NPC definition ID, recipe ID and positive wage. The room must have that recipe in its real workshop. Optional slots (1–16), target_stock (1–1000) and min_skill (0–100) limit demand. Real workshop ingredients and wages are reserved for each timed batch; interruptions return them once. Example: [{"id":"kitchen_helper","title":"Kitchen helper","employer":"market_trader","recipe":"vegetable_stew","wage":3,"slots":2,"target_stock":12}].':'Optional NPC participation: {"enabled":true,"room":"market_room","vacancy":"kitchen_helper"}. The NPC must actually arrive by its ordinary schedule, be on duty and have no higher-priority care or safety obligation. Empty settings never make unrelated residents apply.';
+   box.append(el('p',help),jsonField(key,val));return box;
+  }
+  if((ed.type==='species'&&['animal_behavior','flight'].includes(key))||(ed.type==='npc'&&key==='livestock')){
+   const help={animal_behavior:'Non-sentient animals eat actual finite food, sleep, seek shelter and explore nearby habitat. Empty settings use awake_start 360, awake_minutes 960, action_minutes 5, explore_minutes 30, rest_minutes 10 and territory_steps 3. Times are game minutes in a 1500-minute day. Optional habitats lists up to 8 matching terrain or environment names; empty uses the home habitat. Set enabled false to keep the previous behavior.',flight:'Birds are flightless unless this profile is usable. Choose mode short or sustained, positive endurance_steps, recovery_minutes and range_steps. Short flight allows up to 4 endurance steps and 2 range steps; sustained flight allows up to 256 and 16. Flight follows real open outdoor routes and spends endurance on each edge. Example: {"mode":"short","endurance_steps":2,"recovery_minutes":20,"range_steps":1}.',livestock:'Optional actual ownership: owner is a keeper NPC definition ID, home is an enclosure room ID, and rooms lists up to 16 permitted enclosure rooms including home. One actual local keeper can recover its nearby strays. escape_chance is a daily chance from 0 to 0.25 and only an open exit can permit an escape. Empty settings leave wildlife unowned. Ownership passes to actual offspring.'};
+   const box=el('div');box.append(el('p',help[key]),jsonField(key,val));return box;
+  }
   if(key==='spellcasting'&&ed.type==='npc')return npcSpellcastingField(val);
   if((key==='presentation'&&ed.type==='ability')||(key==='summon_presentation'&&ed.type==='npc'))return presentationField(key,val);
   if((key==='singing'&&['race','npc'].includes(ed.type))||(['song','instrument'].includes(key)&&ed.type==='item'))return singingField(key,val);

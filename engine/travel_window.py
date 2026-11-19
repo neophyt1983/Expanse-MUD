@@ -2,7 +2,7 @@
 from collections import deque
 
 from engine import frontiers, locks, player_routes
-from engine.mapping import VECTORS
+from engine.mapping import VECTORS, adjacent_step
 from engine.route_surfaces import descriptor
 from engine import geology, facility_landmarks
 from engine.visual_mapping import land_use_for
@@ -211,8 +211,8 @@ def window(world, player, compiled, extent, destination=None, *, require_open=Fa
             if target in coordinates or target not in rows:
                 continue
             bearing = direction.removeprefix('approach ')
-            vector = VECTORS.get(bearing)
-            if not vector or vector[2]:
+            vector = adjacent_step(rows, positions, rid, direction, target)
+            if not vector:
                 continue
             dx, dy = x + vector[0], y + vector[1]
             if abs(dx) > hx or abs(dy) > hy or (dx, dy) in occupied:
@@ -244,8 +244,8 @@ def window(world, player, compiled, extent, destination=None, *, require_open=Fa
     if destination is not None:
         if destination in coordinates:
             def shown_edge(source, direction, target):
-                vector = VECTORS.get(direction.removeprefix('approach '))
-                if vector is None or vector[2] or target not in coordinates:
+                vector = adjacent_step(rows, positions, source, direction, target)
+                if vector is None or target not in coordinates:
                     return False
                 expected = tuple(a + b for a, b in zip(positions[source], vector))
                 return ((coordinates[source][0] + vector[0], coordinates[source][1] + vector[1]) == coordinates[target]

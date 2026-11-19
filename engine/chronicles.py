@@ -196,7 +196,21 @@ def page(w,p,section='geology',query='',number=1,*,all_people=False):
     known=set(p.explored_rooms)|{p.location}|set(p.progress.get('knowledge',{}).get('rooms',[]))
     from engine import field_archive
     if section in field_archive.SECTIONS:
-        entries=[r for r in archive.get('volumes',{}).get(section,()) if query.casefold() in (r['name']+' '+r['text']+' '+r['date']).casefold()]
+        from engine import knowledge_sources
+        observed = p.progress.get(knowledge_sources.KEY, {}).get('topics', {})
+        nearby = [actor for actor in w.entities_in_room(p.location) if actor.alive and not actor.is_player]
+        nearby_npcs = {actor.source_def for actor in nearby}
+        nearby_species = {w.npcs.get(ident,{}).get('species') or
+                          w.npcs.get(ident,{}).get('social_profile',{}).get('species') for ident in nearby_npcs}
+        def readable(entry):
+            if all_people or entry.get('coverage','public') == 'public': return True
+            subject = entry.get('subject',{})
+            kind, ident = subject.get('kind'), subject.get('id')
+            if (kind=='npcs' and ident in nearby_npcs) or (kind=='species' and ident in nearby_species): return True
+            record = observed.get(str(kind)+':'+str(ident),{})
+            return any(value in ('observed','sourced') for value in record.get('qualities',[]))
+        entries=[r for r in archive.get('volumes',{}).get(section,()) if readable(r)
+                 and query.casefold() in (r['name']+' '+r['text']+' '+r['date']).casefold()]
         return paginate(section,archive,entries,number,4 if section!='sources' else 12)
     rows=[]
     def row(at,name,text):
@@ -222,6 +236,7 @@ def page(w,p,section='geology',query='',number=1,*,all_people=False):
         for e in archive.get('events',[]):
             if e['domain']!=section:continue
             rid=e.get('place')
+            if e.get('coverage')=='local' and not all_people and rid not in known:continue
             place=w.rooms[rid].name if rid in w.rooms and (all_people or rid in known) else ''
             row(e['at'],e.get('heading') or place,e['text'])
         if section=='civilization':

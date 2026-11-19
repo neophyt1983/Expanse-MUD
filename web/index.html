@@ -442,6 +442,9 @@ function connect() {
     if(window.ExpanseChronicles?.receive(msg)||window.ExpanseGazette?.receive(msg)||window.ExpanseStyles?.receive(msg))return;
     if(window.ExpanseCountryView?.receive(msg))return;
     if(window.ExpanseLocalQuests?.receive(msg))return;
+    window.ExpanseGuilds?.receive(msg);
+    window.ExpanseWorkServices?.receive(msg);
+    window.ExpanseTheft?.receive(msg);
     if(window.ExpansePlayerControls?.receive(msg))return;
     if(msg.type==='system'&&/^Resumed as /.test(msg.text||'')){window.ExpanseSourceQuests?.clear();window.ExpanseEquipment?.disconnect();window.ExpanseRestControls?.disconnect();window.ExpansePlayerLists?.disconnect();window.ExpanseWorldAtlas?.disconnect();window.ExpanseMap?.reset();window.ExpanseTrade?.disconnect();}
     if(window.ExpanseEquipment?.receive(msg))return;
@@ -2021,6 +2024,10 @@ window.expansePixelRequest=async(body)=>{if(!ed.gameSlug)throw Error('Select a C
 <link rel="stylesheet" href="/creator-assist.css">
 <script src="/creator-assist.js"></script>
 <script src="/locks-ui.js?v=1.9.11"></script>
+<script src="/theft-ui.js"></script>
+<script src="/guild-ui.js"></script>
+<script src="/work-services-ui.js"></script>
+<script src="/skills-ui.js"></script>
 <script src="/locks-editor.js?v=1.9.11"></script>
 <script src="/waystones.js"></script>
 <script src="/play-windows.js"></script>

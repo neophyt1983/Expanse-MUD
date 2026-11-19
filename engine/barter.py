@@ -44,6 +44,8 @@ def sale(w,p,n,iid):
     if n.gold<cost:raise ValueError(n.name+' cannot afford it right now.')
     npc_attention.begin(w,p,n)
     p.inventory.remove(iid);n.inventory.append(iid);n.gold-=cost;p.gold+=cost
+    from engine import task_skills
+    task_skills.transaction(w,p,n)
     livelihoods.receive(w,n,iid) if livelihoods.applies(w,n) else needs_market.use(w,n,iid)
     if getattr(w,'living_state',{}).get('resident_watches'):
         from engine import resident_watch
@@ -60,6 +62,8 @@ def swap(w,p,n,give,take):
     if value(w,n,give)<value(w,n,take):raise ValueError('Your offered item is worth less than the requested item.')
     npc_attention.begin(w,p,n)
     p.inventory.remove(give);n.inventory.remove(take);n.inventory.append(give);p.inventory.append(take)
+    from engine import task_skills
+    task_skills.transaction(w,p,n)
     livelihoods.receive(w,n,give) if livelihoods.applies(w,n) else needs_market.use(w,n,give)
     if getattr(w,'living_state',{}).get('resident_watches'):
         from engine import resident_watch

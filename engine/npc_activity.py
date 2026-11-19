@@ -7,6 +7,9 @@ def note(actor,kind,label,seconds=15):
         actor._visible_action=(actor.location,monotonic()+seconds,kind,label)
 
 def activity(w,actor):
+    from engine import animal_life
+    animal = animal_life.view(w,actor)
+    if animal:return animal
     source=str(getattr(actor,'activity','') or '').strip()
     low=source.casefold()
     if low.startswith('sleep'):return dict(kind='sleep',label='Sleeping')

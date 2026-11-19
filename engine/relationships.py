@@ -361,6 +361,9 @@ def advance(w):
             family_life.birth_sex(w, child)
             names.assign(w,child,force=True)
         w.add_entity(child, carrier.location)
+        if not cp['sentient']:
+            from engine import animal_life
+            animal_life.inherit(w,carrier,child)
         s['children'].append(dict(id=ident, parents=pregnancy['parents'], born=now))
         if cp['sentient']:
             family_life.register_birth(w, child, pregnancy['parents'])

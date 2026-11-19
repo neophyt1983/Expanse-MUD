@@ -20,7 +20,7 @@
    itemLabel.style.cssText='flex:1 1 12rem;min-width:0';pick.style.cssText='display:block;width:100%;min-width:0;box-sizing:border-box';
    pick.setAttribute('aria-label',(action==='take_item'?'Item to '+takeVerb.toLowerCase()+' from ':'Item to put in ')+row.name);
    for(const item of choices)pick.append(new Option(item.name+' × '+item.count,item.id));pick.value=selected.id;itemLabel.append(keyed(pick,'container item',row.id,action));
-   const quantityLabel=node('label','Quantity '),quantity=node('input');quantity.type='number';quantity.min='1';quantity.step='1';quantity.max=String(selected.count);quantity.value=draft.quantity;
+   const quantityLabel=node('label',action==='take_item'&&row.permitted===false?'Maximum quantity ':'Quantity '),quantity=node('input');quantity.type='number';quantity.min='1';quantity.step='1';quantity.max=String(selected.count);quantity.value=draft.quantity;
    quantityLabel.style.cssText='flex:0 1 5rem;min-width:0';quantity.style.cssText='display:block;width:100%;min-width:0;box-sizing:border-box';quantity.setAttribute('aria-label',(action==='take_item'?'Quantity to take from ':'Quantity to put in ')+row.name);
    quantityLabel.append(keyed(quantity,'container quantity',row.id,action));
    pick.onchange=()=>{const item=choices.find(item=>item.id===pick.value);draft.id=pick.value;draft.quantity='1';quantity.value='1';quantity.max=String(item?.count||1);};quantity.oninput=()=>{draft.quantity=quantity.value;};
@@ -32,6 +32,7 @@
   }
   for(const row of rows){const card=node('div');card.className='action-card';card.append(node('strong',row.name+' · '+(row.locked?'locked':'unlocked')),button('Inspect','inspect',row));
    if(row.permitted===false){const warning=node('p',row.permission_warning||(row.kind==='door'?'You do not have permission to alter this lock. Picking it may be reported as lock tampering.':'Taking items from this container without permission is theft. Witnesses may report it.'));warning.id=warningIds.get(row.id);warning.className='lock-permission-warning';card.append(warning);}
+   if(row.burglary){const odds=row.burglary;card.append(node('p','Burgling '+odds.level+'/100 · Chance to take one item: '+Math.round(odds.success_chance*100)+'% · Observation risk: '+odds.detection_risk+'. Larger grabs are harder and easier to notice; skill limits how much you take.'));if(odds.cooldown_remaining)card.append(node('p','Wait '+odds.cooldown_remaining+' game minute(s) before another theft attempt.'));}
    if(row.locked){if(row.has_key)card.append(button('Unlock with key','unlock',row));if(row.pickable)card.append(button('Pick lock','pick',row));for(const npc of staff.filter(n=>n.available&&n.locksmith)){const b=button('Ask '+npc.name+' to unlock ('+npc.fee+' gold)','service',row,npc);b.disabled=!row.permitted;card.append(b);}}
    else{if(row.has_key)card.append(button('Lock with key','lock',row));if(row.practice)card.append(button('Reset practice lock','reset',row));if(row.kind==='container'){
     const takeAll=button(row.permitted===false?'Steal contents':'Take contents','take',row);card.append(button('Look inside','open',row),takeAll);

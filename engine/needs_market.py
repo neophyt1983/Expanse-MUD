@@ -237,6 +237,8 @@ def act(w,e,minutes):
         from engine import npc_attention
         npc_attention.begin(w,e,m)
         e.gold-=cost;m.gold+=cost;w.shop_state[m.source_def][iid]-=1;e.inventory.append(iid);use(w,e,iid)
+        from engine import task_skills
+        task_skills.transaction(w,e,m)
         society.economy(w)['npc_purchases']=society.economy(w).get('npc_purchases',0)+1
         e.activity='buying '+w.items[iid]['name'];return True
     # Raw essentials (especially well water) can be bought directly at production sites.
@@ -250,6 +252,8 @@ def act(w,e,minutes):
             if e.gold<cost:continue
             if rid==e.location:
                 e.gold-=cost;stock['gold']+=cost;stock['stock'][iid]-=1;e.inventory.append(iid);use(w,e,iid)
+                from engine import task_skills
+                task_skills.transaction(w,e)
                 society.economy(w)['npc_purchases']=society.economy(w).get('npc_purchases',0)+1
                 e.activity='buying '+w.items[iid]['name'];return True
             workshops.append(rid)

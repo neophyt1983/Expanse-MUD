@@ -376,6 +376,12 @@ def _affirmative_description(text):
 
 
 def _player_equipment(world, ent):
+    """The complete visual protocol remains a concrete ordered list."""
+    return list(_equipment_rows(world, ent))
+
+
+def _equipment_rows(world, ent):
+    """Yield the same rows lazily for callers needing only one visible layer."""
     slots = {
         'armor': 'body', 'body': 'body', 'torso': 'body', 'chest': 'body',
         'appearance_tunic': 'body', 'head': 'head', 'appearance_hat': 'head',
@@ -385,7 +391,6 @@ def _player_equipment(world, ent):
     }
     defaults = dict(body='armor', head='helmet', cloak='cloak', hands='gloves',
                     legs='leggings', feet='boots', weapon='weapon', offhand='offhand', charm='charm', other='generic')
-    equipment = []
     for slot, iid in sorted(ent.equipped.items()):
         item = world.items.get(iid) or {}
         name = str(item.get('name') or iid)
@@ -437,8 +442,7 @@ def _player_equipment(world, ent):
             row['material'] = material
         from engine.art_catalog import bind
         bind(row,item.get("sprite_binding"))
-        equipment.append(row)
-    return equipment
+        yield row
 
 
 def player_paperdoll(world, ent):

@@ -42,6 +42,11 @@ def config(w, e):
 def validate_saved(progress):
     """Validate once at loading boundaries, never silently erase saved lives."""
     if not isinstance(progress, dict): raise ValueError('Invalid NPC progress object.')
+    from engine import npc_emotions, npc_backgrounds, task_skills, knowledge_sources
+    npc_emotions.validate_saved(progress)
+    npc_backgrounds.validate_saved(progress)
+    task_skills.validate_saved(progress)
+    knowledge_sources.validate_saved(progress)
     if KEY not in progress: return
     s = progress[KEY]
     if not isinstance(s, dict): raise ValueError('Invalid saved NPC life object.')
@@ -72,9 +77,12 @@ def validate_saved(progress):
 def ensure(w, e, *, check=False):
     """Only fill missing fields; saved values and creator extensions survive."""
     if e.is_player: return None
+    from engine import npc_emotions
     s = e.progress.get(KEY)
     if check: validate_saved(e.progress)
-    if not check and s is not None and s.get('version') == 1: return s
+    if not check and s is not None and s.get('version') == 1:
+        npc_emotions.ensure(w, e)
+        return s
     if s is None: s = e.progress.setdefault(KEY, {})
     d = w.npcs.get(e.source_def, {})
     c = config(w, e)
@@ -93,6 +101,7 @@ def ensure(w, e, *, check=False):
     s.setdefault('memories', [])
     s.setdefault('health', health(e))
     s['version'] = 1
+    npc_emotions.ensure(w, e)
     return s
 
 
@@ -149,9 +158,12 @@ def event(w, e, kind, impact, *, duration=MINUTES_PER_DAY, source='', event_id=N
     if event_id is not None and any(m.get('id') == event_id for m in s['memories']): return
     s['day_quality'] = bounded(s['day_quality'] + impact)
     s['mood'] = bounded(s['mood'] + impact)
-    s['memories'].append(dict(kind=kind, impact=impact, source=source, id=event_id,
-                              at=minute(w), expires=minute(w) + duration))
+    memory = dict(kind=kind, impact=impact, source=source, id=event_id,
+                  at=minute(w), expires=minute(w) + duration)
+    s['memories'].append(memory)
     del s['memories'][:-MAX_MEMORIES]
+    from engine import npc_emotions
+    npc_emotions.record_life_event(w, e, memory)
 
 
 def earned(w, e, amount):

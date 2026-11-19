@@ -164,8 +164,17 @@ def transfer_selection(world, actor, query, item_query, quantity, *, putting=Fal
     return origin,row,s,iid,count
 
 
-def transfer(world, actor, query, item_query, quantity=1, *, putting=False):
+def transfer(world, actor, query, item_query, quantity=1, *, putting=False, rng=None):
     origin,row,s,iid,_=transfer_selection(world,actor,query,item_query,quantity,putting=putting)
+    attempt=None
+    if not putting and not permitted(world,actor,row):
+        from engine import burglary
+        attempt=burglary.attempt(world,actor,origin,row,quantity,rng,
+                                 online_players=getattr(world,'online_player_ids',()))
+        if not attempt.success:
+            feedback=burglary.complete(world,actor,attempt)
+            return ('You fail to steal anything from '+row.get('name',row['id'])+'. '+feedback).strip()
+        quantity=attempt.quantity
     source=actor.inventory if putting else s['contents']
     target=s['contents'] if putting else actor.inventory
     remaining=[];remove=quantity
@@ -173,19 +182,21 @@ def transfer(world, actor, query, item_query, quantity=1, *, putting=False):
         if entry==iid and remove:remove-=1
         else:remaining.append(entry)
     received=target+[iid]*quantity
-    warning=notice(world,actor,row,'lock tampering' if putting else 'theft')
+    warning=notice(world,actor,row,'lock tampering') if putting else ''
     # Both replacements are prepared before the first mutation. Duplicate units
     # retain their counts, and a rejected request never removes a partial stack.
     source[:]=remaining;target[:]=received
-    verb='You put ' if putting else 'You take ' if permitted(world,actor,row) else 'You steal '
+    if attempt is not None:
+        warning=' '+burglary.complete(world,actor,attempt)
+    verb='You put ' if putting else 'You steal ' if attempt is not None else 'You take '
     return verb+str(quantity)+' × '+str(world.items[iid].get('name') or iid)+(' in ' if putting else ' from ')+row.get('name',row['id'])+'.'+warning
 
 
-def act(world, actor, action, query, *, item=None, quantity=1):
+def act(world, actor, action, query, *, item=None, quantity=1, rng=None):
     from engine import sleep_movement
     if not actor.alive or sleep_movement.asleep(world,actor):return 'You must be awake and able to act.'
     if action in ('take-item','put'):
-        return transfer(world,actor,query,item,quantity,putting=action=='put')
+        return transfer(world,actor,query,item,quantity,putting=action=='put',rng=rng)
     origin,row=select(world,actor,query);s=saved(world,origin,row);name=row.get('name',row['id'])
     if action=='inspect':
         return (name+': '+('locked' if s['locked'] else 'unlocked')+'. '+row.get('description','')+
@@ -199,16 +210,16 @@ def act(world, actor, action, query, *, item=None, quantity=1):
         tools=[i for i in actor.inventory if i=='lockpicks' or world.items.get(i,{}).get('lockpick_tool')]
         if not tools:return 'You need lockpicks.'
         warning=notice(world,actor,row)
-        # Deterministic difficulty avoids unlimited reload/reroll successes.
-        if skill(world,actor)<row.get('difficulty',25):return 'This lock is beyond your current lockpicking skill.'+warning
+        # The attempt uses the pre-attempt level. Valid work with real tools
+        # earns bounded practice even when the lock is still too difficult.
+        from engine import task_skills
+        before=skill(world,actor);difficulty=row.get('difficulty',25)
+        now=living.state(world)['minute']
+        gained=task_skills.practice(world,actor,'lockpicking',difficulty=difficulty,effort=2,
+                                   event_id='lock:'+origin+':'+row['id']+':'+str(now))
+        gain=(' Your lockpicking improves to '+str(skill(world,actor))+'.') if gained else ''
+        if before<difficulty:return 'You work at the lock, but it remains beyond your current lockpicking skill.'+gain+warning
         s['locked']=False
-        pr=actor.progress;today=living.state(world)['minute']//1500
-        learned=pr.setdefault('lock_practice_days',{})
-        token=origin+':'+row['id']
-        gain=''
-        if actor.is_player and learned.get(token)!=today and skill(world,actor)<min(100,row.get('difficulty',25)+5):
-            pr.setdefault('skills',{})['lockpicking']=skill(world,actor)+1;learned[token]=today
-            gain=' Your lockpicking improves to '+str(skill(world,actor))+'.'
         return 'You pick '+name+'.'+gain+warning
     if action=='reset':
         if not row.get('practice') or not row.get('public') or row.get('direction') or row.get('contents'):return 'Only an empty public practice lock can be reset.'
@@ -224,8 +235,22 @@ def act(world, actor, action, query, *, item=None, quantity=1):
         if not s['contents']:return name+' is empty.'
         if any(not item['movable'] for item in item_choices(world,s['contents'])):
             return 'Some contents cannot be moved. Choose a movable item to take separately.'
-        warning=notice(world,actor,row,'theft');actor.inventory.extend(s['contents']);s['contents']=[]
-        return ('You take' if permitted(world,actor,row) else 'You steal')+' the contents of '+name+'.'+warning
+        if permitted(world,actor,row):
+            actor.inventory.extend(s['contents']);s['contents']=[]
+            return 'You take the contents of '+name+'.'
+        from engine import burglary
+        attempt=burglary.attempt(world,actor,origin,row,len(s['contents']),rng,
+                                 online_players=getattr(world,'online_player_ids',()))
+        if attempt.success:
+            stolen=s['contents'][:attempt.quantity]
+            remaining=s['contents'][attempt.quantity:]
+            received=actor.inventory+stolen
+            actor.inventory[:]=received;s['contents'][:]=remaining
+            summary=', '.join(str(count)+' × '+str(world.items[iid].get('name') or iid)
+                             for iid,count in Counter(stolen).items())
+            result='You steal '+summary+' from '+name+'.'
+        else:result='You fail to steal anything from '+name+'.'
+        return (result+' '+burglary.complete(world,actor,attempt)).strip()
     raise ValueError('Choose inspect, unlock, lock, pick, open, take, take-item, or put.')
 
 
@@ -317,10 +342,11 @@ def validate(data):
                 if type(start) is int and type(end) is int and start>=end:issues.append(row['id']+': lock work end must follow start')
                 if type(row.get('locksmith_fee',0)) is not int or row.get('locksmith_fee',0)<0:issues.append(row['id']+': locksmith_fee must be a nonnegative integer')
                 if not isinstance(row.get('lock_keys',[]),list) or any(not isinstance(i,str) or i not in items for i in row.get('lock_keys',[])):issues.append(row['id']+': invalid lock keys')
-    return issues
+    from engine import npc_burglary
+    return issues+npc_burglary.validate(data)
 
 
-def projection(world, actor):
+def projection(world, actor, *, online_players=()):
     """Local interaction packet only; no contents or key IDs behind locked fixtures."""
     result=[];deposits=None
     for origin,row in local(world,actor.location):
@@ -335,6 +361,10 @@ def projection(world, actor):
             view['contents']=item_choices(world,state['contents'])
             if deposits is None:deposits=[item for item in item_choices(world,actor.inventory,actor=actor) if item['movable']]
             view['deposit_items']=[] if view['practice'] else deposits
+        if view['kind']=='container' and not view['permitted']:
+            from engine import burglary
+            view['burglary']=burglary.chances(world,actor,row,
+                                             online_players=online_players)
         result.append(view)
     return result
 
@@ -371,8 +401,14 @@ def teach(world,player,npc,action):
     fee=d.get('lock_lesson_fee',2)
     if player.gold<fee:return 'A lesson costs '+str(fee)+' gold.'
     player.gold-=fee;npc.gold+=fee;player.progress['lock_lesson_day']=today
-    player.progress.setdefault('skills',{})['lockpicking']=min(ceiling,level+5)
-    return npc.name+' teaches a lesson. Lockpicking is now '+str(skill(world,player))+'.'
+    from engine import task_skills
+    gained=task_skills.training(world,player,'lockpicking',5,difficulty=0,
+                               ceiling=ceiling,event_id=f'lock-lesson:{npc.id}:{today}')
+    task_skills.practice(world,npc,'teaching',difficulty=level,effort=2,
+                         event_id=f'lock-student:{player.id}:{today}')
+    return (npc.name+' teaches a practical lesson. You gain lockpicking practice. '+
+            ('Lockpicking rises to '+str(skill(world,player))+'.' if gained else
+             'Your saved practice moves you toward the next level.'))
 
 
 def teachers(world,player):

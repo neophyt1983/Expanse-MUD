@@ -4,6 +4,7 @@ import json
 import uuid
 import secrets
 import hashlib
+from time import monotonic
 from pathlib import Path
 
 import websockets
@@ -25,6 +26,13 @@ SAVE_DIR = Path(__file__).parent.parent / "save"
 
 # None = use per-mode default (see _state_path). Tests override this.
 WORLD_STATE_PATH = None
+
+# Up to half a game hour per lifecycle pass, subject to actual simulation cost.
+# A slow world yields after its current five-minute quantum, not after a huge
+# simulated sleep. No recovery or private clock is computed on the client.
+REST_QUANTUM_MINUTES = 5
+REST_MAX_QUANTA = 6
+REST_BUDGET_SECONDS = .025
 
 
 class GameServer(SocietyServer):
@@ -72,6 +80,7 @@ class GameServer(SocietyServer):
                 self.selected_slots[meta['player']]=meta
                 self._apply_world_state(data['world'])
             else:self._load_world_state()
+            self._migrate_expedition_recoveries()
         except Exception:
             self.db.close()
             raise
@@ -180,6 +189,30 @@ class GameServer(SocietyServer):
         except Exception as exc:
             raise RuntimeError(f"Cannot load world save {path.name}; original file preserved: {exc}") from exc
 
+    def _migrate_expedition_recoveries(self):
+        """Inspect only this adventure's retained mode/world records, once."""
+        from engine import wildlands
+        sources=wildlands.search_sources(self.world)
+        if not sources:return
+        state=getattr(self.world,'living_state',{})
+        wildlands.validate_recoveries(state)
+        known=state.get(wildlands.RECOVERIES,{}).get('sources',{})
+        if all(iid in known.get(rid,{}) for rid,iid in sources):return
+        slug=Path(self.world.game_dir).name
+        def players():
+            for inventory,equipped,raw in self.db.execute(
+                    """SELECT inventory,equipped,progress FROM players
+                       WHERE game_mode=? AND
+                         CASE WHEN json_valid(progress)
+                              THEN COALESCE(json_extract(progress,'$.world_slug'),'default')
+                              ELSE 'default' END=?""",(self.mode,slug)):
+                progress=json.loads(raw or '{}')
+                if not isinstance(progress,dict):raise ValueError('Invalid saved player progress.')
+                if progress.get('world_slug','default')!=slug:continue
+                yield {'inventory':json.loads(inventory or '[]'),
+                       'equipped':json.loads(equipped or '{}'),'progress':progress}
+        wildlands.reconcile_recoveries(self.world,players())
+
     def _apply_world_state(self, data):
         self._validate_saved_world(data)
         self.world.killed_npcs = set(data.get("killed_npcs", []))
@@ -237,6 +270,8 @@ class GameServer(SocietyServer):
         saved=data.get('living',{})
         for key in ('state','spawners','floors'):
             if not isinstance(saved.get(key,{}),dict):raise ValueError('invalid living '+key)
+        from engine import wildlands
+        wildlands.validate_recoveries(saved.get('state',{}))
         npcs=saved.get('npcs',[])
         if not isinstance(npcs,list) or any(not isinstance(n,dict) or not isinstance(n.get('source_def'),str) for n in npcs):raise ValueError('invalid saved NPCs')
         if any(not isinstance(items,list) or any(not isinstance(item,str) for item in items) for items in saved.get('floors',{}).values()):raise ValueError('invalid saved floor items')
@@ -654,6 +689,8 @@ class GameServer(SocietyServer):
         remember(player,view['rooms'],self.world._compiled_map)
         packet = render([], player.location, player_id, [a for a in active if a['id']==player_id], player.explored_rooms, compiled=self.world._compiled_map, strict=True, local_visible=view['rooms'] | known_facades(self.world,player,self.world._compiled_map,view), local_positions=view.get('positions'))
         packet['visual']['travel_window']=True
+        from engine.mapping import geometry_revision
+        packet['visual']['geometry_revision']=geometry_revision(self.world,self.world._compiled_map)
         from engine.travel_window import window, paint_ground
         for tile in packet['visual']['tiles']:
             paint_ground(self.world, self.world._compiled_map, tile)
@@ -721,9 +758,15 @@ class GameServer(SocietyServer):
         from engine import taming
         packet['taming']=taming.view(self.world,player)
         from engine import locks
-        packet['locks']=locks.projection(self.world,player)
+        packet['locks']=locks.projection(self.world,player,online_players=self.clients.values())
         packet['locksmiths']=locks.teachers(self.world,player)
         packet['lock_skill']=locks.skill(self.world,player)
+        from engine import theft_commands
+        packet['theft']=theft_commands.projection(self.world,player,self.clients.values())
+        from engine import guilds
+        packet['guilds']=guilds.projection(self.world,player)
+        from server import work_services_ui
+        packet['work_services']=work_services_ui.projection(self.world,player)
         from engine import trade_view
         commerce_by_id={row['id']:row.get('commerce',{}) for row in packet.get('social',{}).get('npcs',[])}
         packet['location'] = dict(id=room.id, name=room.name,
@@ -764,6 +807,8 @@ class GameServer(SocietyServer):
         packet['damage_events'] = damage_feedback.recent(player)
         from engine import progression
         packet["character"]["advancement"]=progression.view(self.world,player)
+        from engine import task_skills
+        packet['character']['skills']=task_skills.projection(self.world,player)
         if living.enabled(self.world):
             from engine import worldtime,climate
             packet["calendar"]=worldtime.date(living.state(self.world)["minute"],self.world.metadata.get("sunrise_minute",375))
@@ -989,30 +1034,71 @@ class GameServer(SocietyServer):
             await self.broadcast_room(rid,text,exclude_player=entry[2] if len(entry)>2 else None,
                                       **({'conversation':entry[3]} if len(entry)>3 else {}))
 
-    def advance_rest_tick(self):
-        """One bounded single-player step; lifecycle yields between calls.
-
-        Never accelerate a hosted world or an offline character. The existing
-        world loop remains the only writer; no simulation thread is introduced.
-        """
-        if self.mode == 'host' or self.closing:return False
+    def _rest_clock_updates(self):
+        """Notify resting players when shared fast-time eligibility changes."""
         from engine import resting
-        actors=[self.world.entities.get(pid) for pid in set(self.clients.values())]
-        rows=[]
-        for p in actors:
-            row=resting.active(p) if p else None
+        current={};previous=getattr(self,'_rest_clock_notices',{})
+        message=resting.clock_status(self.world)
+        for pid in set(self.clients.values()):
+            player=self.world.entities.get(pid)
+            row=resting.active(player) if player else None
             if not row:continue
-            if not resting._valid(row) or getattr(p,'_rest_token',None)!=row.get('token'):
-                resting.cancel(self.world,p,'a saved session cannot resume automatically');continue
-            rows.append(row)
-        if not rows:return False
-        step=min(5,min(max(1,row.get('duration',1)-row.get('elapsed',0)) for row in rows))
-        living.advance(self.world,step)
-        try:self._save_dirty_players()
-        except Exception:
-            for p in actors:
-                if p:resting.cancel(self.world,p,'progress could not be saved; rest stopped, try Save before continuing')
-        return True
+            key=(pid,row.get('token'))
+            current[key]=message
+            # Starting the command already returns its current clock status.
+            if key in previous and previous[key]!=message:
+                self.world.rest_notifications=getattr(self.world,'rest_notifications',[])+[(pid,message)]
+        self._rest_clock_notices=current
+
+    def advance_rest_tick(self):
+        """Advance the one shared world only while all connected players rest.
+
+        Each quantum runs the normal simulation, then rechecks membership,
+        safety and completion. A small wall-time budget bounds a batch; the
+        lifecycle yields to sockets before beginning another batch.
+        """
+        if self.closing:return False
+        from engine import resting
+        deadline=monotonic()+REST_BUDGET_SECONDS
+        advanced=False
+        for _ in range(REST_MAX_QUANTA):
+            connected=frozenset(self.clients.values())
+            self.world.online_player_ids=connected
+            rows=[];actors=[];eligible=bool(connected)
+            now=living.state(self.world)['minute']
+            for pid in connected:
+                player=self.world.entities.get(pid)
+                row=resting.active(player) if player and player.is_player else None
+                if not row:
+                    eligible=False;continue
+                actors.append(player)
+                problem=resting.interruption_problem(self.world,player,row)
+                if not problem and row['last_minute']!=now:
+                    problem='the world clock changed outside this resting session'
+                if problem:
+                    resting.cancel(self.world,player,problem);eligible=False;continue
+                rows.append(row)
+            self._rest_clock_updates()
+            if not eligible:break
+            step=min(REST_QUANTUM_MINUTES,min(row['duration']-row['elapsed'] for row in rows))
+            authorized=getattr(self.world,'tick_authorized',False)
+            self.world.tick_authorized=True
+            try:living.advance(self.world,step)
+            finally:self.world.tick_authorized=authorized
+            after=living.state(self.world)['minute']
+            advanced=advanced or after>now
+            if after!=now+step:
+                for player in actors:resting.cancel(self.world,player,'the world clock did not advance safely')
+                break
+            if monotonic()>=deadline:break
+        self._rest_clock_updates()
+        if advanced or getattr(self.world,'dirty_players',set()):
+            try:self._save_dirty_players()
+            except Exception:
+                for pid in set(self.clients.values()):
+                    player=self.world.entities.get(pid)
+                    if player:resting.cancel(self.world,player,'progress could not be saved; rest stopped, try Save before continuing')
+        return advanced
 
     async def advance_guides(self):
         from engine import escorts
@@ -1051,6 +1137,7 @@ class GameServer(SocietyServer):
         while True:
             await asyncio.sleep(0.25)
             if self.closing:continue
+            self.world.online_player_ids=frozenset(pid for pid in self.clients.values() if pid in self.world.entities)
             for socket,token in list(getattr(self,'account_connections',{}).items()):
                 if not self.accounts.authenticate(token):
                     await socket.close(code=1008,reason='Session expired. Sign in again.')
@@ -1075,6 +1162,9 @@ class GameServer(SocietyServer):
         player_id = None
         equipment_sequence = 0
         lock_sequence = 0
+        theft_sequence = 0
+        guild_sequence = 0
+        work_sequence = 0
         save_acknowledgements = {}
         account_token=''
         local_host=False
@@ -1269,7 +1359,10 @@ class GameServer(SocietyServer):
                         if packet.get('center')==player.location:
                             try:
                                 extent = packet.get('extent')
-                                reply['tiles']=window(self.world,player,self._atlas_compiled(),extent)
+                                compiled=self._atlas_compiled()
+                                reply['tiles']=window(self.world,player,compiled,extent)
+                                from engine.mapping import geometry_revision
+                                reply['geometry_revision']=geometry_revision(self.world,compiled)
                                 if packet.get('follow_view') is True:
                                     player._travel_view_extent = extent
                                 from engine.pixel_art import apply
@@ -1320,6 +1413,57 @@ class GameServer(SocietyServer):
                     from server import save_slots
                     await save_slots.handle(self,websocket,player_id,packet)
                     continue
+
+                # Graphical actions are scoped to the authenticated character
+                # and rechecked immediately before dispatch after any await.
+                work_ui=packet.get('work_ui') is True
+                work_reply={}
+                if 'work_ui' in packet:
+                    from server import work_services_ui as work_transport
+                    request=packet.get('request_id')
+                    work_reply={'work_action':True,'request_id':request if isinstance(request,str) and 1<=len(request)<=100 else None}
+                    try:
+                        if not work_ui or cmd!='work action':raise ValueError('Invalid local service action envelope.')
+                        sequence=packet.get('sequence')
+                        if type(sequence) is not int or not 1<=sequence<=9007199254740991 or sequence<=work_sequence:
+                            raise ValueError('This work or care action was already handled. Refresh local services.')
+                        work_sequence=sequence
+                        cmd=work_transport.resolve(self.world,self.world.entities.get(player_id),packet)
+                    except ValueError as exc:
+                        await websocket.send(json.dumps({'type':'error','text':str(exc),**work_reply}))
+                        continue
+                guild_ui=packet.get('guild_ui') is True
+                guild_reply={}
+                if 'guild_ui' in packet:
+                    from server import guild_ui as guild_transport
+                    request=packet.get('request_id')
+                    guild_reply={'guild_action':True,'request_id':request if isinstance(request,str) and 1<=len(request)<=100 else None}
+                    try:
+                        if not guild_ui or cmd!='guild action':raise ValueError('Invalid guild action envelope.')
+                        sequence=packet.get('sequence')
+                        if type(sequence) is not int or not 1<=sequence<=9007199254740991 or sequence<=guild_sequence:
+                            raise ValueError('This guild action was already handled. Refresh guild services.')
+                        guild_sequence=sequence
+                        cmd=guild_transport.resolve(self.world,self.world.entities.get(player_id),packet)
+                    except ValueError as exc:
+                        await websocket.send(json.dumps({'type':'error','text':str(exc),**guild_reply}))
+                        continue
+                theft_ui=packet.get('theft_ui') is True
+                theft_reply={}
+                if 'theft_ui' in packet:
+                    from server import theft_ui as theft_transport
+                    request=packet.get('request_id')
+                    theft_reply={'theft_action':True,'request_id':request if isinstance(request,str) and 1<=len(request)<=100 else None}
+                    try:
+                        if not theft_ui or cmd!='steal action':raise ValueError('Invalid theft action envelope.')
+                        sequence=packet.get('sequence')
+                        if type(sequence) is not int or not 1<=sequence<=9007199254740991 or sequence<=theft_sequence:
+                            raise ValueError('This theft action was already handled. Refresh local actions.')
+                        theft_sequence=sequence
+                        cmd=theft_transport.resolve(self.world,self.world.entities.get(player_id),packet,online_players=self.clients.values())
+                    except ValueError as exc:
+                        await websocket.send(json.dumps({'type':'error','text':str(exc),**theft_reply}))
+                        continue
 
                 # Graphical duration choices are canonical actions, not creator shortcuts.
                 lock_ui=packet.get('lock_ui') is True
@@ -1384,12 +1528,12 @@ class GameServer(SocietyServer):
                     except ValueError as exc:reply={'error':str(exc)}
                     await websocket.send(json.dumps(dict(type='local_quests',request_id=packet.get('request_id'),**reply)))
                     continue
-                resting.before_command(self.world,self.world.entities.get(player_id),cmd,self.registry,resolve_shortcuts=not(equipment_request or rest_ui or lock_ui))
+                resting.before_command(self.world,self.world.entities.get(player_id),cmd,self.registry,resolve_shortcuts=not(equipment_request or rest_ui or lock_ui or theft_ui or guild_ui or work_ui))
                 if await dm_console.handle(self,websocket,packet,cmd):continue
                 from engine import sleep_movement
-                blocked=sleep_movement.blocked_command(self.world,self.world.entities.get(player_id),cmd,self.registry,resolve_shortcuts=not(equipment_request or rest_ui or lock_ui))
+                blocked=sleep_movement.blocked_command(self.world,self.world.entities.get(player_id),cmd,self.registry,resolve_shortcuts=not(equipment_request or rest_ui or lock_ui or theft_ui or guild_ui or work_ui))
                 if blocked:
-                    reply={'type':'response','text':blocked,**quest_reply,**list_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}
+                    reply={'type':'response','text':blocked,**quest_reply,**list_reply,**theft_reply,**guild_reply,**work_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}
                     if movement_id:reply['movement_id']=movement_id
                     await websocket.send(json.dumps(reply))
                     if equipment_request:await websocket.send(json.dumps(equipment_ui.build(self.world,self.world.entities[player_id],equipment_request)))
@@ -1398,7 +1542,7 @@ class GameServer(SocietyServer):
                 from server import calendar_ui
                 if await calendar_ui.handle(self,websocket,player_id,packet,cmd):continue
                 from server import trade_ui
-                if resting.canonical(self.world,cmd,self.registry,resolve_shortcuts=not(equipment_request or rest_ui or lock_ui))[0] in ('rest','sleep'):
+                if resting.canonical(self.world,cmd,self.registry,resolve_shortcuts=not(equipment_request or rest_ui or lock_ui or theft_ui or guild_ui or work_ui))[0] in ('rest','sleep'):
                     trade_ui.disconnect(self,websocket)
                 if await trade_ui.handle(self,websocket,player_id,cmd):
                     try:self._save_dirty_players()
@@ -1575,6 +1719,24 @@ class GameServer(SocietyServer):
                         await websocket.send(json.dumps({'type':'error','text':str(exc)}))
                         await websocket.send(json.dumps(dict(type='map', **self.map_for(player_id))))
                         continue
+                if theft_ui:
+                    try:cmd=theft_transport.resolve(self.world,self.world.entities.get(player_id),packet,online_players=self.clients.values())
+                    except ValueError as exc:
+                        await websocket.send(json.dumps({'type':'error','text':str(exc),**theft_reply}))
+                        await websocket.send(json.dumps(dict(type='map',**self.map_for(player_id))))
+                        continue
+                if guild_ui:
+                    try:cmd=guild_transport.resolve(self.world,self.world.entities.get(player_id),packet)
+                    except ValueError as exc:
+                        await websocket.send(json.dumps({'type':'error','text':str(exc),**guild_reply}))
+                        await websocket.send(json.dumps(dict(type='map',**self.map_for(player_id))))
+                        continue
+                if work_ui:
+                    try:cmd=work_transport.resolve(self.world,self.world.entities.get(player_id),packet)
+                    except ValueError as exc:
+                        await websocket.send(json.dumps({'type':'error','text':str(exc),**work_reply}))
+                        await websocket.send(json.dumps(dict(type='map',**self.map_for(player_id))))
+                        continue
                 if 'walk_edge' in packet:
                     edge=packet['walk_edge'];walker=self.world.entities[player_id]
                     if (not movement_id or not isinstance(edge,list) or len(edge)!=3 or not all(isinstance(x,str) for x in edge)
@@ -1586,13 +1748,14 @@ class GameServer(SocietyServer):
                 self.mark_explored(player_id)
                 self.world.entities[player_id]._source_quest_choices = []
                 mover=self.world.entities[player_id]
+                self.world.online_player_ids=frozenset(pid for pid in self.clients.values() if pid in self.world.entities)
                 origin,initial_hp=mover.location,mover.hp
                 mover._walking_exact_edge='walk_edge' in packet
                 try:
                     response = dispatch(
                         self.registry, self.world,
                         self.world.entities.get(player_id), cmd,
-                        **({"resolve_shortcuts":False} if equipment_request or rest_ui or lock_ui else {}),
+                        **({"resolve_shortcuts":False} if equipment_request or rest_ui or lock_ui or theft_ui or guild_ui or work_ui else {}),
                     )
                 finally:
                     del mover._walking_exact_edge
@@ -1616,17 +1779,17 @@ class GameServer(SocietyServer):
                     await websocket.send(json.dumps({'type':'response','text':response,'source_quests':source_choices,'movement_id':movement_id,'step_taken':mover.location!=origin and mover.alive and mover.hp>=initial_hp,**({'walk_arrived':walker.location==edge[2] and walker.alive and walker.hp>=walk_hp} if 'walk_edge' in packet else {})}))
                 else:
                     reply_style={'conversation':{'role':'npc','emphasis':'normal'}} if cmd.split()[0].lower() in ('talk','dialogue') else {}
-                    await websocket.send(json.dumps({'type':'response','text':response,**reply_style,'source_quests':source_choices,**quest_reply,**list_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}))
+                    await websocket.send(json.dumps({'type':'response','text':response,**reply_style,'source_quests':source_choices,**quest_reply,**list_reply,**theft_reply,**guild_reply,**work_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}))
 
                 self.mark_explored(player_id)
                 if websocket in getattr(self, 'atlas_subscribers', ()):
                     await self.send_atlas(websocket)
                 ent = self.world.entities.get(player_id)
-                readonly={'look','map','inventory','score','status','help','standing','workshop','provenance','survey','recipes','catalog','wardrobe','materials','quests','adventures','market','journal','condition','time','inspect','spells','companions','services','route','guide','interface','songs'}
+                readonly={'look','map','inventory','score','status','help','standing','workshop','provenance','survey','recipes','catalog','wardrobe','materials','quests','adventures','market','journal','condition','time','inspect','spells','companions','services','route','guide','interface','songs','skills'}
                 if self.mode!='host' and not society.enabled(self.world) and cmd.split()[0].lower() not in readonly:
                     self._stage_players_and_world()
                 else:self._save_dirty_players()
-                if lock_ui:
+                if lock_ui or theft_ui or guild_ui or work_ui:
                     map_packet=json.dumps(dict(type='map', **self.map_for(player_id)))
                     await websocket.send(map_packet)
                     self.last_maps[websocket]=map_packet
@@ -1715,6 +1878,7 @@ class GameServer(SocietyServer):
             spawn_npcs(self.world)
             self._init_shop_state()
             self._load_world_state()
+            self._migrate_expedition_recoveries()
             from engine import population
             population.ensure(self.world)
             frontiers.population(self.world)
@@ -1820,6 +1984,8 @@ class GameServer(SocietyServer):
             self.world.bind_entity(ent)
             self.world.entities[pid] = ent
             self.world.rooms[dest].entities.append(pid)
+
+        self._migrate_expedition_recoveries()
 
         # 9. Notify connected clients
         for ws, pid in list(self.clients.items()):

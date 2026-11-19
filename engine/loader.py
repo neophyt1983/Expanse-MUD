@@ -159,6 +159,39 @@ def build_world(game_dir=None) -> World:
     world.races = {r["id"]: r for r in read_records("races.json", target_dir)}
     world.classes = {c["id"]: c for c in read_records("classes.json", target_dir)}
     world.sexes = {s["id"]: s for s in read_records("sexes.json", target_dir)}
+    from engine import animal_life
+    animal_errors = animal_life.validate({'npc': list(world.npcs.values()),
+        'species': list(world.species.values()), 'room': list(world.room_details.values())})
+    if animal_errors:raise ValueError('Animal content: '+'; '.join(animal_errors))
+    from engine import publications
+    publication_errors = publications.validate({'item': list(world.items.values())})
+    if publication_errors:raise ValueError('Publication content: '+'; '.join(publication_errors))
+    from engine import employment
+    employment_errors=employment.validate({'room':list(world.room_details.values()),'npc':list(world.npcs.values()),
+        'recipe':list(world.recipes.values()),'item':list(world.items.values())})
+    if employment_errors:raise ValueError('Employment content: '+'; '.join(employment_errors))
+    from engine import npc_burglary
+    theft_errors = npc_burglary.validate({'npc': list(world.npcs.values()),
+        'class': list(world.classes.values()), 'room': list(world.room_details.values()),
+        'item': list(world.items.values())})
+    if theft_errors:raise ValueError('Theft content: '+'; '.join(theft_errors))
+    from engine import guilds
+    guild_errors = guilds.validate({'group': list(world.groups.values()), 'quest': list(world.quests.values()),
+        'npc': list(world.npcs.values()), 'class': list(world.classes.values()),
+        'room': list(world.room_details.values()), 'item': list(world.items.values())})
+    if guild_errors:raise ValueError('Guild content: '+'; '.join(guild_errors))
+    from engine import clinical_services
+    clinical_errors = clinical_services.validate({'npc': list(world.npcs.values()),
+        'room': list(world.room_details.values()), 'item': list(world.items.values())})
+    if clinical_errors:raise ValueError('Clinical content: '+'; '.join(clinical_errors))
+    from engine import artworks
+    artwork_errors = artworks.validate({'npc': list(world.npcs.values()), 'recipe': list(world.recipes.values()),
+        'room': list(world.room_details.values()), 'item': list(world.items.values()), 'building': list(world.buildings.values())})
+    if artwork_errors:raise ValueError('Artistic content: '+'; '.join(artwork_errors))
+    from engine import npc_backgrounds
+    background_errors = npc_backgrounds.validate({'npc': list(world.npcs.values()),
+        'room': list(world.room_details.values()), 'item': list(world.items.values())})
+    if background_errors:raise ValueError('Founding background content: '+'; '.join(background_errors))
     
     world.metadata = world_additions.metadata(load_metadata(target_dir),patch)
     from engine import travel_pacing
@@ -233,6 +266,23 @@ def validate_world(world: World):
                   'recipe':list(getattr(world,'recipes',{}).values()),
                   'species':list(getattr(world,'species',{}).values())}
     errors.extend(ability_rules.validate(magic_data))
+    from engine import animal_life
+    errors.extend(animal_life.validate(magic_data))
+    from engine import publications
+    errors.extend(publications.validate(magic_data))
+    from engine import employment
+    errors.extend(employment.validate(magic_data))
+    from engine import npc_burglary
+    errors.extend(npc_burglary.validate(magic_data))
+    from engine import guilds
+    errors.extend(guilds.validate({**magic_data, 'group': list(world.groups.values()),
+                                  'quest': list(world.quests.values())}))
+    from engine import clinical_services
+    errors.extend(clinical_services.validate(magic_data))
+    from engine import artworks
+    errors.extend(artworks.validate({**magic_data, 'building': list(world.buildings.values())}))
+    from engine import npc_backgrounds
+    errors.extend(npc_backgrounds.validate(magic_data))
     from engine import travel_pacing
     errors.extend(travel_pacing.validate(world.metadata))
     from engine import loot_tables
@@ -408,3 +458,5 @@ def spawn_npcs(world: World):
         from engine import names
         names.assign(world,ent)
         world.add_entity(ent, location)
+        from engine import npc_backgrounds
+        npc_backgrounds.initialize(world, ent, fresh=True)

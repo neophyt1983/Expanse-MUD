@@ -1013,6 +1013,8 @@ def _cmd_buy(ctx: CommandContext, args: str) -> str:
     ctx.player.gold -= price
     ctx.player.inventory.append(item_id)
     merchant.gold += price
+    from engine import task_skills
+    for trader in (ctx.player,merchant):task_skills.practice(ctx.world,trader,'trading',difficulty=10,effort=1)
     if getattr(ctx.world,'living_state',{}).get('resident_watches'):
         from engine import resident_watch
         resident_watch.note(ctx.world,[merchant.id],f"Sold {item_def.get('name','an item')} for {price} gold.")
@@ -1187,6 +1189,9 @@ def _cmd_look(ctx: CommandContext, args: str) -> str:
         if loose:lines.append("On the ground: " + ", ".join(loose))
         if books:lines.append(f"Bookshelves: {len(books)} volumes. Type books to browse.")
         if posted:lines.append("Posted reading: " + ", ".join(dict.fromkeys(posted)))
+    if not dark:
+        from engine import knowledge
+        knowledge.observe_room(ctx.world,ctx.player,event_id='look:'+room.id+':'+str(getattr(ctx.world,'living_state',{}).get('minute',0)))
     return "\n".join(lines)
 
 def _cmd_go(ctx: CommandContext, args: str) -> str:
@@ -1503,6 +1508,7 @@ def _cmd_read(ctx, args):
         from engine import quest_progress
         quest_progress.action(ctx.player, 'read:' + item['id'])
         from engine import knowledge
+        knowledge.read_source(ctx.world,ctx.player,item['id'])
         from engine.quest_discovery import disclose
         disclose(ctx.world,ctx.player,item.get('knowledge',{}),'item',item['id'])
     from engine import knowledge
@@ -1679,6 +1685,16 @@ def build_registry() -> CommandRegistry:
     singing.register(reg)
     from engine import locks
     locks.register(reg)
+    from engine import theft_commands
+    theft_commands.register(reg)
+    from engine import guilds
+    guilds.register(reg)
+    from engine import artworks
+    artworks.register(reg)
+    from engine import employment
+    employment.register(reg)
+    from engine import task_skills
+    task_skills.register(reg)
     from engine.interactions import combine
     reg.register(Command("combine","Use an editable object interaction","combine <interaction-id> on <target>",combine,example="combine Hammer and Repair Kit on lw_sword",available=lambda ctx:society.enabled(ctx.world)))
     return reg
@@ -1737,7 +1753,7 @@ def process_command(registry: CommandRegistry, world: World,
     except ValueError as exc:
         return str(exc)
     if living.enabled(world):
-        if not ctx.time_accounted and cmd.name not in ("rest", "sleep", "wait", "help", "look", "map", "survey", "recipes", "songs", "catalog", "wardrobe", "materials", "market", "adventures", "quests", "journal", "condition", "inventory", "time", "inspect", "spells", "companions", "services", "route", "guide", "interface", "track", "untrack", "waypoint"):
+        if not ctx.time_accounted and cmd.name not in ("rest", "sleep", "wait", "help", "look", "map", "survey", "recipes", "songs", "skills", "catalog", "wardrobe", "materials", "market", "adventures", "quests", "journal", "condition", "inventory", "time", "inspect", "spells", "companions", "services", "route", "guide", "interface", "track", "untrack", "waypoint"):
             living.advance(world, 1)
         if player.alive and (old_location != player.location or first == "look"):
             event = living.on_entry(world, player)

@@ -1,5 +1,17 @@
 # Expanse shared implementation direction
 
+## November 19 source and world review
+
+The [local-hosting and world-review handoff](docs/LOCAL-HOSTING-AND-REVIEW.md)
+records the feature work, separate authored review world, real-material and
+knowledge boundaries, and local performance evidence. Development should
+prioritize one authoritative PC host with desktop/Android clients; cloud
+hosting remains an option after actual service diagnostics and device tests.
+The reported Render crash has not been diagnosed from production logs. This
+review does not deploy, import into a live world, publish app installers, or
+open the public MMO gate. The climate/season expansion remains research/design
+where explicitly identified in that handoff.
+
 The [asset cache v1 implementation and test results](docs/ASSET-CACHE-V1.md) supersede the delivery status in the November 18 audit below. The host now selects content versions for 15 reviewed public media files. The Render gateway source also serves versioned scripts and styles. Desktop bundling and live Render rollout are tracked separately in [issue #10](https://github.com/neophyt1983/Expanse-MUD/issues/10).
 
 [Shared-host staging in PR #14](https://github.com/neophyt1983/Expanse-MUD/pull/14) owns multiplayer testing and MMO saves on exit, disconnect and timeout. Single Player keeps manual saving. The public MMO gate remains closed.
