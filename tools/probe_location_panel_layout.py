@@ -62,8 +62,8 @@ def main():
         from PySide6.QtCore import QTimer, QUrl, qVersion
         from PySide6.QtWidgets import QApplication
         from PySide6.QtWebEngineWidgets import QWebEngineView
-    except ImportError:
-        parser.error('Run with a Python containing PySide6 / QtWebEngine 6.')
+    except ImportError as error:
+        parser.error('PySide6 / QtWebEngine 6 could not load: ' + str(error))
     app = QApplication(sys.argv[:1])
     view = QWebEngineView()
     view.setFixedSize(1280, 900)
