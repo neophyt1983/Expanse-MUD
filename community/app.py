@@ -509,6 +509,11 @@ class Forum:
 def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tuple[str,str] | None = None, registration_enabled: bool = False):
     path = db_path or Path(os.environ.get('EXPANSE_COMMUNITY_DATA_DIR','./.community-data'))/'community.sqlite3'
     store = Store(path)
+    if bootstrap is None and db_path is None:
+        username = os.environ.get('EXPANSE_COMMUNITY_ADMIN_USER', '')
+        password = os.environ.get('EXPANSE_COMMUNITY_ADMIN_PASSWORD', '')
+        if username or password:
+            bootstrap = (username, password)
     if bootstrap:
         store.bootstrap_admin(*bootstrap)
     forum = Forum(store, secure=secure, registration_enabled=registration_enabled)
