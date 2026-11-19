@@ -227,7 +227,7 @@
   }
   const at=point(room);if(at){const same=visible().filter(r=>{const p=point(r);return p.x===at.x&&p.y===at.y;});if(same.length>1){inspect.append(make('p','',same.length+' known rooms use this map square. Select a room to see its tile coordinates.'));const stack=make('div','wa-stack');for(const r of same){const b=make('button','',r.name);b.onclick=()=>chosen(r);stack.append(b);}inspect.append(stack);}}
  }
- function updateSearch(){const q=search.value.trim().toLocaleLowerCase();found.replaceChildren(new Option('Select a known room…',''));const rows=(state.mode==='globe'?globeRows():known()).filter(r=>!q||(r.name+' '+r.id).toLocaleLowerCase().includes(q));for(const r of rows.slice(0,200))found.append(new Option(r.name+(Number.isInteger(r.z)?' · level '+r.z:' · position not placed'),r.id));found.title=rows.length>200?'Showing first 200 matches. Narrow your search.':rows.length+' known rooms';found.disabled=!rows.length;}
+ function updateSearch(){const q=search.value.trim().toLocaleLowerCase();found.replaceChildren(new Option('Select a known room…',''));const rows=(state.mode==='globe'?globeRows():known()).filter(r=>!q||(r.name+' '+r.id).toLocaleLowerCase().includes(q));for(const r of rows.slice(0,200))found.append(new Option(r.name+(Number.isInteger(r.z)?' · level '+r.z:' · position not placed'),r.id));if(state.selected&&Array.from(found.options).some(option=>option.value===state.selected))found.value=state.selected;found.title=rows.length>200?'Showing first 200 matches. Narrow your search.':rows.length+' known rooms';found.disabled=!rows.length;}
  function updateSummary(){if(!state.packet)return;
   terrainKey.hidden=state.mode!=='layout';
   if(!terrainKey.hidden){
@@ -291,16 +291,36 @@
   if(!state.packet){empty.hidden=false;return;}const rows=visible();empty.hidden=!!rows.length;empty.textContent=state.mode==='world'?'No authored world anchors on this floor. Use Room layout to see known rooms. No geographic positions have been guessed.':'No known rooms on this floor.';
   const groups=new Map();for(const r of rows){const p=point(r),id=p.x+','+p.y;if(!groups.has(id))groups.set(id,{p,rooms:[]});groups.get(id).rooms.push(r);}
   const size=state.mode==='world'?12:state.scale;
-  for(const {p,rooms} of groups.values()){const px=w/2+(p.x-state.cx)*state.scale,py=h/2+(p.y-state.cy)*state.scale;const edge=n=>state.mode==='layout'?Math.round(n*dpr)/dpr:n,left=edge(px-size/2),right=edge(px+size/2),top=edge(py-size/2),bottom=edge(py+size/2),x=(left+right)/2,y=(top+bottom)/2;if(x< -(state.mode==='world'?40:size)||x>w+(state.mode==='world'?40:size)||y< -(state.mode==='world'?40:size)||y>h+(state.mode==='world'?40:size))continue;const r=rooms.find(r=>r.id===state.selected)||rooms[0];if(r.learnedOnly){c.strokeStyle='#a6d9ee';c.lineWidth=2;c.beginPath();c.moveTo(x,y-7);c.lineTo(x+7,y);c.lineTo(x,y+7);c.lineTo(x-7,y);c.closePath();c.stroke();}else{c.fillStyle=colors[r.terrain]||colors.unknown;c.fillRect(left,top,Math.max(1,right-left),Math.max(1,bottom-top));if(size>=12&&window.ExpanseMap?.getTerrainTile){c.save();if(state.mode==='layout'){c.beginPath();c.rect(left,top,right-left,bottom-top);c.clip();}c.imageSmoothingEnabled=false;c.drawImage(window.ExpanseMap.customArt?.(r.pixel_art)||window.ExpanseMap.getTerrainTile(r.terrain,r.id,r.route_surface),state.mode==='world'?Math.round(left):left,state.mode==='world'?Math.round(top):top,state.mode==='world'?Math.round(size):right-left,state.mode==='world'?Math.round(size):bottom-top);window.ExpanseMap.drawFacility?.(c,r,Math.round(x-size/2),Math.round(y-size/2),Math.round(size));c.restore();}}
+  for(const {p,rooms} of groups.values()){const px=w/2+(p.x-state.cx)*state.scale,py=h/2+(p.y-state.cy)*state.scale;const edge=n=>state.mode==='layout'?Math.round(n*dpr)/dpr:n,left=edge(px-size/2),right=edge(px+size/2),top=edge(py-size/2),bottom=edge(py+size/2),x=(left+right)/2,y=(top+bottom)/2;if(x< -(state.mode==='world'?40:size)||x>w+(state.mode==='world'?40:size)||y< -(state.mode==='world'?40:size)||y>h+(state.mode==='world'?40:size))continue;const r=rooms.find(room=>!room.learnedOnly)||rooms[0];if(r.learnedOnly){c.strokeStyle='#a6d9ee';c.lineWidth=2;c.beginPath();c.moveTo(x,y-7);c.lineTo(x+7,y);c.lineTo(x,y+7);c.lineTo(x-7,y);c.closePath();c.stroke();}else{c.fillStyle=colors[r.terrain]||colors.unknown;c.fillRect(left,top,Math.max(1,right-left),Math.max(1,bottom-top));if(size>=12&&window.ExpanseMap?.getTerrainTile){c.save();if(state.mode==='layout'){c.beginPath();c.rect(left,top,right-left,bottom-top);c.clip();}c.imageSmoothingEnabled=false;c.drawImage(window.ExpanseMap.customArt?.(r.pixel_art)||window.ExpanseMap.getTerrainTile(r.terrain,r.id,r.route_surface),state.mode==='world'?Math.round(left):left,state.mode==='world'?Math.round(top):top,state.mode==='world'?Math.round(size):right-left,state.mode==='world'?Math.round(size):bottom-top);window.ExpanseMap.drawFacility?.(c,r,Math.round(x-size/2),Math.round(y-size/2),Math.round(size));c.restore();}}
    if(!r.learnedOnly&&nearby(r)){c.save();c.strokeStyle='#b2d8bf';c.lineWidth=1;c.setLineDash([2,2]);if(state.mode==='world')c.strokeRect(x-size/2-1,y-size/2-1,size+2,size+2);else c.strokeRect(left+.5,top+.5,Math.max(0,right-left-1),Math.max(0,bottom-top-1));c.restore();}
    if(rooms.some(r=>r.id===state.selected)){c.strokeStyle='#f1dc98';c.lineWidth=2;if(state.mode==='world')c.strokeRect(x-size/2-3,y-size/2-3,size+6,size+6);else c.strokeRect(left+1,top+1,Math.max(0,right-left-2),Math.max(0,bottom-top-2));}
    if(rooms.length>1&&size>=24){c.fillStyle='#fff';c.strokeStyle='#071b24';c.lineWidth=3;c.font='bold 11px system-ui';const t=rooms.length>99?'×99+':'×'+rooms.length;c.strokeText(t,x+6,y-6);c.fillText(t,x+6,y-6);}
    state.positions.push({x,y,rooms,radius:Math.max(8,size/2+4),bounds:state.mode==='layout'?{left,right,top,bottom}:null});
   }
   if(state.mode==='layout'&&size<22)drawRegions(c,rows,w,h);
+  const target=state.scope==='explored'&&state.selected!==state.packet.center
+   ?state.positions.find(pos=>pos.rooms.some(room=>room.id===state.selected)):null;
+
   const r=current(),p=r&&r.z===state.floor?point(r):null;if(p){const x=w/2+(p.x-state.cx)*state.scale,y=h/2+(p.y-state.cy)*state.scale;if(x>=0&&x<=w&&y>=0&&y<=h){c.beginPath();c.arc(x,y,(state.mode==='layout'?Math.max(2,Math.min(8,size/2-2)):Math.max(8,size/2+4)),0,Math.PI*2);c.strokeStyle='#f6df8c';c.lineWidth=3;c.stroke();c.beginPath();c.moveTo(x,y-6);c.lineTo(x-5,y+5);c.lineTo(x+5,y+5);c.closePath();c.fillStyle='#fff5bb';c.fill();c.fillStyle='#fff5bb';c.font='bold 12px system-ui';const label=(state.scope==='complete'?'Selected · ':'You · ')+r.name;
    const width=Math.min(w-12,c.measureText(label).width+12),left=Math.max(4,Math.min(w-width-4,x-width/2)),top=Math.max(4,Math.min(h-25,y-Math.max(12,size/2)-24));
    c.fillStyle='#102027';c.fillRect(left,top,width,20);c.fillStyle='#ffedae';c.fillText(label,left+6,top+14,width-12);}}
+  if(target){
+   const room=target.rooms.find(room=>room.id===state.selected);
+   const {x,y}=target;
+   c.save();
+   c.strokeStyle='#081b23';c.lineWidth=5;
+   const radius=Math.max(7,Math.min(15,size/2));
+   c.beginPath();c.moveTo(x,y-radius);c.lineTo(x+radius,y);c.lineTo(x,y+radius);c.lineTo(x-radius,y);c.closePath();c.stroke();
+   c.strokeStyle='#71efff';c.lineWidth=3;c.stroke();
+   const label='Selected · '+room.name;
+   c.font='bold 12px system-ui';
+   const width=Math.min(w-12,c.measureText(label).width+12);
+   const left=Math.max(4,Math.min(w-width-4,x-width/2));
+   const top=Math.max(4,Math.min(h-24,y+radius+5));
+   c.fillStyle='#09272f';c.fillRect(left,top,width,20);
+   c.fillStyle='#a8f6ff';c.fillText(label,left+6,top+14,width-12);
+   c.restore();
+  }
  }
  function drawRegions(c,rooms,w,h){
   const regions=new Map();
