@@ -369,15 +369,18 @@ class Forum:
     async def register(self,req):
         if not self.registration_enabled:
             return self.message(req, 'Registration closed', 'Community accounts are not open while security and recovery safeguards are being completed.', 503)
-        return self.page('Create account','''<div class="panel compose"><h1>Join the community</h1>
+        return self.page('Create account', self.registration_form(), self.member(req))
+
+    def registration_form(self):
+        return '''<div class="panel compose"><h2>Create a forum account</h2>
          <p>Registration requests require staff approval. Please choose a unique community name.
          Community accounts are separate from Expanse game accounts.</p>
-         <form method="post" action="/register"><label for="username">Username</label>
-         <input id="username" name="username" minlength="3" maxlength="24" pattern="[A-Za-z0-9][A-Za-z0-9_\\-]{2,23}" autocomplete="username" required>
-         <label for="password">Password (12 or more characters)</label>
-         <input id="password" type="password" name="password" minlength="12" maxlength="128" autocomplete="new-password" required>
-         <button type="submit">Request account</button></form><p class="note">Account recovery by email is planned but not available in this staging version.
-         Avoid reusing a password from your game account.</p></div>''',self.member(req))
+         <form method="post" action="/register"><label for="new-username">Username</label>
+         <input id="new-username" name="username" minlength="3" maxlength="24" pattern="[A-Za-z0-9][A-Za-z0-9_\\-]{2,23}" autocomplete="username" required>
+         <label for="new-password">Password (12 or more characters)</label>
+         <input id="new-password" type="password" name="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+         <button type="submit">Create account</button></form><p class="note">Account recovery by email is planned but not available in this staging version.
+         Avoid reusing a password from your game account.</p></div>'''
 
     def limit(self,key,max_attempts=6,period=60):
         now=utc();bucket=[t for t in self.failed.get(key,[]) if t>now-period]
@@ -401,12 +404,11 @@ class Forum:
         return self.message(req,'Registration received','An administrator must approve your account before you can sign in and post.')
 
     async def login(self,req):
-        signup = ('<p>New to the forum? <a class="button" href="/register">Create an account</a></p>'
-                  if self.registration_enabled else '<p>New player registration is currently closed.</p>')
+        signup = self.registration_form() if self.registration_enabled else '<p>New player registration is currently closed.</p>'
         return self.page('Sign in','''<div class="panel compose"><h1>Community sign in</h1><form method="post" action="/login">
          <label for="username">Username</label><input id="username" name="username" autocomplete="username" required>
          <label for="password">Password</label><input type="password" id="password" name="password" autocomplete="current-password" required>
-         <button type="submit">Sign in</button></form><p class="note">These are separate community credentials. This prototype does not reset passwords by email.</p>'''+signup+'''</div>''',self.member(req))
+         <button type="submit">Sign in</button></form><p class="note">These are separate community credentials. This prototype does not reset passwords by email.</p></div>'''+signup,self.member(req))
 
     async def post_login(self,req):
         self.limit('login:'+str(req.remote),8,120)
