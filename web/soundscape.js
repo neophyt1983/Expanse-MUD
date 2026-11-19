@@ -6,6 +6,20 @@
  let cueKey='',transpose=0,mood='neutral',area='';
  let lastPlace='',mediaWorld='',playingPerformance=null;const heardEvents=new Set(),heardPerformances=new Set();
  const singingButtons=[];
+ const festivalBanner=document.createElement('div');festivalBanner.id='expanse-festival-banner';
+ festivalBanner.hidden=true;festivalBanner.setAttribute('role','status');
+ festivalBanner.style.cssText='border:1px solid #778f72;background:#172922;color:#e3f2de;padding:8px 12px;margin:6px 0;border-radius:6px;font-size:.92em;max-height:96px;overflow-y:auto;';
+ document.getElementById('player-map-panel')?.append(festivalBanner);
+ function showFestival(singing){
+   const event=singing?.festival;
+   festivalBanner.hidden=!event;
+   if(!event){festivalBanner.textContent='';return;}
+   const names=(Array.isArray(event.performers)?event.performers:[]).slice(0,12).map(p=>
+     p.name+(p.instruments?.length?' — '+p.instruments.join(', '):''));
+   const description=event.name+(event.description?' · '+event.description:'')+
+       (names.length?' · Musicians here: '+names.join('; '):' · The performers have not arrived.');
+   if(festivalBanner.textContent!==description)festivalBanner.textContent=description;
+ }
  function singingAvailable(value){for(const button of singingButtons){button.hidden=!value;button.disabled=!value;}}
  let ctx,master,music,musicVolume,fx,timer,at=0,step=0,track='silence',room=null,session=null,gesture=false;
  let prefs={music:32,effects:40,announcements:75,mute_music:false,mute_effects:false,mute_announcements:false,muted:false,speak:false,publicSpeech:false};
@@ -36,9 +50,10 @@
    window.ExpanseWorldAudio?.mix(audible?songFile:null,transpose,audible?gain('music'):0,active()?gain('effects'):0);
  }
  function stopPerformance(){playingPerformance=null;window.ExpanseWorldAudio?.stopPerformance();}
- function disconnect(){room=null;session=null;songFile=null;arrival=null;cueKey='';lastPlace='';live.textContent='';singingAvailable(false);stopSpeech();stopPerformance();sync();}
+ function disconnect(){room=null;session=null;songFile=null;arrival=null;cueKey='';lastPlace='';live.textContent='';singingAvailable(false);showFestival(null);stopSpeech();stopPerformance();sync();}
  function performances(packet){
    singingAvailable(!!packet.singing&&typeof packet.singing==='object'&&!Array.isArray(packet.singing));
+   showFestival(packet.singing);
    let latest=null;const present=new Map();
    for(const event of Array.isArray(packet.singing?.events)?packet.singing.events.slice(-128):[]){
      if(!event||typeof event.id!=='string'||!event.id||event.room_id!==room||!Number.isFinite(event.age_seconds)||event.age_seconds<0||event.age_seconds>=20)continue;

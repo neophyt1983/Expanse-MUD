@@ -298,12 +298,18 @@ def work_activity(w,n):
                         n.inventory.extend(i for i in definition(w,prey).get('drops',[]) if i in w.items)
         return True
     if role not in ('entertainer','teacher'):return False
-    target=workplace(w,n)
-    if not room_open(w,target):return False
-    move_towards(w,n,target);n.activity='performing' if role=='entertainer' else 'teaching'
-    if role=='entertainer' and n.location==target:
+    festival = None
+    if role == 'entertainer':
         from engine import singing
-        singing.npc_step(w,n,'performance')
+        festival = singing.festival_for(w,n)
+    target = festival['room'] if festival else workplace(w,n)
+    if not room_open(w,target):return False
+    move_towards(w,n,target)
+    n.activity = ('attending ' + festival['name'] if festival and n.location == target
+                  else 'travelling to ' + festival['name'] if festival else
+                  'performing' if role == 'entertainer' else 'teaching')
+    if role=='entertainer' and n.location==target:
+        singing.npc_step(w,n,'festival' if festival else 'performance')
     if n.location==target and now>=n.progress.get('next_public_service',0):
         n.progress['next_public_service']=now+30
         attendees=[p for p in w.entities_in_room(target) if p.id!=n.id and p.alive and relationships.profile(w,p)['sentient'] and society.friendliness(w,p,n)>50]
@@ -355,6 +361,18 @@ def routine(w,n):
                 singing.npc_step(w,n,'work')
             return True
         return False
+    # Festival guests are actual residents travelling after work, never spawned
+    # crowds or instant teleports. Only authored participants take this detour.
+    from engine import singing
+    festival = singing.festival_for(w,n)
+    if festival and awake(w,n) and room_open(w,festival['room']):
+        target = festival['room']
+        move_towards(w,n,target)
+        n.activity = ('attending ' + festival['name'] if n.location == target
+                      else 'travelling to ' + festival['name'])
+        if n.location == target:
+            singing.npc_step(w,n,'festival')
+        return True
     if awake(w,n):
         from engine import settlements
         if settlements.housing_step(w,n):return True

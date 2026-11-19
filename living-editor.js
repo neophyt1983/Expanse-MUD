@@ -226,8 +226,8 @@
   const type=ed.type,source=val??{},kind=key==='song'?'song':key==='instrument'?'instrument':type;
   let supported=object(source)&&(source.version===undefined||source.version===1);
   for(const name of ['tradition','style','voice','tag'])if(source?.[name]!==undefined&&typeof source[name]!=='string')supported=false;
-  for(const name of ['songs','preferred_instruments','contexts'])if(source?.[name]!==undefined&&!strings(source[name]))supported=false;
-  if(Array.isArray(source?.contexts)&&source.contexts.some(context=>!['work','leisure','performance'].includes(context)))supported=false;
+  for(const name of ['songs','preferred_instruments','contexts','festivals'])if(source?.[name]!==undefined&&!strings(source[name]))supported=false;
+  if(Array.isArray(source?.contexts)&&source.contexts.some(context=>!['work','leisure','performance','festival'].includes(context)))supported=false;
   if(source?.respond!==undefined&&typeof source.respond!=='boolean')supported=false;
   if(source?.interval_minutes!==undefined&&(!Number.isInteger(source.interval_minutes)||source.interval_minutes<1||source.interval_minutes>1500))supported=false;
   if(source?.voices!==undefined&&(!Array.isArray(source.voices)||source.voices.some(v=>!object(v)||typeof v.id!=='string'||typeof v.label!=='string'||(v.transpose!==undefined&&!Number.isInteger(v.transpose)))))supported=false;
@@ -278,12 +278,13 @@
   }else if(kind==='npc'){
    fields.append(el('p','Repertoire adds to this person’s race songs. Only selected contexts allow spontaneous singing. Responses and relays require an actual local, awake, cooperative NPC who knows the song. Other players never answer automatically.'));
    const voice=field(fields,'Voice ID from this person’s race pool (optional)','voice',draft.voice||''),songs=songList(),interval=numberField(fields,'Minutes between spontaneous performances (blank uses world setting)','interval_minutes',draft.interval_minutes,1,1500);
-   const contexts={};for(const name of ['work','leisure','performance']){const label=el('label',' Sing during '+name),input=el('input');input.type='checkbox';input.checked=(draft.contexts||[]).includes(name);input.dataset.musicContext=name;label.prepend(input);label.style.display='block';fields.append(label);contexts[name]=input;}
+   const festivals=field(fields,'Festival IDs (one per line; must exist in metadata.singing.festivals)','festivals',(draft.festivals||[]).join('\n'),'textarea');
+   const contexts={};for(const name of ['work','leisure','performance','festival']){const label=el('label',' Sing during '+name),input=el('input');input.type='checkbox';input.checked=(draft.contexts||[]).includes(name);input.dataset.musicContext=name;label.prepend(input);label.style.display='block';fields.append(label);contexts[name]=input;}
    const respond=el('input');respond.type='checkbox';respond.checked=draft.respond===true;respond.dataset.musicField='respond';const responseLabel=el('label',' Willing to answer or pass along a known song');responseLabel.prepend(respond);fields.append(responseLabel);
    collect=value=>{
     if(interval.value!==''&&(!Number.isInteger(Number(interval.value))||Number(interval.value)<1||Number(interval.value)>1500))throw Error('The singing interval must be a whole number from 1 to 1500 minutes, or blank.');
     const selected=(draft.contexts||[]).filter(name=>contexts[name].checked);for(const name of Object.keys(contexts))if(contexts[name].checked&&!selected.includes(name))selected.push(name);
-    set(value,'voice',voice.value);set(value,'songs',lines(songs),[]);set(value,'contexts',selected,[]);set(value,'respond',respond.checked,false);if(interval.value!=='')value.interval_minutes=Number(interval.value);else delete value.interval_minutes;
+    set(value,'voice',voice.value);set(value,'songs',lines(songs),[]);set(value,'contexts',selected,[]);set(value,'festivals',lines(festivals),[]);set(value,'respond',respond.checked,false);if(interval.value!=='')value.interval_minutes=Number(interval.value);else delete value.interval_minutes;
    };
   }else if(kind==='instrument'){
    fields.append(el('p','This tag identifies a real playable instrument. Accompaniment is available only when an actual participant carries an item with the score’s matching tag. Singing never creates or replenishes items.'));
