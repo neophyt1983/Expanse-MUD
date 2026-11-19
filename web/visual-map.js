@@ -902,16 +902,23 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   for(const [room,group] of groups){
    const tile=coords.get(room);if(!tile)continue;
    const self=group.find(a=>a.self||a.kind==='self'||a.id&&a.id===s.packet?.character?.id);
-   const others=group.filter(a=>a!==self);
+   const fixtures=group.filter(a=>a!==self&&a.subject==='carriage'&&a.stationary===true);
+   const others=group.filter(a=>a!==self&&!fixtures.includes(a));
+   // Parked service carriages keep the same footprint as passersby enter or
+   // leave. Reserve their strip so the changing crowd never paints over them.
+   const fixtureCell=tileSize/Math.max(3,fixtures.length);
+   for(const [i,actor] of fixtures.entries())placements.push({actor,room,x:tile.x-tileSize/2+(i+.5)*fixtureCell,y:tile.y-tileSize/3,size:Math.min(fixtureCell,tileSize/3),self:false});
    let side=Math.ceil(Math.sqrt(others.length+(self?1:0)));if(self&&side%2===0)side++;
+   const reserved=()=>fixtures.length?Math.ceil(side/3)*side:0;
+   while(side*side-reserved()-(self?1:0)<others.length)side+=self?2:1;
    const cell=tileSize/Math.max(side,1);
-   let index=0;
+   let index=reserved();
    for(const actor of others){
     if(self&&index===Math.floor(side/2)*side+Math.floor(side/2))index++;
     const x=tile.x-tileSize/2+(index%side+.5)*cell,y=tile.y-tileSize/2+(Math.floor(index/side)+.5)*cell;
     placements.push({actor,room,x,y,size:Math.min(cell,16*s.zoom),self:false});index++;
    }
-   if(self){const x=Math.round(width/2+s.offset.x),y=Math.round(height/2+s.offset.y);placements.push({actor:self,room,x,y,size:Math.min(16*s.zoom,others.length?cell:tileSize),self:true});}
+   if(self){const x=Math.round(width/2+s.offset.x),y=Math.round(height/2+s.offset.y);placements.push({actor:self,room,x,y,size:Math.min(16*s.zoom,others.length||fixtures.length?cell:tileSize),self:true});}
   }
   const magic=window.ExpanseMapEffects?.begin(s,placements,coords);
   window.ExpanseMapEffects?.ground(magic);
@@ -1006,7 +1013,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
  window.ExpanseActorRenderer={drawActor,playerActor,latestPacket:window.latestMap||null};
  window.dispatchEvent(new Event('expanse:actor-renderer-ready'));
  // Read-only cached terrain artwork for the full-window room atlas.
- function reset(){window.ExpanseStreet?.reset();window.ExpanseMapEffects?.reset();window.ExpanseCountryView?.reset();for(const s of views.values()){if(s.options.designer)continue;if(s.frame)cancelAnimationFrame(s.frame);s.frame=0;s.motion=null;s.data=null;s.packet=null;s.lastCenter=null;s.lastContext=null;s.lastCharacter=null;s.arrival.hidden=true;s.arrival.textContent='';s.sightBadge.hidden=true;s.sightBadge.textContent='';s.locationStatus.hidden=s.sightStatus.hidden=true;s.actors.replaceChildren();s.accessible.textContent='';s.tip.hidden=true;s.tipId=null;s.locations.replaceChildren();s.locationSignature=null;s.selected=null;s.drag=null;s.schedule();}}
+ function reset(){window.ExpanseCustody?.reset();window.ExpanseStreet?.reset();window.ExpanseMapEffects?.reset();window.ExpanseCountryView?.reset();for(const s of views.values()){if(s.options.designer)continue;if(s.frame)cancelAnimationFrame(s.frame);s.frame=0;s.motion=null;s.data=null;s.packet=null;s.lastCenter=null;s.lastContext=null;s.lastCharacter=null;s.arrival.hidden=true;s.arrival.textContent='';s.sightBadge.hidden=true;s.sightBadge.textContent='';s.locationStatus.hidden=s.sightStatus.hidden=true;s.actors.replaceChildren();s.accessible.textContent='';s.tip.hidden=true;s.tipId=null;s.locations.replaceChildren();s.locationSignature=null;s.selected=null;s.drag=null;s.schedule();}}
  window.ExpanseMap={render,reset,drawWatchScene,drawFacility,customArt,loadPixelAssets,pointerPoint,redraw:()=>{for(const s of views.values())s.schedule();},getTerrainTile:(terrain,roomId,route)=>terrainTile(terrain,hash(String(roomId)),route)};
  if(window.latestMap)(window.ExpanseCountryView?.render || render)(window.latestMap);
  else{const host=document.getElementById('player-visual-map');if(host)build(host,{});}

@@ -27,7 +27,7 @@ function boot(){
  return {panel,content,document,
   render(height=nextHeight){nextHeight=height;window.renderRoomPanel(packet);},
   scroll(value){panel.scrollTop=value;panel.dispatchEvent(new Event('scroll'));},
-  resize(height){panel.clientHeight=height;for(const observer of resize)if(observer.target===panel)observer.callback();},
+  resize(height,beforeObserver=()=>{}){panel.clientHeight=height;beforeObserver();for(const observer of resize)if(observer.target===panel)observer.callback();},
  };
 }
 
@@ -58,4 +58,26 @@ test('an initial or unscrolled panel starts at the top as content grows',()=>{
 test('a hidden panel does not erase the bottom intent during a layout change',()=>{
  const f=boot();f.render();f.scroll(800);f.resize(0);f.scroll(0);f.render(1200);f.resize(150);
  assert.equal(f.panel.scrollTop,1050);
+});
+
+test('a delayed refresh scroll event cannot clear bottom intent before ResizeObserver',()=>{
+ const f=boot();f.render();f.scroll(800);f.render(1100);
+ // Real browsers dispatch the programmatic refresh scroll after layout has
+ // shrunk, before notifying ResizeObserver about the new panel height.
+ f.resize(120,()=>f.scroll(f.panel.scrollTop));
+ assert.equal(f.panel.scrollTop,980);
+});
+
+test('a packet arriving during a resize retains the remembered bottom',()=>{
+ const f=boot();f.render();f.scroll(800);f.render(1100);
+ f.resize(120,()=>f.render(1200));
+ assert.equal(f.panel.scrollTop,1080);
+});
+
+test('a reader moving away before the next scroll event is not pulled back by resizing',()=>{
+ const f=boot();f.render();f.scroll(800);
+ f.panel.scrollTop=500; // The user input happened; its scroll event is pending.
+ f.resize(120);
+ assert.equal(f.panel.scrollTop,500);
+ f.render(1200);assert.equal(f.panel.scrollTop,500);
 });

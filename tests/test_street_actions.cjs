@@ -69,7 +69,34 @@ test('a blocked exit can explain its restriction without sending movement',()=>{
  const f=boot(packet({kind:'building',passages:[route('out','Exit to courtyard','exit','The door is locked.')]}));
  assert.equal(f.marker.disabled,false);assert.equal(f.marker.textContent,'↗ Exit');f.marker.click();
  const action=f.button('Exit to courtyard');assert.equal(action.disabled,true);
- assert.ok(action.textContent.includes('The door is locked.'));assert.equal(f.sent.length,0);
+ assert.equal(action.textContent,'Exit to courtyard');
+ const reason=f.document.getElementById(action.getAttribute('aria-describedby'));
+ assert.equal(reason.textContent,'The door is locked.');assert.equal(reason.tagName,'P');
+ action.click();assert.equal(f.sent.length,0);
+});
+
+test('custody reasons stay readable beside disabled actions and update from the host',()=>{
+ const reason=minutes=>"The judge's sentence has "+minutes+' game minutes remaining. You may use the facilities inside your place of custody.';
+ const custody=minutes=>packet({id:'jail',name:'Dawnwatch Police Station Jail',kind:'building',passages:[
+  route('south','Go to Dawnwatch Police Station','passage',reason(minutes)),
+  route('out','Go to Dawnwatch Police Station Cell Corridor','passage',reason(minutes)),
+ ]});
+ const f=boot(custody(10));f.marker.click();
+ const actions=f.dialog.querySelectorAll('.street-passage-action button');
+ assert.equal(actions.length,2);
+ const descriptions=actions.map(action=>{
+  assert.equal(action.disabled,true);assert.ok(!action.textContent.includes(reason(10)));
+  const id=action.getAttribute('aria-describedby'),description=f.document.getElementById(id);
+  assert.equal(description.textContent,reason(10));assert.equal(description.className,'street-passage-reason');
+  assert.equal(description.closest('button'),null);action.click();return id;
+ });
+ assert.notEqual(descriptions[0],descriptions[1]);assert.equal(f.sent.length,0);
+ f.update(custody(9));
+ assert.equal(f.dialog.querySelectorAll('.street-passage-reason').every(p=>p.textContent===reason(9)),true);
+ assert.ok(f.dialog.textContent.includes('Available passages updated.'));
+ assert.ok(!f.dialog.textContent.includes('Choose a current route'));
+ assert.equal(f.dialog.querySelectorAll('.street-passage-action button').every(b=>b.disabled),true);
+ assert.equal(f.sent.length,0);
 });
 
 test('pending host acknowledgement keeps the selected passage visible and allows retry',()=>{
@@ -187,4 +214,5 @@ test('root and web passage scripts stay identical',()=>{
  assert.equal(fs.readFileSync(path.join(__dirname,'../street-actions.js'),'utf8'),fs.readFileSync(path.join(__dirname,'../web/street-actions.js'),'utf8'));
  assert.equal(fs.readFileSync(path.join(__dirname,'../player-controls.js'),'utf8'),controls);
  assert.equal(fs.readFileSync(path.join(__dirname,'../visual-map.js'),'utf8'),fs.readFileSync(path.join(__dirname,'../web/visual-map.js'),'utf8'));
+ assert.equal(fs.readFileSync(path.join(__dirname,'../visual-map.css'),'utf8'),fs.readFileSync(path.join(__dirname,'../web/visual-map.css'),'utf8'));
 });

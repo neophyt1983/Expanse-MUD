@@ -74,9 +74,15 @@
    if(wasOpen&&window.PhonePopups)close(dialog);
    dialog.setAttribute('aria-label',title);dialog.replaceChildren(create('h2',title));
    dialogStatus=create('p',message);dialogStatus.setAttribute('role','status');dialogStatus.hidden=!message;dialog.append(dialogStatus);
-   for(const a of actions){
-     const b=create('button',a.label+(a.blocked?' · '+a.blocked:''));b.type='button';b.disabled=!!a.blocked;
-     b.onclick=()=>{if(a.run()!==false)close(dialog);};dialog.append(b);
+   for(const [index,a] of actions.entries()){
+     const row=create('div');row.className='street-passage-action';
+     const b=create('button',a.label);b.type='button';b.disabled=!!a.blocked;
+     b.onclick=()=>{if(a.run()!==false)close(dialog);};row.append(b);
+     if(a.blocked){
+       const reason=create('p',a.blocked);reason.className='street-passage-reason';reason.id='street-passage-reason-'+index;
+       b.setAttribute('aria-describedby',reason.id);row.append(reason);
+     }
+     dialog.append(row);
    }
    if(!actions.length)dialog.append(create('p','There are no special passages here. Use the map to walk to a nearby tile.'));
    if(!window.PhonePopups){const b=create('button','Close');b.onclick=()=>close(dialog);dialog.append(b);}
@@ -148,7 +154,7 @@
    const here=context(s);
    if(s.passageContext!==here){if(movementFeedback?.s===s)stopMovementFeedback();if(s.passageStatus)s.passageStatus.hidden=true;s.passageContext=here;}
    if(menu?.s===s&&visible(dialog)&&menu.signature!==JSON.stringify([here,actions]))
-     refreshMenu(s,'Your location or available routes changed. Choose a current route.');
+     refreshMenu(s,'Available passages updated.');
    marker.passageContext=JSON.stringify([s.packet.character?.id,s.packet.location.id,actions.map(a=>[a.direction,a.kind,a.label,a.blocked||''])]);
    if(marker.hidden)return;
    if(marker.parentElement!==s.viewport)s.viewport.append(marker);

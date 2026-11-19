@@ -14,18 +14,101 @@
   const location=make('aside','workspace-panel');location.id='location-panel';location.setAttribute('aria-label','Current location and actions');location.append(make('h2','panel-title','Current location'));
   const content=make('div','location-content');content.id='location-content';content.textContent='Create or resume a character to see your surroundings.';location.append(content);
   game.prepend(status,conversation);game.append(location);
+  // Only the host's personal custody projection supplies this notice. Missing
+  // data never means release, and elapsed browser time never changes a case.
+  const custodyNotice=make('section','custody-notice');custodyNotice.id='player-custody-notice';custodyNotice.hidden=true;
+  custodyNotice.setAttribute('role','status');custodyNotice.setAttribute('aria-live','polite');custodyNotice.setAttribute('aria-atomic','true');
+  const dismissedCustody=new Set();let custody=null,custodyOwner='',custodySignature='';
+  const custodyKey=()=>JSON.stringify([custodyOwner,custody?.id]);
+  const custodyStates=new Set(['awaiting_hearing','sentenced','released','dismissed','closed_deceased']);
+  function placeCustodyNotice(){
+    const header=document.querySelector('#player-visual-map .atlas-position-header');
+    if(header&&custodyNotice.parentElement!==header)header.append(custodyNotice);
+  }
+  function custodyTime(c){
+    if(!c.active||!Number.isInteger(c.remaining_minutes)||c.remaining_minutes<0)return '';
+    const event=c.next_event==='hearing'?'Hearing':c.next_event==='release'?'Automatic release':'';
+    if(!event)return '';
+    return c.remaining_minutes?event+' in '+c.remaining_minutes+' game minute'+(c.remaining_minutes===1?'':'s')+'.':event+' is due; awaiting the host update.';
+  }
+  function showCustodyDetails(){
+    window.ExpansePanels?.reveal('location');
+    const card=$('custody-details');card?.scrollIntoView({block:'start'});card?.focus({preventScroll:true});
+  }
+  function dismissCustody(key,button){
+    if(!custody||custody.active||key!==custodyKey())return;
+    dismissedCustody.add(key);custodyNotice.hidden=true;$('player-custody-badge')?.remove();
+    if(button){button.disabled=true;button.textContent='Notice dismissed';}
+  }
+  function custodyActions(c,compact=false){
+    const actions=make('div','custody-actions'),key=custodyKey();
+    if(compact){const details=make('button','ed-btn','Custody details');details.type='button';details.onclick=showCustodyDetails;actions.append(details);}
+    const wait=typeof c.wait_command==='string'&&/^wait ([1-9][0-9]*)$/.exec(c.wait_command);
+    if(c.active&&c.can_wait===true&&wait){
+      const label='Wait '+wait[1]+' game minute'+(wait[1]==='1'?'':'s'),button=make('button','ed-btn',label);button.type='button';
+      button.onclick=()=>{
+        if(key!==custodyKey()||!custody?.active||custody.can_wait!==true||custody.wait_command!==c.wait_command)return;
+        window.ExpansePlayerControls?.stopWalking();send(c.wait_command,label);
+      };actions.append(button);
+    }
+    if(!c.active&&!dismissedCustody.has(key)){
+      const dismiss=make('button','ed-btn','Dismiss notice');dismiss.type='button';dismiss.onclick=()=>dismissCustody(key,dismiss);actions.append(dismiss);
+    }
+    return actions;
+  }
+  function updateCustody(m){
+    custodyOwner=JSON.stringify([m.visual?.travel_world||'',m.character?.id||'']);
+    custody=m.custody&&typeof m.custody.id==='string'&&custodyStates.has(m.custody.status)?m.custody:null;
+    const signature=JSON.stringify([custodyOwner,custody,custody&&!custody.active&&dismissedCustody.has(custodyKey())]);
+    placeCustodyNotice();if(signature===custodySignature)return;custodySignature=signature;
+    custodyNotice.replaceChildren();custodyNotice.hidden=!custody||(!custody.active&&dismissedCustody.has(custodyKey()));
+    if(!custody)return;
+    custodyNotice.classList.toggle('custody-outcome',!custody.active);
+    custodyNotice.append(make('strong',null,custody.title));
+    const charge=custody.accusation?(custody.status==='awaiting_hearing'?'Accusation: ':custody.status==='sentenced'?'Sentence for ':'Case: ')+custody.accusation:'';
+    custodyNotice.append(make('p',null,[charge,custodyTime(custody)].filter(Boolean).join(' · ')));
+    const next=custody.active?custody.instructions?.[0]:custody.outcome;
+    if(next)custodyNotice.append(make('p',null,next));
+    custodyNotice.append(custodyActions(custody,true));
+  }
+  function custodyCard(){
+    if(!custody)return null;
+    const c=custody,card=keyed(make('section','custody-card'),'custody',c.id);card.id='custody-details';card.tabIndex=-1;
+    card.setAttribute('aria-label','Your custody status');card.append(make('h3',null,c.title));
+    if(c.reason)card.append(make('p',null,c.reason));
+    if(Number.isInteger(c.witness_count))card.append(make('p',null,'Witness reports in this case: '+c.witness_count+'.'));
+    const time=custodyTime(c);if(time)card.append(make('p','custody-timing',time));
+    if(c.custody_place&&c.active)card.append(make('p',null,'Place of custody: '+c.custody_place+'.'));
+    if(c.allowed_facilities?.length)card.append(make('p',null,'Allowed facilities: '+c.allowed_facilities.join(', ')+'.'));
+    if(Number.isInteger(c.fine_paid))card.append(make('p',null,'Fine paid: '+c.fine_paid+' gold.'));
+    for(const instruction of c.instructions||[])card.append(make('p',null,instruction));
+    if(c.outcome)card.append(make('p','custody-outcome-text',c.outcome));
+    card.append(custodyActions(c));return card;
+  }
+  function resetCustody(){custody=null;custodyOwner=custodySignature='';custodyNotice.hidden=true;custodyNotice.replaceChildren();$('custody-details')?.remove();$('player-custody-badge')?.remove();}
+  window.ExpanseCustody={reset:resetCustody};
+  window.addEventListener('expanse:player-map',()=>{placeCustodyNotice();requestAnimationFrame(placeCustodyNotice);});
   const sectionOpen = new Map();
   const atEnd = () => location.clientHeight > 0 && location.scrollTop > 0 &&
     location.scrollHeight - location.clientHeight - location.scrollTop <= 2;
-  let keepEnd = false;
+  let keepEnd = false, endScrollTop = 0;
+  const wantsEnd = () => atEnd() || (keepEnd && Math.abs(location.scrollTop - endScrollTop) <= 1);
   location.addEventListener('scroll', () => {
-    if (location.clientHeight) keepEnd = atEnd();
+    // A scroll event from our own refresh can arrive after a dock resize but
+    // before ResizeObserver. The same scroll position still means "at end";
+    // an actual move away from it gives control back to the reader.
+    if (location.clientHeight) keepEnd = wantsEnd();
+    if (keepEnd) endScrollTop = location.scrollTop;
   }, {passive:true});
   // A dock resize or display-scale change can shorten the visible panel after
   // its last line was reached. Keep that end in view without moving readers
   // who deliberately scrolled back to an earlier item.
   new ResizeObserver(() => {
-    if (keepEnd && location.clientHeight) location.scrollTop = location.scrollHeight;
+    if (location.clientHeight) {
+      keepEnd = wantsEnd();
+      if (keepEnd) location.scrollTop = location.scrollHeight;
+    }
+    if (keepEnd) endScrollTop = location.scrollTop;
   }).observe(location);
   function keyed(element, ...key) {
     element.dataset.viewKey = JSON.stringify(key);
@@ -58,7 +141,7 @@
     const active = document.activeElement;
     const owner = content.contains(active) && active.closest('[data-view-key]');
     const focus = owner ? {key: owner.dataset.viewKey, tag: active.tagName, label: active.textContent} : null;
-    return {scroll, anchor, focus, end:location.clientHeight ? atEnd() : keepEnd};
+    return {scroll, anchor, focus, end:location.clientHeight ? wantsEnd() : keepEnd};
   }
   function restoreView({scroll, anchor, focus, end}) {
     const find = key => content.querySelector('[data-view-key="' + CSS.escape(key) + '"]');
@@ -83,21 +166,28 @@
       // Includes a last item picked up from the floor. The browser clamps to the new end.
       location.scrollTop = scroll;
     }
+    if (keepEnd) endScrollTop = location.scrollTop;
   }
   window.renderRoomPanel=m=>{
     if(!m.character||!m.location)return;
     const view = captureView();
+    updateCustody(m);
     window.ExpanseTrade?.update(m);
     const p=m.character,r=m.location;status.replaceChildren();
     const name=make('strong',null,p.name);status.append(name);
+    if(custody&&(custody.active||!dismissedCustody.has(custodyKey()))){
+      const badge=make('button','ed-btn custody-strip-badge',custody.title);badge.id='player-custody-badge';badge.type='button';
+      badge.title=[custody.title,custodyTime(custody),custody.outcome].filter(Boolean).join(' ');badge.setAttribute('aria-label',badge.title+' Open custody details.');badge.onclick=showCustodyDetails;status.append(badge);
+    }
     status.append(make('span',null,[p.race_name||p.race,p.class_name||p.char_class].filter(Boolean).join(' / ')||'Adventurer'));
     const meter=make('meter');meter.min=0;meter.max=Math.max(1,p.max_hp);meter.value=p.hp;meter.setAttribute('aria-label','Health');status.append(meter,make('span',null,'HP '+p.hp+' / '+p.max_hp),make('span',null,'Gold '+p.gold),make('span',null,r.name));
     if(p.advancement){const a=p.advancement;const badge=make('span',null,'Level '+a.level+' · XP '+a.xp+(a.next_xp?' / '+a.next_xp:' · Level cap'));badge.title='Earn experience through new discoveries, quests, NPC relationships, crafting, gathering and threats overcome. Repeat successful work earns diminishing practice XP within a daily budget; discoveries remain once-only.\n'+a.recent.join('\n');status.append(badge);if(a.practice)status.append(make('span',null,'Practice XP '+a.practice.used+' / '+a.practice.limit+' today'));}
     if(m.weather)status.append(make('span',null,m.weather.season+' · '+m.weather.weather+' · '+m.weather.temperature_c+' °C'));
     if(m.living){const c=m.living.conditions;status.append(make('span',null,'Mana '+c.mana+'/'+c.max_mana),make('span',null,m.calendar_text||('Day '+(Math.floor(m.living.minute/1500)+1))));}
     const next = document.createDocumentFragment();
-    next.append(keyed(make('h2',null,r.name),'room',r.id),
-                keyed(make('div','location-description',r.description),'description',r.id));
+    next.append(keyed(make('h2',null,r.name),'room',r.id));
+    const ownCase=custodyCard();if(ownCase)next.append(ownCase);
+    next.append(keyed(make('div','location-description',r.description),'description',r.id));
     if(m.market_summary){const counter=keyed(make('div','action-card',m.market_summary),'market',r.id);counter.append(action('View provisions','market'));next.append(counter);}
     function section(title, rows, build) {
       const group = disclosure(title, title+' ('+rows.length+')', title!=='Your inventory' && title!=='Posted reading', 'player-list-section');

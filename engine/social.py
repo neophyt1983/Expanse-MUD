@@ -84,7 +84,8 @@ def notify(w,a,b,emotion,note='',response=None,lines=None):
     rel.event(w,text,[a.id,b.id])
     # The player receives the command response; only other viewers need a broadcast.
     excluded=a.id if a.is_player else b.id if b.is_player else None
-    w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(a.location,text,excluded)])[-500:]
+    style={'role':'character' if a.is_player else 'npc','emphasis':'shout' if lines and lines[0] in ('shouts','yells') else 'alert' if lines and lines[0]=='calls out' else 'normal'}
+    w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(a.location,text,excluded,style)])[-500:]
     return text
 
 
@@ -136,7 +137,7 @@ def wake(w,a,b):
     if row['trust']<before:text+=' Personal trust falls by '+str(before-row['trust'])+'.'
     text+=' They will stay awake briefly. Use Quest dialogue to ask for help; their usual faction, relationship and quest requirements still apply.'
     rel.event(w,text,[a.id,b.id])
-    w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(a.location,text,a.id if a.is_player else None)])[-500:]
+    w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(a.location,text,a.id if a.is_player else None,{'role':'character' if a.is_player else 'npc','emphasis':'normal'})])[-500:]
     return text
 
 def gift(w,a,b,iid):
@@ -312,7 +313,7 @@ def nearby_conversations(w, turn):
         statement=f'{speaker.name} {tone} to {listener.name}, “{words}” {listener.name} replies, “{answer}”'
         if room in audience:
             if not hasattr(w,'runtime_notifications'):w.runtime_notifications=[]
-            w.runtime_notifications.append((room,statement,None))
+            w.runtime_notifications.append((room,statement,None,{'role':'npc','emphasis':'shout' if tone in ('shouts','yells') else 'alert' if tone=='calls out' else 'normal'}))
         if living.state(w).get('resident_watches'):
             resident_watch.note(w,[speaker.id,listener.id],statement)
 

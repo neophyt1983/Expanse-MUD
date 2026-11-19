@@ -46,6 +46,7 @@ function resetPanel(scale){
 }
 function bottom(){const p=document.getElementById('location-panel');p.scrollTop=p.scrollHeight;}
 function grow(){packet.character.inventory.at(-1).description+=' A changed condition adds more lines below the last description.'.repeat(8);window.renderRoomPanel(packet);}
+function shrinkDock(){const c=document.querySelector('.dock-canvas');c.style.flex='none';c.style.height='220px';}
 function measure(){
  const p=document.getElementById('location-panel'),last=p.querySelector('.action-card:last-child .action-buttons'),a=p.getBoundingClientRect(),b=last.getBoundingClientRect();
  return {gap:p.scrollHeight-p.clientHeight-p.scrollTop,top:p.scrollTop,height:p.clientHeight,lastBottom:b.bottom,panelBottom:a.bottom,lastTop:b.top,panelTop:a.top,viewport:[innerWidth,innerHeight],scale:getComputedStyle(document.documentElement).zoom};
@@ -113,7 +114,10 @@ def main():
         js('bottom()', lambda value: QTimer.singleShot(70, refresh))
 
     def refresh():
-        js('grow(); JSON.stringify(measure())', refreshed)
+        # Queue the refresh's programmatic scroll and resize in the same event
+        # turn. Its scroll event then sees the shorter panel before the resize
+        # observer runs; separate Python callbacks made this race intermittent.
+        js('grow(); var afterRefresh=JSON.stringify(measure()); if(innerWidth>680)shrinkDock(); afterRefresh', refreshed)
 
     def refreshed(value):
         record('last control remains above border after refresh', value)
@@ -121,8 +125,7 @@ def main():
             # Phone panels have one bounded viewport and no floating resize UI.
             read_middle()
             return
-        js("var c=document.querySelector('.dock-canvas');c.style.flex='none';c.style.height='220px';",
-           lambda value: QTimer.singleShot(150, resized))
+        QTimer.singleShot(150, resized)
 
     def resized():
         js('JSON.stringify(measure())', resize_result)

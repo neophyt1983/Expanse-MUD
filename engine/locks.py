@@ -52,6 +52,14 @@ def permitted(world, actor, row):
         (actor.group_id and actor.group_id in row.get('allowed_groups',[])))
 
 
+def permission_warning(world, actor, row):
+    if permitted(world, actor, row):return ''
+    if row.get('direction'):
+        return 'You do not have permission to alter this lock. Picking it may be reported as lock tampering.'
+    return ('Taking items from this container without permission is theft. Witnesses may report it. '
+            'Picking the lock or putting items inside without permission may be reported as lock tampering.')
+
+
 def skill(world, actor):
     default=world.npcs.get(actor.source_def,{}).get('lockpicking',0) if not actor.is_player else world.classes.get(actor.char_class,{}).get('lockpicking',0)
     value=actor.progress.get('skills',{}).get('lockpicking',default)
@@ -99,8 +107,25 @@ def notice(world, actor, row, crime='lock tampering'):
     del events[:-100]
     from engine import regional_world, mortality
     if regional_world.enabled(world):
-        mortality.report_crime(world,actor,crime,row.get('owner') or row['id'],witnesses)
-    return ' '+', '.join(n.name for n in witnesses)+' notices the tampering.'
+        mortality.report_crime(world,actor,crime,row.get('owner') or row['id'],witnesses,
+                               source={'kind':'door' if row.get('direction') else 'container',
+                                       'id':row['id'],'name':row.get('name',row['id']),
+                                       'action':'take' if crime=='theft' else 'tamper'})
+    if crime=='theft':
+        # One real observer calls out the act immediately. All witnesses still
+        # remain in the evidence; do not fill Conversation with a crowd of yells.
+        from engine import speech_bubbles
+        speaker=next((person for person in witnesses if person.source_def==row.get('owner')),witnesses[0])
+        words='Stop! Taking from '+row.get('name',row['id'])+' is theft!'
+        speech_bubbles.mark(speaker,actor,'angry',None,('shouts',words,''))
+        public=speaker.name+' shouts at '+actor.name+', “'+words+'”'
+        style={'role':'npc','emphasis':'shout'}
+        entry=(actor.location,public,actor.id if actor.is_player else None,style)
+        world.runtime_notifications=(getattr(world,'runtime_notifications',[])+[entry])[-500:]
+        if actor.is_player:
+            personal=speaker.name+' shouts at you, “'+words+'”'
+            world.rest_notifications=(getattr(world,'rest_notifications',[])+[(actor.id,personal,style)])[-500:]
+    return ' '+', '.join(n.name for n in witnesses)+(' witnesses the ' if len(witnesses)==1 else ' witness the ')+crime+'.'
 
 
 def item_choices(world, ids, *, actor=None):
@@ -152,7 +177,8 @@ def transfer(world, actor, query, item_query, quantity=1, *, putting=False):
     # Both replacements are prepared before the first mutation. Duplicate units
     # retain their counts, and a rejected request never removes a partial stack.
     source[:]=remaining;target[:]=received
-    return ('You put ' if putting else 'You take ')+str(quantity)+' × '+str(world.items[iid].get('name') or iid)+(' in ' if putting else ' from ')+row.get('name',row['id'])+'.'+warning
+    verb='You put ' if putting else 'You take ' if permitted(world,actor,row) else 'You steal '
+    return verb+str(quantity)+' × '+str(world.items[iid].get('name') or iid)+(' in ' if putting else ' from ')+row.get('name',row['id'])+'.'+warning
 
 
 def act(world, actor, action, query, *, item=None, quantity=1):
@@ -162,7 +188,8 @@ def act(world, actor, action, query, *, item=None, quantity=1):
         return transfer(world,actor,query,item,quantity,putting=action=='put')
     origin,row=select(world,actor,query);s=saved(world,origin,row);name=row.get('name',row['id'])
     if action=='inspect':
-        return name+': '+('locked' if s['locked'] else 'unlocked')+'. '+row.get('description','')
+        return (name+': '+('locked' if s['locked'] else 'unlocked')+'. '+row.get('description','')+
+                ' '+permission_warning(world,actor,row)).strip()
     if action in ('unlock','lock'):
         if not has_key(world,actor,row):return 'You need the matching key.'
         s['locked']=action=='lock';return name+' is now '+('locked.' if s['locked'] else 'unlocked.')
@@ -198,7 +225,7 @@ def act(world, actor, action, query, *, item=None, quantity=1):
         if any(not item['movable'] for item in item_choices(world,s['contents'])):
             return 'Some contents cannot be moved. Choose a movable item to take separately.'
         warning=notice(world,actor,row,'theft');actor.inventory.extend(s['contents']);s['contents']=[]
-        return 'You take the contents of '+name+'.'+warning
+        return ('You take' if permitted(world,actor,row) else 'You steal')+' the contents of '+name+'.'+warning
     raise ValueError('Choose inspect, unlock, lock, pick, open, take, take-item, or put.')
 
 
@@ -302,7 +329,8 @@ def projection(world, actor):
               'kind':'door' if row.get('direction') else 'container',
               'locked':bool(state['locked']),
               'pickable':row.get('pickable',True),'has_key':has_key(world,actor,row),
-              'practice':row.get('practice',False),'permitted':permitted(world,actor,row)}
+              'practice':row.get('practice',False),'permitted':permitted(world,actor,row),
+              'permission_warning':permission_warning(world,actor,row)}
         if view['kind']=='container' and not view['locked']:
             view['contents']=item_choices(world,state['contents'])
             if deposits is None:deposits=[item for item in item_choices(world,actor.inventory,actor=actor) if item['movable']]

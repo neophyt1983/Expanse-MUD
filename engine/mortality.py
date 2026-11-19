@@ -114,7 +114,7 @@ def assault(w, actor, victim):
     report_crime(w,actor,'assault',victim.id,witnesses)
 
 
-def report_crime(w,actor,kind,victim,witnesses):
+def report_crime(w,actor,kind,victim,witnesses,*,source=None):
     """Retain an actual witnessed act for later judicial review."""
     from engine import relationships
     if not society.enabled(w) or not relationships.sentient(w,actor):return
@@ -123,6 +123,9 @@ def report_crime(w,actor,kind,victim,witnesses):
     if not cfg['enabled'] or not witnesses:return
     minute=living.state(w)['minute'];ids=[e.id for e in witnesses]
     evidence=dict(kind=kind,actor=actor.id,victim=victim,room=actor.location,minute=minute,witnesses=ids)
+    if isinstance(source,dict):
+        from copy import deepcopy
+        evidence['source']=deepcopy(source)
     current=state(w)['wanted'].get(actor.id,{})
     previous=current.get('evidence',[]) if current.get('authority')==cfg['authority'] else []
     state(w)['wanted'][actor.id]=dict(room=actor.location,authority=cfg['authority'],victim=victim,
@@ -159,9 +162,11 @@ def advance(w, rng=random.random):
         if rng()>=chance:
             messages.append((origin,guard.name+' tries to restrain '+suspect.name+', but fails.'));continue
         from engine import regional_world, city_justice
+        already_confined = regional_world.enabled(w) and city_justice.confined(w,suspect)
         if regional_world.enabled(w) and city_justice.apprehend(w,suspect,guard,report):
             del s['wanted'][pid]
-            messages.append((origin,guard.name+' takes '+suspect.name+' into custody pending a magistrate hearing. No verdict has been issued.'))
+            if not already_confined:
+                messages.append((origin,guard.name+' takes '+suspect.name+' into custody pending a magistrate hearing. No verdict has been issued.'))
             continue
         fine=min(suspect.gold,max(0,cfg['fine']));suspect.gold-=fine;guard.gold+=fine
         if cfg['arrest_room'] in w.rooms:w.move_entity(suspect.id,cfg['arrest_room'],forced=True)
@@ -173,6 +178,8 @@ def advance(w, rng=random.random):
     # An actual traffic actor must be present; quiet rooms have no traffic roll.
     for vehicle in list(w.entities.values()):
         if vehicle.is_player or not vehicle.alive:continue
+        from engine import civic_program
+        if civic_program.carriage_stop(w,vehicle)==vehicle.location:continue
         hazard={**TRAFFIC,**w.npcs.get(vehicle.source_def,{}).get('traffic',{})}
         if not hazard['enabled']:continue
         room=vehicle.location;cfg={**LAWS,**living.details(w,room).get('laws',{})}

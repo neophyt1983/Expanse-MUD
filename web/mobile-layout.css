@@ -14,7 +14,6 @@
  #app{position:fixed;top:var(--expanse-mobile-top,0px);left:var(--expanse-mobile-left,0px);width:var(--expanse-mobile-width,100%);height:var(--expanse-mobile-height,100dvh);max-width:none;min-width:0;min-height:0;overflow:hidden;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
  #app>main{flex:1 1 0%;min-height:0;min-width:0;overflow:hidden}
  #tab-game .dock-workspace[data-phone=true] .conversation #log{font:16px/1.5 system-ui,sans-serif;padding:12px 12px 20px;white-space:pre-wrap;overflow-wrap:anywhere;word-break:normal}
- #log .line.system,#log .line.welcome{color:#adb8c9;font-style:normal}
  #input-form{min-height:56px;padding:5px 6px;gap:4px;background:#141821}
  #prompt{display:none}
  #input{min-height:44px;padding:10px 6px;font:16px/1.4 system-ui,sans-serif}

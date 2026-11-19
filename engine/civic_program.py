@@ -15,6 +15,31 @@ def stop(w,rid):
     return next((e for e in cities(w) if e['home']==rid),None)
 
 
+def carriage_stop(w,actor):
+    """The existing carriage body at a public stop is a parked service fixture.
+
+    Other carts, drivers and carriage encounters keep their authored routines.
+    The source identity is the same convention used by costumes.subject; the
+    stand must also be an actual authored city/town passenger-service stop.
+    """
+    if not actor or actor.is_player:return None
+    definition=w.npcs.get(actor.source_def,{})
+    if not str(definition.get('id',actor.source_def) or '').endswith('_carriage'):return None
+    home=definition.get('spawn_room')
+    return home if home in w.rooms and stop(w,home) else None
+
+
+def hold_carriage(w,actor):
+    home=carriage_stop(w,actor)
+    if not home or not actor.alive:return False
+    # Recover older runtime saves in which the stand's carriage patrolled away.
+    # This moves only that fixture, never a passenger or a driver NPC.
+    if actor.location!=home:w.move_entity(actor.id,home,forced=True)
+    getattr(w,'_commute_routes',{}).pop(actor.id,None)
+    actor.activity='waiting at the carriage stand'
+    return True
+
+
 def clock(t):
     t=int(t)%DAY
     return f'{t//60:02d}:{t%60:02d}'
@@ -43,6 +68,13 @@ def entries(w,place,day):
                'begin':begin,'end':begin+60,'detail':detail,'open':begin<=now<begin+60}
 
 
+def journey_detail(w,source,dest,due,now):
+    wait=max(0,int(due)-int(now));unit='minute' if wait==1 else 'minutes'
+    return (f"Departs {w.rooms[source].name} at {clock(due)} (in {wait} game {unit}). "
+            f"Arrive directly at {w.rooms[dest].name} at departure. "
+            f"Stay at the stand; leaving cancels the booking. Fare: {FARE} gold.")
+
+
 def paper(w,areas,day,venues=None):
     if not getattr(w,'living_state',None):return []
     saved=w.living_state.get('public_program_v1',{}).get('results',{})
@@ -66,11 +98,11 @@ def view(w,p):
     ticket=s['tickets'].get(p.id)
     if ticket and ticket['from']==p.location:
         dest=w.rooms.get(ticket['to'])
-        if dest:rows.append(dict(id='ticket',label='Carriage to '+dest.name,detail='Departs at '+clock(ticket['time']),command='carriage cancel',action='Cancel booking'))
+        if dest:rows.append(dict(id='ticket',label='Carriage to '+dest.name,detail=journey_detail(w,ticket['from'],ticket['to'],ticket['time'],now),command='carriage cancel',action='Cancel booking'))
     else:
         for dest in cities(w):
             if dest['home']==p.location:continue
-            rows.append(dict(id='coach-'+dest['home'],label=dest['name'],detail=f"Carriage to {w.rooms[dest['home']].name} · {clock(departure(now))} · {FARE} gold",
+            rows.append(dict(id='coach-'+dest['home'],label=dest['name'],detail=journey_detail(w,p.location,dest['home'],departure(now),now),
                              command='carriage '+dest['name'],action='Book carriage',disabled=p.gold<FARE))
     for e in entries(w,town,day):
         if not e['open']:continue
@@ -104,7 +136,7 @@ def command(ctx,args,verb):
     if p.id in s['tickets']:return 'You already have a carriage booking.'
     if p.gold<FARE:return f'The fare is {FARE} gold.'
     due=departure(now);s['tickets'][p.id]={'from':p.location,'to':dest['home'],'time':due}
-    return 'Booked to '+dest['name']+' at '+clock(due)+f'. Wait at the stand. The driver collects {FARE} gold at departure.'
+    return 'Carriage booked to '+dest['name']+'. '+journey_detail(w,p.location,dest['home'],due,now)+' The fare is collected only when the trip succeeds.'
 
 
 def eligible(w,p):
@@ -135,7 +167,7 @@ def advance(w,before,now):
         actor=w.entities.get(aid)
         arrived=ride(w,actor,ticket['from'],ticket['to'])
         if actor and actor.is_player:
-            text=('The carriage reaches '+w.rooms[actor.location].name+f'. You paid {FARE} gold.' if arrived else 'The carriage could not carry you. No fare was collected.')
+            text=('The carriage departs '+w.rooms[ticket['from']].name+' and reaches '+w.rooms[actor.location].name+f'. You paid {FARE} gold.' if arrived else 'The carriage could not carry you. No fare was collected.')
             w.rest_notifications=getattr(w,'rest_notifications',[])+[(aid,text)]
     for day in range(max(int(before)//DAY,int(now)//DAY-8),int(now)//DAY+1):
         for place in towns:
@@ -161,7 +193,7 @@ def advance(w,before,now):
         from engine import livelihoods, gazette
         for place in towns:
             for a in list(w.entities_in_room(place['home'])):
-                if a.is_player or not eligible(w,a) or not relationships.sentient(w,a) or a.progress.get('companion_owner'):continue
+                if a.is_player or carriage_stop(w,a) or not eligible(w,a) or not relationships.sentient(w,a) or a.progress.get('companion_owner'):continue
                 profile=livelihoods.definition(w,a)
                 dest=profile.get('work_room') if livelihoods.on_shift(w,a) else a.progress.get('home_room') or profile.get('home_room')
                 wanted=gazette.local(w,dest)

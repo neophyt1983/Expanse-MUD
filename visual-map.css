@@ -49,7 +49,11 @@
 .atlas-speech[hidden],.hide-speech-bubbles .atlas-speech{display:none}
 
 .atlas-viewport .tile-passage {position:absolute;z-index:2;transform:translate(-50%,0);padding:1px 4px;min-height:20px;line-height:1.2;font:600 11px system-ui;color:#fff7d5;background:#26382e;border:1px solid #d8bd76;border-radius:3px;white-space:nowrap;touch-action:manipulation}
+#street-passage{width:min(36rem,calc(var(--expanse-viewport-width,100vw) - 2rem));box-sizing:border-box}
 #street-passage button {display:block;margin:.4rem 0;min-height:40px}
+.street-passage-action{min-width:0;margin:.75rem 0}
+.street-passage-action button{max-width:100%;white-space:normal;text-align:left;overflow-wrap:anywhere}
+.street-passage-reason{max-width:100%;margin:.25rem 0 .75rem;color:inherit;line-height:1.5;white-space:normal;overflow-wrap:anywhere}
 #map-move {display:none!important}
 
 .location-announcement{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}

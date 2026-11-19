@@ -654,7 +654,11 @@ def actor_portrait(world,ent,player_id):
         body=subject(definition,creature)
         from engine.npc_activity import activity
         actor['activity']=activity(world,ent)
-        if body:actor['subject']=body
+        if body:
+            actor['subject']=body
+            if body=='carriage':
+                from engine import civic_program
+                if civic_program.carriage_stop(world,ent)==ent.location:actor['stationary']=True
         else:actor['paperdoll']=npc_doll(world,ent,definition,actor['appearance'],_player_equipment(world,ent))
         # A raised body retains the corpse's actual appearance without copying
         # its usable equipment, inventory, coins or reward tables.

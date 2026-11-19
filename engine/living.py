@@ -108,6 +108,8 @@ def advance(world,minutes=1):
             continue
         if e.progress.get('zoo_exhibit'):
             continue
+        if civic_program.hold_carriage(world,e):
+            continue
         from engine import sleep_movement
         sleep_movement.scheduled_wake(world,e)
         npc_life.step(world,e,now)
@@ -191,7 +193,8 @@ def on_entry(world,p):
     s=state(world);r=details(world,p.location);lines=[]
     for traffic in world.entities_in_room(p.location):
         hazard=world.npcs.get(traffic.source_def,{}).get('traffic',{})
-        if hazard.get('enabled'):lines.append(hazard.get('warning','Watch for passing traffic.'))
+        from engine import civic_program
+        if hazard.get('enabled') and civic_program.carriage_stop(world,traffic)!=traffic.location:lines.append(hazard.get('warning','Watch for passing traffic.'))
     for encounter_id in r.get('encounters',[]):
         definition=catalog(world,'encounters').get(encounter_id)
         if not definition:continue
