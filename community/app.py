@@ -153,6 +153,7 @@ class Store:
             byline = 'Expanse Guides'
             db.execute("INSERT OR IGNORE INTO users(username,salt,verifier,status,created_at) VALUES(?,randomblob(16),randomblob(32),'suspended',?)",(byline,utc()))
             author = db.execute('SELECT id FROM users WHERE username=?',(byline,)).fetchone()['id']
+            db.execute("UPDATE users SET status='suspended' WHERE id=? AND status!='suspended'", (author,))
             for slug,title,body in STARTER_GUIDES:
                 db.execute("""INSERT INTO topics(category_id,author_id,title,body,pinned,created_at,updated_at)
                     SELECT c.id,?,?,?,1,?,? FROM categories c WHERE c.slug=?
@@ -438,15 +439,23 @@ class Forum:
         user=self.require_member(req)
         if user['role']!='admin':raise web.HTTPForbidden()
         with self.store.db() as db:
-            accounts=db.execute("SELECT * FROM users WHERE role!='admin' ORDER BY status,created_at DESC LIMIT 100").fetchall()
+            accounts=db.execute("SELECT * FROM users WHERE role='member' AND username!='Expanse Guides' ORDER BY status,created_at DESC LIMIT 100").fetchall()
             reports=db.execute('''SELECT r.*,u.username,t.title FROM reports r JOIN users u ON u.id=r.reporter_id
                                   JOIN topics t ON t.id=r.topic_id WHERE handled=0 ORDER BY r.created_at DESC LIMIT 100''').fetchall()
-        parts=['<h1>Community moderation</h1><div class="panel"><h2>Member approvals</h2>']
+        parts=['<h1>Community moderation</h1><div class="panel"><h2>Forum members</h2>']
+        if not accounts: parts.append('<p>No player accounts to review.</p>')
         for row in accounts:
+            buttons = []
+            if row['status'] != 'active':
+                label = 'Restore' if row['status'] == 'suspended' else 'Approve'
+                buttons.append('<button name="action" value="approve">'+label+'</button>')
+            if row['status'] != 'suspended':
+                buttons.append('<button name="action" value="suspend">Suspend</button>')
             parts.append('<form method="post" action="/admin/member" class="admin-row"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
                          '<input type="hidden" name="user_id" value="'+str(row['id'])+'"><span>'+escape(row['username'])+' ('+escape(row['status'])+')</span> '
-                         '<button name="action" value="approve">Approve</button> <button name="action" value="suspend">Suspend</button></form>')
+                         + ' '.join(buttons) + '</form>')
         parts.append('</div><div class="panel"><h2>Unresolved reports</h2>')
+        if not reports: parts.append('<p>No unresolved reports.</p>')
         for row in reports:
             parts.append('<form method="post" action="/admin/report" class="admin-row"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
                          '<input type="hidden" name="report_id" value="'+str(row['id'])+'"><span>'+escape(row['username'])+' reported '
@@ -463,7 +472,8 @@ class Forum:
         action=str(form.get('action',''))
         if action not in ('approve','suspend'):raise web.HTTPBadRequest()
         with self.store.db() as db:
-            db.execute("UPDATE users SET status=? WHERE id=? AND role='member'",('active' if action=='approve' else 'suspended',member_id))
+            updated = db.execute("UPDATE users SET status=? WHERE id=? AND role='member' AND username!='Expanse Guides'",('active' if action=='approve' else 'suspended',member_id))
+            if not updated.rowcount: raise web.HTTPNotFound()
             if action=='suspend':db.execute('DELETE FROM sessions WHERE user_id=?',(member_id,))
         raise web.HTTPSeeOther('/admin')
 
