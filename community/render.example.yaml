@@ -1,0 +1,23 @@
+# EXAMPLE ONLY. Applying this creates a separately billed service.
+# Do not apply or auto-deploy without owner approval and backup/security gate.
+services:
+  - type: web
+    name: expanse-community
+    runtime: python
+    plan: 0.5c-512mb
+    rootDir: community
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    healthCheckPath: /healthz
+    autoDeployTrigger: "off"
+    disk:
+      name: expanse-community-data
+      mountPath: /var/data/expanse-community
+      sizeGB: 1
+    envVars:
+      - key: EXPANSE_COMMUNITY_DATA_DIR
+        value: /var/data/expanse-community
+      - key: EXPANSE_COMMUNITY_ADMIN_USER
+        sync: false
+      - key: EXPANSE_COMMUNITY_ADMIN_PASSWORD
+        sync: false
