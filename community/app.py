@@ -29,6 +29,8 @@ REPLY_MAX = 4000
 SESSION_AGE = 60 * 60 * 24 * 7
 NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_\-]{2,23}$')
 PAGESIZE = 25
+STARTER_GUIDES = [('creators', 'Build and test a two-room adventure', 'Make a copy of your world before editing. Create two rooms with distinct names, connect them with opposite exits, and start a new adventure from the copy. Walk through both exits. If the return trip fails, inspect the exit on the second room. Record the world version when sharing your creation.'), ('news', 'How to check game and forum availability', 'Open the status lights on the website. Game and Forum are checked separately. If the game fails to load, record the time and whether sign-in appeared. A green forum light means the forum answered its health check.'), ('help', 'Keep your place on the explored map', 'Open the explored atlas and choose Lock map. Walk a few rooms, then drag the map to inspect another location. Choose Follow player to center your character again. Search for a known room to inspect its location.'), ('discussion', 'Explore Dawnwatch from the Gilded Tankard', 'Start at the Dawnwatch Gilded Tankard and inspect the room description and exits. Visit a neighboring room, then open your atlas and look for your current-location marker. Compare the places you have visited with locations you have only learned about.'), ('suggestions', 'Describe a change you would like to play', 'Start with the task you were trying to complete. Describe what happened, the change you want, and one example of how a player would use it. Include whether you were playing online or using a desktop installation.'), ('bugs', 'Collect the details for a reproducible bug report', 'Record the engine and world versions, your device, the room, and whether you loaded a save. List the shortest sequence that produces the problem. Include the expected and actual results. For a map issue, capture the same view before and after the action.')]
+
 SECTIONS = (
     ('news', 'Official News & Server Status', 'Confirmed maintenance, outages, releases and development announcements', 1),
     ('help', 'Questions & Help', 'Help for players, installation, commands and game mechanics', 0),
@@ -147,6 +149,16 @@ class Store:
                 db.execute('INSERT OR IGNORE INTO categories(slug,title,description,official,position) VALUES(?,?,?,?,?)',
                            (ident,title,description,official,idx))
 
+            # The reserved byline contains a space, so it cannot be registered by a player.
+            byline = 'Expanse Guides'
+            db.execute("INSERT OR IGNORE INTO users(username,salt,verifier,status,created_at) VALUES(?,randomblob(16),randomblob(32),'suspended',?)",(byline,utc()))
+            author = db.execute('SELECT id FROM users WHERE username=?',(byline,)).fetchone()['id']
+            for slug,title,body in STARTER_GUIDES:
+                db.execute("""INSERT INTO topics(category_id,author_id,title,body,pinned,created_at,updated_at)
+                    SELECT c.id,?,?,?,1,?,? FROM categories c WHERE c.slug=?
+                    AND NOT EXISTS (SELECT 1 FROM topics WHERE category_id=c.id AND author_id=? AND title=?)""",
+                    (author,title,body,utc(),utc(),slug,author,title))
+
     def bootstrap_admin(self, username: str, password: str):
         if not NAME.fullmatch(username) or not 12 <= len(password) <= 128:
             raise ValueError('Admin username or password does not meet the minimum requirements.')
@@ -220,7 +232,7 @@ class Forum:
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <meta name="color-scheme" content="dark"><title>'''+escape(title)+''' · Expanse Community</title>
         <link rel="stylesheet" href="/style.css"></head><body><div class="shell">'''+self.nav(user)+'''
-        <main id="main">'''+content+'''</main><footer>Official Expanse community · Independent, creator-directed and AI-assisted.
+        <main id="main">'''+('<p class="note">Read-only preview. Browse the guides below. Player registration and posting are closed.</p>' if not self.registration_enabled and not user else '')+content+'''</main><footer>Official Expanse community · Independent, creator-directed and AI-assisted.
         <a href="https://expansemud.com/">expansemud.com</a></footer></div></body></html>'''
         return web.Response(text=doc, content_type='text/html', status=status,
                             headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
@@ -250,7 +262,7 @@ class Forum:
                         parts.append('<li><a href="/t/'+str(topic['id'])+'">'+escape(topic['title'])+'</a> <small>'+escape(topic['username'])+'</small></li>')
                     parts.append('</ul></div>')
                 parts.append('</section>')
-        if not user:
+        if not user and self.registration_enabled:
             parts.append('<p class="note">Reading is public. New community accounts require staff approval before posting.</p>')
         return self.page('Community Forum',''.join(parts),user)
 
