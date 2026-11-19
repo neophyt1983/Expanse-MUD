@@ -4,6 +4,8 @@ The standalone community is independent of Expanse Single Player and the gated s
 
 ## Required before launch
 
+**Fail-closed default:** Web registration is disabled unless the explicit staging override is set. Never set `EXPANSE_COMMUNITY_ALLOW_REGISTRATION` on a public Render service before every requirement below is met.
+
 1. **Data recovery and deletion:** build encrypted off-site database export/restore, validate with actual restore drills, retention and deletion policies, backups after migrations.
 2. **Account recovery:** verified email (using configured SMTP secret), password reset with expiring single-use token, session revocation on reset, account deletion/export. Do not add game credential sharing or automatic account linking.
 3. **Abuse:** bot resistance, per-account and per-IP persistent rate limits, verified signup or moderated invites, spam queues, reports, thread locking, banning, consistent appeal mechanism.

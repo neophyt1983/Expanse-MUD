@@ -21,7 +21,7 @@ A custom ExpanseMUD community, designed to be substantially cheaper than a hoste
 - Publicly readable, server-rendered category pages and discussion threads.
 - Staff-only **Official News & Server Status**; topics can be pinned or locked by the administrator.
 - Categories for help, discussion, feedback, bug reports and Creator Workshop.
-- Community registration requests with manual approval, separate account database, password hashing, HttpOnly cookies and CSRF protection for authenticated writes.
+- Community registration requests with manual approval, separate account database, password hashing, HttpOnly cookies and CSRF protection for authenticated writes. **Registration is disabled by default** until the public release gate passes.
 - Member replies, topic reports, staff moderation and member suspension.
 - Plain-text posts rendered as escaped HTML (no untrusted HTML or rich uploads).
 - RSS feed for staff announcements.
@@ -30,7 +30,7 @@ A custom ExpanseMUD community, designed to be substantially cheaper than a hoste
 
 ## Not yet implemented / blocking public launch
 
-- Reliable email verification, password recovery, notification delivery and account deletion.
+- Reliable email verification, password recovery, notification delivery and account deletion. Do not turn on `EXPANSE_COMMUNITY_ALLOW_REGISTRATION` for public traffic until those safeguards are implemented and reviewed.
 - Robust distributed spam protection and moderation audit/appeal workflow.
 - Safe user editing/deleting of their own posts, export/retention policies, full accessibility audit.
 - Independent off-site database backups and restore drills. Render's disk snapshots alone are not sufficient.
@@ -52,6 +52,9 @@ export EXPANSE_COMMUNITY_ADMIN_USER=owner
 export EXPANSE_COMMUNITY_ADMIN_PASSWORD='choose-a-unique-long-staging-password'
 export EXPANSE_COMMUNITY_DATA_DIR="$PWD/.community-data"
 python app.py
+# Registration remains closed by default, suitable for read-only local preview.
+# To exercise pending-registration behavior ONLY in isolated local test environments,
+# set EXPANSE_COMMUNITY_ALLOW_REGISTRATION=acknowledge-incomplete-recovery.
 ```
 
 Open `http://127.0.0.1:10000/` locally. The live application defaults to Secure HttpOnly cookies. The included tests create a separate local test application with `secure=False` for the HTTP test client only.

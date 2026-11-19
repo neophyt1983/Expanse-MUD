@@ -15,7 +15,7 @@ class ForumTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.work=tempfile.TemporaryDirectory()
         self.db=Path(self.work.name)/'community.sqlite3'
-        self.server=TestServer(make_app(self.db,secure=False,bootstrap=('owner','correct-long-password-123')))
+        self.server=TestServer(make_app(self.db,secure=False,bootstrap=('owner','correct-long-password-123'),registration_enabled=True))
         await self.server.start_server()
         self.admin=TestClient(self.server,cookie_jar=CookieJar(unsafe=True));await self.admin.start_server()
         self.visitor=TestClient(self.server,cookie_jar=CookieJar(unsafe=True));await self.visitor.start_server()
@@ -51,6 +51,24 @@ class ForumTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('Official News &amp; Server Status',body)
         self.assertIn('The Tavern',body)
         r=await self.visitor.get('/healthz');self.assertEqual('expanse-community-staging',(await r.json())['service'])
+
+    async def test_registration_disabled_by_default(self):
+        separate=TestServer(make_app(Path(self.work.name)/'closed.sqlite3',secure=False,bootstrap=('administrator','another-strong-password-123')))
+        await separate.start_server()
+        try:
+            client=TestClient(separate,cookie_jar=CookieJar(unsafe=True))
+            await client.start_server()
+            try:
+                get=await client.get('/register',allow_redirects=False)
+                self.assertEqual(503,get.status)
+                post=await client.post('/register',data={'username':'tester','password':'another-strong-password-123'},allow_redirects=False)
+                self.assertEqual(503,post.status)
+                home=await client.get('/')
+                self.assertNotIn('<a href="/register">Register</a>',await home.text())
+            finally:
+                await client.close()
+        finally:
+            await separate.close()
 
     async def test_registration_waits_for_approval(self):
         r=await self.visitor.post('/register',data={'username':'tester','password':'different-long-password-123'})

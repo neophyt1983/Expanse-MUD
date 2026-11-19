@@ -173,9 +173,10 @@ class Store:
 
 
 class Forum:
-    def __init__(self, store: Store, secure: bool = True):
+    def __init__(self, store: Store, secure: bool = True, registration_enabled: bool = False):
         self.store = store
         self.secure = secure
+        self.registration_enabled = registration_enabled
         self.failed = {}
 
     def member(self, req):
@@ -208,7 +209,7 @@ class Forum:
                 + '<form method="post" action="/logout"><input type="hidden" name="csrf" value="'
                 + escape(user['csrf']) + '"><button type="submit" class="plain">Sign out</button></form>')
         else:
-            session_links += '<a href="/login">Sign in</a> <a href="/register">Register</a>'
+            session_links += '<a href="/login">Sign in</a>' + (' <a href="/register">Register</a>' if self.registration_enabled else '')
         return ('''<header class="mast"><div><a class="wordmark" href="/">EXPANSE <span>COMMUNITY</span></a>
          <div class="subtitle">A living world. A place to talk about it.</div></div>
          <nav aria-label="Site"><a href="/">Forum</a><a href="https://expansemud.com/wiki/">Wiki</a>
@@ -353,6 +354,8 @@ class Forum:
         raise web.HTTPSeeOther('/t/'+str(tid))
 
     async def register(self,req):
+        if not self.registration_enabled:
+            return self.message(req, 'Registration closed', 'Community accounts are not open while security and recovery safeguards are being completed.', 503)
         return self.page('Create account','''<div class="panel compose"><h1>Join the community</h1>
          <p>Registration requests require staff approval. Please choose a unique community name.
          Community accounts are separate from Expanse game accounts.</p>
@@ -369,6 +372,8 @@ class Forum:
         bucket.append(now);self.failed[key]=bucket
 
     async def post_register(self,req):
+        if not self.registration_enabled:
+            raise web.HTTPServiceUnavailable(text='Community registration is closed until the release gate passes.')
         self.limit('register:'+str(req.remote),3,300)
         form=await self.post_data(req);username=str(form.get('username','')).strip();password=str(form.get('password',''))
         if not NAME.fullmatch(username) or not 12<=len(password)<=128:
@@ -489,12 +494,12 @@ class Forum:
         return web.Response(text=xml,content_type='application/rss+xml',headers={'Cache-Control':'public, max-age=120'})
 
 
-def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tuple[str,str] | None = None):
+def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tuple[str,str] | None = None, registration_enabled: bool = False):
     path = db_path or Path(os.environ.get('EXPANSE_COMMUNITY_DATA_DIR','./.community-data'))/'community.sqlite3'
     store = Store(path)
     if bootstrap:
         store.bootstrap_admin(*bootstrap)
-    forum = Forum(store, secure=secure)
+    forum = Forum(store, secure=secure, registration_enabled=registration_enabled)
 
     @web.middleware
     async def guard(req,handler):
@@ -542,4 +547,4 @@ if __name__=='__main__':
     admin_password=os.environ.get('EXPANSE_COMMUNITY_ADMIN_PASSWORD','')
     if not admin_username or not admin_password:
         raise SystemExit('Set EXPANSE_COMMUNITY_ADMIN_USER and EXPANSE_COMMUNITY_ADMIN_PASSWORD through the Render secret environment. Never commit them.')
-    web.run_app(make_app(root/'community.sqlite3',bootstrap=(admin_username,admin_password)),host='0.0.0.0',port=int(os.environ.get('PORT',10000)))
+    web.run_app(make_app(root/'community.sqlite3',bootstrap=(admin_username,admin_password), registration_enabled=os.environ.get('EXPANSE_COMMUNITY_ALLOW_REGISTRATION')=='acknowledge-incomplete-recovery'),host='0.0.0.0',port=int(os.environ.get('PORT',10000)))
