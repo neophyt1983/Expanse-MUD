@@ -1263,7 +1263,7 @@ def make_app():
     app.on_response_prepare.append(prepare)
     app.cleanup_ctx.append(service.expiry)
     async def health(req):
-        return web.Response(text='ok', headers={'X-Expanse-Server-Build': RENDER_SERVER_BUILD})
+        return web.Response(text='ok', headers={'X-Expanse-Server-Build': RENDER_SERVER_BUILD, 'Access-Control-Allow-Origin': '*'})
     async def play(req):
         service.active_client(req)
         return web.Response(body=service.app_assets.shell(), content_type='text/html', charset='utf-8',
