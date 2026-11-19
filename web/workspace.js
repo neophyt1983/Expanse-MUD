@@ -15,6 +15,18 @@
   const content=make('div','location-content');content.id='location-content';content.textContent='Create or resume a character to see your surroundings.';location.append(content);
   game.prepend(status,conversation);game.append(location);
   const sectionOpen = new Map();
+  const atEnd = () => location.clientHeight > 0 && location.scrollTop > 0 &&
+    location.scrollHeight - location.clientHeight - location.scrollTop <= 2;
+  let keepEnd = false;
+  location.addEventListener('scroll', () => {
+    if (location.clientHeight) keepEnd = atEnd();
+  }, {passive:true});
+  // A dock resize or display-scale change can shorten the visible panel after
+  // its last line was reached. Keep that end in view without moving readers
+  // who deliberately scrolled back to an earlier item.
+  new ResizeObserver(() => {
+    if (keepEnd && location.clientHeight) location.scrollTop = location.scrollHeight;
+  }).observe(location);
   function keyed(element, ...key) {
     element.dataset.viewKey = JSON.stringify(key);
     return element;
@@ -46,9 +58,9 @@
     const active = document.activeElement;
     const owner = content.contains(active) && active.closest('[data-view-key]');
     const focus = owner ? {key: owner.dataset.viewKey, tag: active.tagName, label: active.textContent} : null;
-    return {scroll, anchor, focus};
+    return {scroll, anchor, focus, end:location.clientHeight ? atEnd() : keepEnd};
   }
-  function restoreView({scroll, anchor, focus}) {
+  function restoreView({scroll, anchor, focus, end}) {
     const find = key => content.querySelector('[data-view-key="' + CSS.escape(key) + '"]');
     if (focus) {
       const row = find(focus.key);
@@ -57,8 +69,13 @@
           el.tagName === focus.tag && (el.tagName === 'SELECT' || el.textContent === focus.label));
       control?.focus({preventScroll: true});
     }
+    keepEnd = end;
     const row = anchor && find(anchor.key);
-    if (row && location.offsetHeight && row.getBoundingClientRect().height) {
+    if (end && location.clientHeight) {
+      // Packet refreshes can add or wrap lines below the preserved top anchor.
+      // Preserve the bottom instead when the reader had already reached it.
+      location.scrollTop = location.scrollHeight;
+    } else if (row && location.offsetHeight && row.getBoundingClientRect().height) {
       const viewport = location.getBoundingClientRect();
       const delta = row.getBoundingClientRect().top - viewport.top - anchor.offset;
       location.scrollTop += delta * location.offsetHeight / viewport.height;

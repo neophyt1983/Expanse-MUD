@@ -93,7 +93,7 @@ def render_visual(byid, positions, center, visible, radius=12, visited=None, loc
     if kind == 'outdoors':
         context_rooms = {rid for rid in visible if styles[rid][0] == kind}
         context = dict(id='outdoors', label='Outdoors', kind=kind)
-    elif building:
+    elif building or kind == 'building':
         bid = building.get('id', center)
         context_rooms = {rid for rid in visible if styles[rid][0] == kind and styles[rid][2].get('id') == bid}
         if kind == 'building':
@@ -114,6 +114,17 @@ def render_visual(byid, positions, center, visible, radius=12, visited=None, loc
                     if target not in context_rooms:
                         context_rooms.add(target)
                         pending.append(target)
+            # An annex without building metadata must keep the same projection
+            # when it becomes the center. Pick the context from the already
+            # visible component in a stable order, rather than the current room.
+            named = sorted((styles[rid][2]['id'], rid) for rid in context_rooms
+                           if styles[rid][2].get('id'))
+            if named:
+                bid, anchor = named[0]
+                building = styles[anchor][2]
+            else:
+                bid = min(context_rooms)
+                building = {'name': byid[bid].get('name', bid)}
         context = dict(id=kind + ':' + bid, label=building.get('name', byid[center]['name']), kind=kind)
     else:
         # An unnamed interior is the connected, discovered component only.

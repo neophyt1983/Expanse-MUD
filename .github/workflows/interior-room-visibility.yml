@@ -1,11 +1,24 @@
-name: Interior map visibility regression
+name: Map, passage and panel regressions
 
 on:
   pull_request:
     paths:
       - "engine/travel_window.py"
       - "engine/visual_mapping.py"
+      - "engine/streets.py"
+      - "web/street-actions.js"
+      - "web/player-controls.js"
+      - "web/visual-map.js"
+      - "web/workspace.js"
+      - "street-actions.js"
+      - "player-controls.js"
+      - "visual-map.js"
       - "tests/test_interior_room_visibility.py"
+      - "tests/test_street_passages.py"
+      - "tests/test_street_actions.cjs"
+      - "tests/test_location_scroll.cjs"
+      - "tests/support/menu-dom.cjs"
+      - "tools/probe_location_panel_layout.py"
       - ".github/workflows/interior-room-visibility.yml"
   workflow_dispatch:
 
@@ -15,11 +28,30 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
           cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
       - run: pip install -r requirements.txt
-      - run: python -m unittest discover -s tests -p 'test_interior_room_visibility.py' -v
+      - run: python -m unittest discover -s tests -v
+      - run: node --test tests/test_*.cjs
+  layout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install PySide6==6.12.0
+      - name: Check the last Location & Inventory control in a real browser
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu --no-sandbox
+        run: python tools/probe_location_panel_layout.py

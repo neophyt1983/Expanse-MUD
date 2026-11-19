@@ -81,13 +81,14 @@
  }
 
  function resetMovement(){stopHold();clearTimeout(ackTimer);pendingMove=null;cancelWalk();movementStatus.textContent='';}
+ function disconnect(){resetMovement();movementStatus.textContent='Not connected. Reconnect before moving.';}
  // Do not buffer inputs behind a slow simulation step. A key/click means one
  // immediate step; a rejected typed command remains in the input field.
  function move(command,edge=null){
   if(!edge&&(walk||queuedDestination))cancelWalk();
   if(!edge&&command.startsWith('go ')&&window.latestMap?.visual?.exits?.some(e=>e.direction==='approach '+command.slice(3)))command='go approach '+command.slice(3);
   if(typeof command!=='string'||command.length>4096){append('error','Commands must be at most 4096 characters.');return false;}
-  if(!ws||ws.readyState!==WebSocket.OPEN){append('error','Not connected.');return false;}
+  if(!ws||ws.readyState!==WebSocket.OPEN){movementStatus.textContent='Not connected. Reconnect before moving.';append('error','Not connected.');return false;}
   if(pendingMove){movementStatus.textContent='Waiting for your previous step. No extra moves are queued.';return false;}
   const id='move-'+(++sequence);
   if(edge)walk.sentAt=performance.now();
@@ -101,7 +102,7 @@
    stopHold();pendingMove=null;cancelWalk('The last step has not been confirmed. Tap a destination to plan again.');
   },15000);
   try{ws.send(JSON.stringify({command,movement_id:id,...(edge?{walk_edge:edge}:{})}));}
-  catch{resetMovement();append('error','Movement could not be sent.');return false;}
+  catch{resetMovement();movementStatus.textContent='Movement could not be sent. Reconnect and try again.';append('error','Movement could not be sent.');return false;}
   return true;
  }
  function receive(message){
@@ -256,5 +257,5 @@
  }
  const previous=window.renderRoomPanel;window.renderRoomPanel=m=>{previous?.(m);renderClock(m);};
  if(window.latestMap)renderClock(window.latestMap);
- window.ExpansePlayerControls={controls,focusMovement,usesMovementKey:code=>!!code&&Object.values(bindings).includes(code),submit,remember,move,walkTo,stopWalking:()=>cancelWalk("Walking stopped."),receive,disconnect:resetMovement,minimizeBindings:()=>{if(capture)return false;dialog.close();return true;},restoreBindings:()=>{dialog.showModal();close.focus();}};
+ window.ExpansePlayerControls={controls,focusMovement,usesMovementKey:code=>!!code&&Object.values(bindings).includes(code),submit,remember,move,walkTo,stopWalking:()=>cancelWalk("Walking stopped."),receive,disconnect,minimizeBindings:()=>{if(capture)return false;dialog.close();return true;},restoreBindings:()=>{dialog.showModal();close.focus();}};
 })();
