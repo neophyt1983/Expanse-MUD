@@ -12,4 +12,4 @@ Shared MMO must remain disabled until shared-world behavior, account isolation, 
 
 ## Status updates
 
-Read [Official News & Server Status](https://community.expansemud.com/c/news) for verified announcements. A work-in-progress feature is not a released feature.
+The new official news channel is under development. Until it launches, check the [existing community forum](https://expansemud.discourse.group/) and the [independent status page](https://expansemud.com/status/) for published notices. A work-in-progress feature is not a released feature.

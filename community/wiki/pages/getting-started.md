@@ -22,4 +22,4 @@ The hosted online service currently provides account-isolated Single Player worl
 
 ## Need assistance?
 
-Visit [Questions & Help](https://community.expansemud.com/c/help). Include your game version and platform when you report a problem, but never post login credentials or recovery codes.
+Until the new community forum launches, visit the [existing community forum](https://expansemud.discourse.group/) for help. Include your game version and platform when you report a problem, but never post login credentials or recovery codes.

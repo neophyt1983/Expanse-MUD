@@ -70,7 +70,7 @@ Do not reuse Expanse game passwords when testing the forum.
 python wiki/build.py
 ```
 
-The resulting folders under `dist/` are `wiki/`, `assets/`, and `status/`. **After review and when ready to publish**, upload these **three folders** into the *existing* Fastmail `web/ExpanseMUD/` directory without deleting the main website's `index.html`, installer files, game assets, or `emotes/` folder. GitHub is the source of truth for wiki text; Fastmail holds only generated pages. This prototype does not include an automatic uploader.
+The resulting folders under `dist/` are `wiki/`, `assets/`, and `status/`. **After review and when ready to publish**, upload these **three folders** into the *existing* Fastmail `web/ExpanseMUD/` directory without deleting the main website's `index.html`, installer files, game assets, or `emotes/` folder. GitHub is the source of truth for wiki text; Fastmail holds only generated pages. This prototype does not include an automatic uploader. Before the custom forum launches, generated wiki/status pages link to the existing Discourse board to avoid broken links; after the new forum passes the release gate, rebuild with `EXPANSE_COMMUNITY_PUBLIC_URL=https://community.expansemud.com/` and review the wiki copy before publication.
 
 ## Proposed Render deployment (not performed)
 

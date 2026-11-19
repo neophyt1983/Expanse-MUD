@@ -15,7 +15,7 @@ The wiki explains the worlds, gameplay systems, community, and creator tools usi
 
 ## Official information
 
-- [Official News & Server Status](https://community.expansemud.com/c/news) — Release notes, downtime, verified service notices.
+- **Official News & Server Status:** The new staff announcements channel is under development. For now use the [existing forum](https://expansemud.discourse.group/) and the emergency status page below.
 - [Emergency status page](https://expansemud.com/status/) — A static fallback hosted outside the game service.
 - [Official website](https://expansemud.com/) — Current downloads, gameplay information and support links.
 

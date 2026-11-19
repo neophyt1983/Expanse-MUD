@@ -16,4 +16,4 @@ The planned MMO roles are No_Edit, Admin, and Full_Edit. These roles must be enf
 
 ## Community showcase
 
-Use [Creator Workshop](https://community.expansemud.com/c/creators) to discuss designs and share relevant context. Never upload private saves, passwords or someone else's confidential data.
+Until the new community forum launches, use the [existing message board](https://expansemud.discourse.group/) to discuss designs and share relevant context. Never upload private saves, passwords or someone else's confidential data.
