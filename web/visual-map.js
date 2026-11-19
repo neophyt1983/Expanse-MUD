@@ -755,6 +755,11 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   const sightStatus=make('div','atlas-sight-status');sightStatus.hidden=true;sightStatus.setAttribute('role','status');sightStatus.setAttribute('aria-live','polite');
   const toolbar=make('div','atlas-tools'),follow=make('button','atlas-button','Recenter'),zoom=make('select','atlas-zoom');follow.type='button';follow.title='Follow your current room again';zoom.setAttribute('aria-label','Map tile size');
   for(const [v,label] of [['auto','Automatic'],[.75,'Small'],[1,'Standard'],[1.5,'Large'],[2,'Extra large']])zoom.append(new Option(label,v));zoom.value=window.ExpanseDisplay?.values.tiles||'auto';
+  const camera=make('select','atlas-zoom');camera.setAttribute('aria-label','Map camera');
+  camera.append(new Option('Follow player','follow'),new Option('Lock map','locked'));
+  state.camera=camera;state.anchor=null;
+  if(!options.designer)toolbar.append(camera);
+  camera.onchange=()=>{state.anchor=null;state.motion=null;if(camera.value==='follow')state.offset={x:0,y:0};schedule();};
   toolbar.append(follow,zoom,make('span','atlas-help',options.designer?'Drag to pan · select to inspect':'Click to walk · Shift-click to inspect · drag to pan'));
   const namedTile=t=>options.designer||t.current||t.visited===true||t.visibility==='visited';
   const locations=make('select','atlas-zoom');locations.setAttribute('aria-label','Discovered map locations');locations.setAttribute('aria-describedby',host.id+'-tooltip');toolbar.append(locations);
@@ -773,7 +778,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   Object.assign(state,{locations,namedTile,sightBadge,arrival,canvas,viewport,tip,empty,inspect,impactStatus,impactKey,context,floor,coordinateStatus,locationStatus,sightStatus,actors,accessible,follow,zoomControl:zoom});
   function schedule(){if(!state.frame)state.frame=requestAnimationFrame(()=>{state.frame=0;draw(state);});}
   state.schedule=schedule;
-  follow.onclick=()=>{state.offset={x:0,y:0};schedule();};
+  follow.onclick=()=>{camera.value='follow';state.anchor=null;state.offset={x:0,y:0};schedule();};
   zoom.onchange=()=>{if(window.ExpanseDisplay)window.ExpanseDisplay.choose('tiles',zoom.value);else state.zoom=Number(zoom.value)||1;schedule();};
   window.addEventListener('expanse:display',()=>{
    const value=window.ExpanseDisplay.values.tiles;
@@ -789,7 +794,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   locations.onchange=selectKnown;locations.onfocus=selectKnown;locations.onblur=hideTip;locations.onkeydown=e=>{if(e.key==='Escape'){e.preventDefault();hideTip();}};
   function locate(e){const {x,y}=pointerPoint(canvas,e),painted=[...state.positions].reverse();return painted.find(p=>[p.impactBadge,p.badge].some(b=>b&&x>=b.x&&x<b.x+b.width&&y>=b.y&&y<b.y+b.height))||painted.find(p=>x>=p.x-p.radius&&x<p.x+p.radius&&y>=p.y-p.radius&&y<p.y+p.radius);}
   canvas.onpointerdown=e=>{if(e.button!==0||state.drag)return;state.drag={id:e.pointerId,x:e.clientX,y:e.clientY,point:pointerPoint(canvas,e),start:{...state.offset},hit:locate(e),context:state.data?.context?.id,floor:state.data?.floor,character:state.packet?.character?.id,moved:false};canvas.setPointerCapture(e.pointerId);};
-  canvas.onpointermove=e=>{if(state.drag&&e.pointerId===state.drag.id){const d=state.drag;d.moved=d.moved||Math.abs(e.clientX-d.x)+Math.abs(e.clientY-d.y)>5;if(!d.moved)return;const p=pointerPoint(canvas,e);state.offset={x:d.start.x+p.x-d.point.x,y:d.start.y+p.y-d.point.y};hideTip();schedule();return;}const p=locate(e);showTip(p);canvas.style.cursor=p?'pointer':'grab';};
+  canvas.onpointermove=e=>{if(state.drag&&e.pointerId===state.drag.id){const d=state.drag;d.moved=d.moved||Math.abs(e.clientX-d.x)+Math.abs(e.clientY-d.y)>5;if(!d.moved)return;if(!options.designer)camera.value='locked';const p=pointerPoint(canvas,e);state.offset={x:d.start.x+p.x-d.point.x,y:d.start.y+p.y-d.point.y};hideTip();schedule();return;}const p=locate(e);showTip(p);canvas.style.cursor=p?'pointer':'grab';};
   canvas.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.relatedTarget!==tip&&!tip.contains(e.relatedTarget))hideTip();};tip.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.relatedTarget!==canvas)hideTip();};
   canvas.onpointerup=e=>{
    const d=state.drag;if(!d||d.id!==e.pointerId)return;state.drag=null;
@@ -807,7 +812,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   };
   canvas.onpointercancel=()=>{if(state.drag)state.offset=state.drag.start;state.drag=null;hideTip();schedule();};
   canvas.onfocus=()=>{const tile=state.data?.tiles.find(t=>t.id===(state.selected||state.data.center)&&namedTile(t));if(tile)showTip(state.positions.find(p=>p.tile.id===tile.id)||{tile,x:8,y:40});};canvas.onblur=hideTip;
-  canvas.onkeydown=e=>{if(!options.designer&&window.ExpansePlayerControls?.usesMovementKey?.(e.code))return;if(e.key==='Escape'){e.preventDefault();hideTip();return;}const vector={ArrowLeft:[32,0],ArrowRight:[-32,0],ArrowUp:[0,32],ArrowDown:[0,-32]}[e.key];if(vector){e.preventDefault();hideTip();state.offset.x+=vector[0];state.offset.y+=vector[1];schedule();}else if(e.key==='Home'){e.preventDefault();follow.click();}};
+  canvas.onkeydown=e=>{if(!options.designer&&window.ExpansePlayerControls?.usesMovementKey?.(e.code))return;if(e.key==='Escape'){e.preventDefault();hideTip();return;}const vector={ArrowLeft:[32,0],ArrowRight:[-32,0],ArrowUp:[0,32],ArrowDown:[0,-32]}[e.key];if(vector){e.preventDefault();hideTip();if(!options.designer)camera.value='locked';state.offset.x+=vector[0];state.offset.y+=vector[1];schedule();}else if(e.key==='Home'){e.preventDefault();follow.click();}};
   new ResizeObserver(()=>{if(state.drag?.moved)state.drag=null;hideTip();schedule();}).observe(viewport);
   if(!options.designer){
    const panel=host.closest('#player-map-panel');
@@ -869,7 +874,11 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   if(display&&s.zoomControl.value!==display.values.tiles)s.zoomControl.value=display.values.tiles;
   s.zoom=display?.tileZoom(width,height)??s.zoom;
   s.canvas.dataset.tilePixels=String(Math.round(24*s.zoom));
-  const tileSize=Math.round(24*s.zoom),unit=tileSize,ox=Math.round(width/2+s.offset.x+(s.motion?.dx||0)*unit*motionScale),oy=Math.round(height/2+s.offset.y+(s.motion?.dy||0)*unit*motionScale);
+  const tileSize=Math.round(24*s.zoom),unit=tileSize;
+  const locked=!s.options.designer&&s.camera.value==='locked';
+  if(locked&&!s.anchor)s.anchor={x:center.x,y:center.y};
+  const shiftX=locked?(center.x-s.anchor.x)*unit:0,shiftY=locked?(center.y-s.anchor.y)*unit:0;
+  const ox=Math.round(width/2+s.offset.x+shiftX+(s.motion?.dx||0)*unit*motionScale),oy=Math.round(height/2+s.offset.y+shiftY+(s.motion?.dy||0)*unit*motionScale);
   c.fillStyle='#1a292f';for(let y=((oy%unit)+unit)%unit;y<height;y+=unit)for(let x=((ox%unit)+unit)%unit;x<width;x+=unit)c.fillRect(Math.round(x),Math.round(y),1,1);
   const coords=new Map();for(const t of v.tiles){const p={tile:t,x:Math.round(ox+(t.x-center.x)*unit),y:Math.round(oy+(t.y-center.y)*unit),radius:tileSize/2};for(const id of [t.id,...(t.room_ids || [])]){
     const prev=coords.get(id);
@@ -911,7 +920,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
     const x=tile.x-tileSize/2+(index%side+.5)*cell,y=tile.y-tileSize/2+(Math.floor(index/side)+.5)*cell;
     placements.push({actor,room,x,y,size:Math.min(cell,16*s.zoom),self:false});index++;
    }
-   if(self){const x=Math.round(width/2+s.offset.x),y=Math.round(height/2+s.offset.y);placements.push({actor:self,room,x,y,size:Math.min(16*s.zoom,others.length?cell:tileSize),self:true});}
+   if(self){const x=Math.round(width/2+s.offset.x+shiftX),y=Math.round(height/2+s.offset.y+shiftY);placements.push({actor:self,room,x,y,size:Math.min(16*s.zoom,others.length?cell:tileSize),self:true});}
   }
   const magic=window.ExpanseMapEffects?.begin(s,placements,coords);
   window.ExpanseMapEffects?.ground(magic);
@@ -964,13 +973,14 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
    // Finish a normal step within the walk controller's 95/speed cadence.
    // Carry any unfinished displacement so a rapid confirmation cannot jump
    // the painted terrain. Positions still come only from confirmed packets.
-   s.motion=!reduced&&direction===geometric&&(dx||dy)?{dx:dx+(s.motion?.dx||0)*fraction,dy:dy+(s.motion?.dy||0)*fraction,start:performance.now(),duration:95/speed}:null;
+   s.motion=s.camera.value!=='locked'&&!reduced&&direction===geometric&&(dx||dy)?{dx:dx+(s.motion?.dx||0)*fraction,dy:dy+(s.motion?.dy||0)*fraction,start:performance.now(),duration:95/speed}:null;
    s.arrival.textContent=(direction?'Moved '+direction:'Arrived')+' · '+newTile.name;
    s.arrival.hidden=false;
   }else if(!oldTile||!sameCharacter||options.designer){s.motion=null;s.arrival.hidden=true;}
   s.lastCharacter=packet.character?.id||null;
   const changed=s.lastCenter!==v.center||s.lastContext!==v.context.id;
-  if(changed){s.offset={x:0,y:0};if(!sameCharacter||old?.context?.id!==v.context.id||old?.floor!==v.floor||s.drag?.moved)s.drag=null;s.selected=null;s.inspect.textContent=(s.lastContext&&s.lastContext!==v.context.id?'Entered '+v.context.label+'. ':'')+(options.designer?'Select a tile to inspect.':'Click a tile to walk there, or select the marked doorway for a passage.');}
+  if(!sameCharacter||old?.context?.id!==v.context.id||old?.floor!==v.floor){s.anchor=null;s.offset={x:0,y:0};}
+  if(changed){if(s.camera.value==='follow')s.offset={x:0,y:0};if(!sameCharacter||old?.context?.id!==v.context.id||old?.floor!==v.floor||s.drag?.moved)s.drag=null;s.selected=null;s.inspect.textContent=(s.lastContext&&s.lastContext!==v.context.id?'Entered '+v.context.label+'. ':'')+(options.designer?'Select a tile to inspect.':'Click a tile to walk there, or select the marked doorway for a passage.');}
   s.data=v;s.lastCenter=v.center;s.lastContext=v.context.id;s.context.textContent=v.context.label;s.floor.textContent='Level '+v.floor;s.empty.hidden=!!v.tiles.length;
   const currentTile=centerTile(v),hereName=currentTile?.name||packet.location?.name;
   s.locationStatus.hidden=!!options.designer||!hereName;
@@ -983,7 +993,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   if(s.sightBadge.textContent!==badgeText)s.sightBadge.textContent=badgeText;
   const sightText=s.sightStatus.hidden?'':!sight.daylight&&!sight.light_source?
    'Night: nearby terrain is dim and fades quickly with distance. Available exits remain visible; you can keep traveling. A working lantern brightens your surroundings.':
-   (sight.daylight?'Daylight: nearby reachable spaces are visible.':'Night with light: your lantern brightens nearby terrain and slows the distance fade.')+' This map follows you.';
+   (sight.daylight?'Daylight: nearby reachable spaces are visible.':'Night with light: your lantern brightens nearby terrain and slows the distance fade.')+(s.camera.value==='locked'?' Camera locked.':' Camera follows you.');
   if(s.sightStatus.textContent!==sightText)s.sightStatus.textContent=sightText;
   const coordinates=v.coordinates||centerTile(v)?.coordinates;s.coordinateStatus.hidden=!coordinates;s.coordinateStatus.textContent=coordinateText(coordinates);
   s.actors.replaceChildren();for(const a of v.actors||[]){const item=make('span','atlas-person'),icon=make('canvas');icon.width=icon.height=16;drawActor(icon.getContext('2d'),a,8,8,16,a.self||a.kind==='self'||a.id===packet.character?.id);const label=(a.self||a.kind==='self'||a.id===packet.character?.id?'You · ':'')+a.name;

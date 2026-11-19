@@ -20,7 +20,10 @@
  const refresh=make('button','','Refresh');refresh.id='world-atlas-refresh';
  const search=make('input','wa-search');search.type='search';search.placeholder='Find a known room';search.setAttribute('aria-label','Search atlas rooms');search.id='world-atlas-search';
  const found=make('select','wa-found');found.setAttribute('aria-label','Matching atlas rooms');found.id='world-atlas-found';
- toolbar.append(mode,floorLabel,center,fit,minus,plus,refresh,search,found);
+ const camera=make('select');camera.setAttribute('aria-label','Atlas camera');
+ camera.append(new Option('Follow player','follow'),new Option('Lock map','locked'));
+ camera.onchange=()=>{if(camera.value==='follow')recenter();else state.follow=false;schedule();};
+ toolbar.append(mode,floorLabel,camera,center,fit,minus,plus,refresh,search,found);
  const returnButton=make('button','','Back');returnButton.type='button';returnButton.id='atlas-back';returnButton.hidden=true;toolbar.prepend(returnButton);
  const stopTrip=make('button','','Stop walking');stopTrip.type='button';stopTrip.hidden=true;toolbar.append(stopTrip);
  stopTrip.onclick=()=>window.ExpansePlayerControls?.stopWalking();
@@ -284,7 +287,7 @@
   }
   c.restore();
  }
- function draw(){if(!state.open)return;const w=main.clientWidth,h=main.clientHeight,dpr=window.devicePixelRatio||1;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#101f27';c.fillRect(0,0,w,h);state.positions=[];
+ function draw(){if(!state.open)return;camera.hidden=state.scope==='complete';camera.value=state.follow?'follow':'locked';const w=main.clientWidth,h=main.clientHeight,dpr=window.devicePixelRatio||1;canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.fillStyle='#101f27';c.fillRect(0,0,w,h);state.positions=[];
   scaleStatus.hidden=state.mode!=='layout';if(!scaleStatus.hidden)scaleStatus.textContent=state.scale<1?'Overview':Math.round(state.scale)+' px per room';
   if(state.mode==='globe'&&state.packet){const placed=globeRows().some(r=>r.planet);empty.hidden=placed;if(!placed)empty.textContent='No known place in this world has globe coordinates yet. Choose Room / floor detail.';state.positions=window.ExpanseGlobe.draw(c,w,h,globeRows(),state.packet.center,state.selected,colors,state.scope,bookmarks,layer.value==='terrain'?null:layerColor,layer.value==='water');return;}
   drawGround(c,w,h);c.fillStyle='#aac1c8';c.font='12px system-ui';c.fillText('N ↑',18,24);
@@ -380,7 +383,7 @@
   return true;
  }
  close.onclick=()=>closeAtlas();fit.onclick=fitRooms;center.onclick=()=>recenter(true);minus.onclick=()=>zoom(1/1.5);plus.onclick=()=>zoom(1.5);refresh.onclick=()=>{if(state.scope==='complete')loadCreator();else if(!send('atlas refresh')){summary.textContent='Connection unavailable. Close and reopen after reconnecting.';}};
- mode.onchange=()=>{state.mode=mode.value;showLayers();fit.textContent=state.mode==='globe'?'Whole planet':state.scope==='complete'?'Fit all rooms':'Fit explored';sidebar.hidden=state.mode!=='globe';knownIndex=new Map(known().map(r=>[r.id,r]));updateSearch();if(state.mode==='globe'&&state.scope==='explored')requestPins({action:'list'});floor.disabled=state.mode==='globe';title.textContent=state.scope==='complete'?(state.mode==='globe'?'Complete host globe':'Complete host atlas'):(state.mode==='globe'?'Explored globe':'Explored room atlas');key.lastChild.textContent=state.mode==='globe'?'Drag the surface to rotate · Click a place to center it · Wheel or +/− to zoom.':'Drag or use arrow keys to pan · × counts rooms sharing a position · Fit shows the overview.';updateSummary();if(state.mode==='layout'||(state.mode==='globe'&&state.scope==='explored'))recenter(true);else{fitRooms();recenter();}};floor.onchange=()=>{state.floor=Number(floor.value);state.follow=false;state.selected=null;details(null);updateSummary();fitRooms();};search.oninput=updateSearch;found.onchange=()=>{chosen(known().find(r=>r.id===found.value),true);focusTip();};found.onfocus=focusTip;found.onblur=hideTip;canvas.onfocus=focusTip;canvas.onblur=hideTip;canvas.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.relatedTarget!==tip&&!tip.contains(e.relatedTarget))hideTip();};tip.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.relatedTarget!==canvas)hideTip();};
+ mode.onchange=()=>{state.mode=mode.value;showLayers();fit.textContent=state.mode==='globe'?'Whole planet':state.scope==='complete'?'Fit all rooms':'Fit explored';sidebar.hidden=state.mode!=='globe';knownIndex=new Map(known().map(r=>[r.id,r]));updateSearch();if(state.mode==='globe'&&state.scope==='explored')requestPins({action:'list'});floor.disabled=state.mode==='globe';title.textContent=state.scope==='complete'?(state.mode==='globe'?'Complete host globe':'Complete host atlas'):(state.mode==='globe'?'Explored globe':'Explored room atlas');key.lastChild.textContent=state.mode==='globe'?'Drag the surface to rotate · Click a place to center it · Wheel or +/− to zoom.':'Drag or use arrow keys to pan · × counts rooms sharing a position · Fit shows the overview.';updateSummary();if(state.mode==='layout'||(state.mode==='globe'&&state.scope==='explored'))recenter(true);else{fitRooms();recenter();}};floor.onchange=()=>{state.floor=Number(floor.value);state.follow=false;state.selected=null;details(null);updateSummary();fitRooms();};search.oninput=updateSearch;found.onchange=()=>{chosen(known().find(r=>r.id===found.value),state.follow);focusTip();};found.onfocus=focusTip;found.onblur=hideTip;canvas.onfocus=focusTip;canvas.onblur=hideTip;canvas.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.relatedTarget!==tip&&!tip.contains(e.relatedTarget))hideTip();};tip.onpointerleave=e=>{if(e.pointerType!=='touch'&&e.relatedTarget!==canvas)hideTip();};
  canvas.onpointerdown=e=>{
   if(e.button!==0||state.drag)return;
   canvas.focus();const point=pointerPoint(e),pressed=hit(e);

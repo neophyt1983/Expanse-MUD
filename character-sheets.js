@@ -46,6 +46,7 @@ function gearName(rig){return 'sprite-gear-'+rig.split(':').slice(1).join('-');}
 function gear(c,rig,index){
  if(!Number.isInteger(index)||index<0)return false;
  const plate=ready(gearName(rig));if(!plate||index>=plate.count)return false;
+ index=plate.tile_indices?.[index]??index;
  c.drawImage(plate.bitmap,index%32*32,Math.floor(index/32)*32,32,32,0,0,16,16);return true;
 }
 function body(c,family,rig,skin){
@@ -75,7 +76,8 @@ function body(c,family,rig,skin){
 }
 function creature(c,id,x,y,size){
  const plate=ready('sprite-wildlife');if(!plate)return false;
- const i=plate.subjects.indexOf(id);if(i<0)return false;
+ const subject=plate.subjects.indexOf(id);if(subject<0)return false;
+ const i=plate.tile_indices?.[subject]??subject;
  c.drawImage(plate.bitmap,i%16*32,Math.floor(i/16)*32,32,32,Math.round(x-size/2),Math.round(y-size/2),size,size);return true;
 }
 function activity(c,kind,x,y,size){
