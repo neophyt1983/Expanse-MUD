@@ -1,0 +1,25 @@
+name: Interior map visibility regression
+
+on:
+  pull_request:
+    paths:
+      - "engine/travel_window.py"
+      - "engine/visual_mapping.py"
+      - "tests/test_interior_room_visibility.py"
+      - ".github/workflows/interior-room-visibility.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m unittest discover -s tests -p 'test_interior_room_visibility.py' -v
