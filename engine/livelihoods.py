@@ -220,7 +220,7 @@ def supplies(w,n):
         players=[p for p in w.entities_in_room(n.location) if p.is_player and p.alive and society.friendliness(w,p,n)>50]
         if players:
             text=n.name+' is looking to buy '+w.items[iid]['name']+'. Open Talk to see current offers; they will also look elsewhere.'
-            w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(n.location,text,None)])[-500:]
+            w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(n.location,text,None,{'role':'npc','emphasis':'normal'})])[-500:]
             state['next_request']=now+max(60,int(cfg.get('request_cooldown_minutes',180)))
     regional=locations(w).get(n.group_id,{'shops':[],'resources':{}})
     for rid in regional['shops']:

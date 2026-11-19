@@ -28,9 +28,12 @@
   #log { flex: 1; overflow-y: auto; padding: 14px 16px; white-space: pre-wrap;
     word-wrap: break-word; }
   .line { margin: 2px 0; }
-  .line.user { color: #7fd1a4; }
-  .line.welcome, .line.system { color: #6b7688; font-style: italic; }
-  .line.response { color: #d8dce4; }
+  .line.user, .line.response { color: #fff; }
+  .line.welcome, .line.system { color: #7fd1a4; font-style: normal; }
+  .line.conversation-system { color: #7fd1a4; }
+  .line.conversation-character { color: #fff; }
+  .line.conversation-npc { color: #b7bdc8; }
+  .line.conversation-npc-alert, .line.conversation-npc-shout { color: #ff8585; font-weight: 700; font-size: 1.06em; line-height: 1.5; }
   .line.error { color: #e07070; }
   #input-form { display: flex; border-top: 1px solid #1e2430; background: #141821; }
   #prompt { padding: 12px 0 12px 16px; color: #7fd1a4; }
@@ -340,11 +343,22 @@ function retryConnection(){
   setTimeout(()=>{if(!window.expanseLeaving)fetchConfig().then(connect);},retry);
   retry=Math.min(retry*2,10000);
 }
-function append(kind, text) {
+function append(kind, text, conversation) {
   const log = document.getElementById('log');
   const position = window.ExpanseTranscript?.beforeAppend(kind === 'user');
   const div = document.createElement('div');
   div.className = 'line ' + kind;
+  const roles = ['system', 'character', 'npc'];
+  const fallback = kind === 'user' || kind === 'response' ? 'character' : kind === 'system' || kind === 'welcome' ? 'system' : null;
+  const role = roles.includes(conversation?.role) ? conversation.role : fallback;
+  if (role) {
+    div.classList.add('conversation-' + role);
+    div.dataset.conversationRole = role;
+    if (role === 'npc' && ['alert', 'shout'].includes(conversation?.emphasis)) {
+      div.classList.add('conversation-npc-' + conversation.emphasis);
+      div.dataset.conversationEmphasis = conversation.emphasis;
+    }
+  }
   div.textContent = text;
   log.appendChild(div);
   if (window.ExpanseTranscript) window.ExpanseTranscript.afterAppend(position);
@@ -453,7 +467,7 @@ function connect() {
     if (msg.type === 'map') { window.ExpanseSourceQuests?.locationChanged(msg.location?.id);showPlayerMap(msg); return; }
     let displayText=msg.text;
     if(msg.event==='character_entered'&&msg.player_id===window.expanseJustCreated){displayText=(msg.text||'').replace(/^Resumed as /,'Started new character as ');window.expanseJustCreated=null;}
-    append(msg.type || 'response', displayText || JSON.stringify(msg));
+    append(msg.type || 'response', displayText || JSON.stringify(msg), msg.conversation);
     window.ExpanseSourceQuests?.show(msg.source_quests,msg.event!=='character_entered');
 
   };

@@ -228,7 +228,16 @@ def doorways(world, player, visual, blocked):
     visual['tiles']=[t for t in visual['tiles'] if not (t.get('exterior') and (t['x'],t['y'],t['z']) in roof_cells)]
     actions=[]
     inside=visual['context']['kind']=='building' or bool(rows[room.id].get('property_unit_id'))
+    # Only a real, drawn compass path can replace a passage button. A named
+    # doorway or an exit with nonadjacent coordinates still needs its action,
+    # even when its destination also happens to be on the map.
+    drawn_paths={e['direction'] for e in visual.get('exits',[])
+                 if e.get('kind')=='path' and e.get('target') in shown}
     for di,dst in room.exits.items():
+        # The movement command always resolves this alias to the doorstep,
+        # regardless of what the original authored `out` edge pointed at.
+        if di=='out' and 'step outside' in room.exits:
+            continue
         if dst not in rows or world.rooms[dst].map_visibility=='hidden':
             continue
         target=world.rooms[dst].name
@@ -240,15 +249,18 @@ def doorways(world, player, visual, blocked):
             action='stairs'
             label='Stairs '+di+' · '+target
         elif inside and not destination_inside:
-            if di!='step outside' and 'step outside' in room.exits:
+            # Suppress only an equivalent doorstep choice. Other doors may
+            # lead to a different street or have different access rules.
+            if (di!='step outside' and room.exits.get('step outside')==dst
+                    and (blocked.get(di) or '')==(blocked.get('step outside') or '')):
                 continue
             action='exit'
             label='Exit to '+target
         elif inside:
-            if dst in shown or dst==room.id:
+            if di in drawn_paths or dst==room.id:
                 continue
             label='Go to '+target
-        elif di=='enter building' or di.startswith('unit ') or di=='in' and destination_inside:
+        elif destination_inside:
             if 'approach '+di in room.exits:
                 continue
             action='entry'

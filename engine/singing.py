@@ -255,7 +255,7 @@ def _perform(world, lead, song=None):
     while len(events) > EVENT_ROOMS:
         events.popitem(last=False)
     excluded = lead.id if lead.is_player else None
-    world.runtime_notifications = (getattr(world, 'runtime_notifications', []) + [(lead.location, text, excluded)])[-500:]
+    world.runtime_notifications = (getattr(world, 'runtime_notifications', []) + [(lead.location, text, excluded, {'role':'character' if lead.is_player else 'npc','emphasis':'normal'})])[-500:]
     if getattr(world, 'living_state', {}).get('resident_watches'):
         from engine import resident_watch
         resident_watch.note(world, [person.id for person in people], text)

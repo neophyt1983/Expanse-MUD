@@ -739,6 +739,8 @@ class GameServer(SocietyServer):
         from engine import magic_visuals
         packet['magic_visuals']={'session':magic_visuals.cursor(self.world)['session']}
         packet['visual']['passages']=streets.doorways(self.world,player,packet['visual'],blocked_exits)
+        from engine import city_justice
+        packet['custody'] = city_justice.projection(self.world, player)
         packet['music_cue']=soundtrack.cue(self.world,player)
         packet['soundtrack']=packet['music_cue']['track']
         from engine import singing
@@ -947,12 +949,15 @@ class GameServer(SocietyServer):
         await magic_delivery.flush(self)
         await self.update_atlases()
 
-    async def broadcast_room(self, room_id, text, exclude=None, exclude_player=None):
+    async def broadcast_room(self, room_id, text, exclude=None, exclude_player=None, conversation=None):
+        payload={"type":"system","text":text}
+        if isinstance(conversation,dict) and conversation.get('role') in ('system','character','npc'):
+            payload['conversation']={'role':conversation['role'],'emphasis':conversation.get('emphasis') if conversation.get('emphasis') in ('normal','alert','shout') else 'normal'}
         for ws, pid in list(self.clients.items()):
             ent = self.world.entities.get(pid)
             if ws is not exclude and pid != exclude_player and ent is not None and ent.location == room_id:
                 try:
-                    await ws.send(json.dumps({"type": "system", "text": text}))
+                    await ws.send(json.dumps(payload))
                 except websockets.exceptions.ConnectionClosed:
                     pass
 
@@ -967,16 +972,22 @@ class GameServer(SocietyServer):
         # Rest progress is personal; never broadcast it to room bystanders.
         messages=getattr(self.world,'rest_notifications',[])
         self.world.rest_notifications=[]
-        for pid,text in messages:
+        for entry in messages:
+            pid,text=entry[:2]
+            payload={'type':'system','text':text}
+            if len(entry)>2 and isinstance(entry[2],dict) and entry[2].get('role') in ('system','character','npc'):
+                style=entry[2]
+                payload['conversation']={'role':style['role'],'emphasis':style.get('emphasis') if style.get('emphasis') in ('normal','alert','shout') else 'normal'}
             for socket,owner in list(self.clients.items()):
                 if owner==pid:
-                    try:await socket.send(json.dumps({'type':'system','text':text}))
+                    try:await socket.send(json.dumps(payload))
                     except Exception:pass
         notifications=getattr(self.world,'runtime_notifications',[])
         self.world.runtime_notifications=[]
         for entry in notifications:
             rid,text=entry[:2]
-            await self.broadcast_room(rid,text,exclude_player=entry[2] if len(entry)>2 else None)
+            await self.broadcast_room(rid,text,exclude_player=entry[2] if len(entry)>2 else None,
+                                      **({'conversation':entry[3]} if len(entry)>3 else {}))
 
     def advance_rest_tick(self):
         """One bounded single-player step; lifecycle yields between calls.
@@ -1604,7 +1615,8 @@ class GameServer(SocietyServer):
                     self.last_maps[websocket]=map_packet
                     await websocket.send(json.dumps({'type':'response','text':response,'source_quests':source_choices,'movement_id':movement_id,'step_taken':mover.location!=origin and mover.alive and mover.hp>=initial_hp,**({'walk_arrived':walker.location==edge[2] and walker.alive and walker.hp>=walk_hp} if 'walk_edge' in packet else {})}))
                 else:
-                    await websocket.send(json.dumps({'type':'response','text':response,'source_quests':source_choices,**quest_reply,**list_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}))
+                    reply_style={'conversation':{'role':'npc','emphasis':'normal'}} if cmd.split()[0].lower() in ('talk','dialogue') else {}
+                    await websocket.send(json.dumps({'type':'response','text':response,**reply_style,'source_quests':source_choices,**quest_reply,**list_reply,**({'request_id':equipment_request,'equipment_action':True} if equipment_request else {})}))
 
                 self.mark_explored(player_id)
                 if websocket in getattr(self, 'atlas_subscribers', ()):

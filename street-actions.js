@@ -20,9 +20,39 @@
      content.prepend(keyed(box,'local services',title));
    }
  });
- let dialog,marker;
+ let dialog,marker,dialogStatus,menu,lastView,movementFeedback;
  const open=d=>window.PhonePopups?PhonePopups.open(d):d.showModal();
  const close=d=>window.PhonePopups?PhonePopups.finish(d):d.close();
+ const visible=d=>d&&(window.PhonePopups?.visible?PhonePopups.visible(d):d.open);
+ const context=s=>JSON.stringify([s.packet.character?.id,s.packet.location.id]);
+ const movementObserver=new MutationObserver(()=>{
+   const pending=movementFeedback;if(!pending)return;
+   const message=pending.source.textContent;
+   if(message===pending.message)return;
+   stopMovementFeedback();
+   if(pending.s.packet?.visual&&context(pending.s)===pending.origin)
+     feedback(pending.s,message||'Ready. Choose a passage again.');
+ });
+ function stopMovementFeedback(){movementObserver.disconnect();movementFeedback=null;}
+ function rejectedMovement(s){
+   stopMovementFeedback();
+   const source=document.getElementById('movement-status');
+   feedback(s,source?.textContent||'Movement is not ready. Try again after the current step finishes.');
+   if(source){
+     movementFeedback={s,source,origin:context(s),message:source.textContent};
+     movementObserver.observe(source,{childList:true,characterData:true,subtree:true});
+   }
+ }
+ function feedback(s,message){
+   s.inspect.textContent=message;
+   if(!s.passageStatus){
+     s.passageStatus=create('div');s.passageStatus.className='atlas-passage-status';
+     s.passageStatus.setAttribute('role','status');s.passageStatus.setAttribute('aria-live','polite');
+     (s.locationStatus?.parentElement||s.viewport).append(s.passageStatus);
+   }
+   s.passageStatus.textContent=message;s.passageStatus.hidden=!message;
+   if(visible(dialog)&&dialogStatus){dialogStatus.textContent=message;dialogStatus.hidden=!message;}
+ }
  function choices(packet){
    const inside=packet.visual.context?.kind==='building';
    const rows=packet.visual.passages||(packet.visual.exits||[]).filter(e=>e.kind!=='path'||!e.target).map(e=>({
@@ -36,30 +66,57 @@
      return {...r,kind:['up','down'].includes(d)?'stairs':'passage',label:inside?r.label.replace(/^Enter\b/i,'Go to'):r.label};
    });
  }
- function choose(title,actions){
+ function choose(title,actions,message=''){
    if(!dialog){dialog=create('dialog');dialog.id='street-passage';dialog.className='style-dialog';document.body.append(dialog);}
-   if(dialog.open)return;
+   const wasOpen=visible(dialog);
+   // The optional phone adapter moves children into its own popup. Return them
+   // before rebuilding so an already-open phone menu cannot retain old actions.
+   if(wasOpen&&window.PhonePopups)close(dialog);
    dialog.setAttribute('aria-label',title);dialog.replaceChildren(create('h2',title));
-   for(const a of actions){
-     const b=create('button',a.label+(a.blocked?' · '+a.blocked:''));b.type='button';b.disabled=!!a.blocked;
-     b.onclick=()=>{close(dialog);a.run();};dialog.append(b);
+   dialogStatus=create('p',message);dialogStatus.setAttribute('role','status');dialogStatus.hidden=!message;dialog.append(dialogStatus);
+   for(const [index,a] of actions.entries()){
+     const row=create('div');row.className='street-passage-action';
+     const b=create('button',a.label);b.type='button';b.disabled=!!a.blocked;
+     b.onclick=()=>{if(a.run()!==false)close(dialog);};row.append(b);
+     if(a.blocked){
+       const reason=create('p',a.blocked);reason.className='street-passage-reason';reason.id='street-passage-reason-'+index;
+       b.setAttribute('aria-describedby',reason.id);row.append(reason);
+     }
+     dialog.append(row);
    }
+   if(!actions.length)dialog.append(create('p','There are no special passages here. Use the map to walk to a nearby tile.'));
    if(!window.PhonePopups){const b=create('button','Close');b.onclick=()=>close(dialog);dialog.append(b);}
-   open(dialog);
+   if(!wasOpen||window.PhonePopups)open(dialog);
  }
  function passages(s){
-   const origin=s.data.center;
+   const origin=context(s);
    const rows=choices(s.packet);
-   return rows.map(r=>({...r,run:()=>{if(s.packet.location.id===origin)window.ExpansePlayerControls?.move('go '+r.direction);}}));
+   return rows.map(r=>({...r,run:()=>{
+     if(!s.packet?.visual||!s.data){reset();return false;}
+     if(context(s)!==origin){refreshMenu(s,'Your location changed. Choose a route from your current room.');return false;}
+     const current=choices(s.packet).find(a=>a.direction===r.direction&&a.kind===r.kind);
+     if(!current||current.label!==r.label||current.blocked){refreshMenu(s,current?.blocked||'That passage changed. Choose an available route.');return false;}
+     const accepted=window.ExpansePlayerControls?.move('go '+r.direction)===true;
+     if(accepted){stopMovementFeedback();feedback(s,'');}else rejectedMovement(s);
+     return accepted;
+   }}));
+ }
+ function refreshMenu(s,message=''){
+   const rows=passages(s);
+   menu={s,signature:JSON.stringify([context(s),choices(s.packet)])};
+   const title=(s.data.context?.kind==='building'?'Passages':'Routes')+' at '+s.packet.location.name;
+   choose(title,rows,message);if(message)feedback(s,message);
  }
  function select(s,tile){
+   if(!s.packet?.visual||!s.data){reset();return true;}
    if(tile.scenery)return true;
    if(tile.current){
      const rows=passages(s);if(!rows.length)return false;
-     if(rows.length===1&&!rows[0].blocked)rows[0].run();else choose('Passages at '+s.packet.location.name,rows);
+     if(rows.length===1&&!rows[0].blocked){if(!rows[0].run())refreshMenu(s,s.passageStatus?.textContent||'');}
+     else refreshMenu(s);
      return true;
    }
-   if(s.data.context?.kind!=='building'&&tile.exterior&&Array.isArray(s.packet.visual.passages)){choose('Building entrance',[{label:'Enter '+tile.name,run:()=>window.ExpansePlayerControls.walkTo(tile.id)}]);return true;}
+   if(s.data.context?.kind!=='building'&&tile.exterior&&Array.isArray(s.packet.visual.passages)){menu=null;choose('Building entrance',[{label:'Enter '+tile.name,run:()=>window.ExpansePlayerControls.walkTo(tile.id)}]);return true;}
    return false;
  }
  function accessibleTiles(s,center){
@@ -85,6 +142,7 @@
  }
  function draw(s,point){
    if(s.options.designer||s.canvas.closest('#player-visual-map')===null)return;
+   lastView=s;
    if(point)accessibleTiles(s,point);
    if(!marker){
      marker=create('button');marker.className='tile-passage';marker.type='button';
@@ -93,24 +151,41 @@
      marker.onkeydown=e=>{if(e.key==='Enter'||e.key===' ')marker.pressedPassage=null;};
    }
    const actions=choices(s.packet);marker.hidden=!actions.length||!point;
-   marker.passageContext=JSON.stringify([s.packet.character?.id,s.packet.location.id,actions.map(a=>[a.direction,a.kind,a.blocked||''])]);
+   const here=context(s);
+   if(s.passageContext!==here){if(movementFeedback?.s===s)stopMovementFeedback();if(s.passageStatus)s.passageStatus.hidden=true;s.passageContext=here;}
+   if(menu?.s===s&&visible(dialog)&&menu.signature!==JSON.stringify([here,actions]))
+     refreshMenu(s,'Available passages updated.');
+   marker.passageContext=JSON.stringify([s.packet.character?.id,s.packet.location.id,actions.map(a=>[a.direction,a.kind,a.label,a.blocked||''])]);
    if(marker.hidden)return;
    if(marker.parentElement!==s.viewport)s.viewport.append(marker);
    const primary=actions.find(r=>r.kind==='exit')||actions.find(r=>r.kind==='entry')||actions[0];
    const labels={exit:'↗ Exit',entry:'⌂ Enter',stairs:primary.direction==='up'?'↑ Stairs':'↓ Stairs'};
    const multiple=actions.length>1;
-   marker.textContent=multiple?'Ways out':(labels[primary.kind]||'Ways out');
-   marker.title=multiple?actions.map(a=>a.label).join(' · '):primary.label;
+   const inside=s.data.context?.kind==='building';
+   marker.textContent=inside&&primary.kind==='exit'?'↗ Exit'+(multiple?'…':''):
+     multiple?(inside?'Passages':'Routes'):(labels[primary.kind]||(inside?'Passage':'Route'));
+   marker.title=actions.map(a=>a.label+(a.blocked?' · '+a.blocked:'')).join(' · ');
    marker.style.maxWidth=Math.max(74,point.radius*2)+'px';
    marker.style.overflow='hidden';
    marker.setAttribute('aria-label',multiple?'Choose a passage · '+marker.title:primary.label);
    marker.style.left=point.x+'px';marker.style.top=(point.y+point.radius*.78)+'px';
-   marker.disabled=actions.every(a=>a.blocked);
+   // A blocked exit still opens its explanation instead of becoming a dead control.
+   marker.disabled=false;
    marker.onclick=()=>{
      const pressed=marker.pressedPassage;marker.pressedPassage=null;
-     if(pressed&&pressed!==marker.passageContext){s.inspect.textContent='Your location or passage changed. Select the passage again.';return;}
+     if(pressed&&pressed!==marker.passageContext){feedback(s,'Your location or passage changed. Select the passage again.');return;}
      select(s,point.tile);
    };
+ }
+ function reset(){
+   stopMovementFeedback();
+   menu=null;
+   if(visible(dialog))close(dialog);
+   if(marker){marker.hidden=true;marker.pressedPassage=null;marker.onclick=null;}
+   if(lastView){
+     if(lastView.passageStatus){lastView.passageStatus.hidden=true;lastView.passageStatus.textContent='';}
+     lastView.tileTargets?.replaceChildren();lastView.targetButtons?.clear();lastView.passageContext=null;
+   }
  }
  function roof(c,t,x,y,size){
    if(!Array.isArray(t.roof_joins))return;
@@ -125,5 +200,5 @@
    if(!sides.includes('west'))c.fillRect(x,y,edge,size);
    if(!sides.includes('east'))c.fillRect(x+size-edge,y,edge,size);
  }
- window.ExpanseStreet={draw,select,roof};
+ window.ExpanseStreet={draw,select,roof,reset};
 })();

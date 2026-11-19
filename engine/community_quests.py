@@ -218,7 +218,8 @@ def announce(w,j,text):
     room=j['home'] if j['mode']=='board' else giver.location if giver else j['home']
     if room in w.rooms:
         excluded=j['issuer'] if giver and giver.is_player else None
-        w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(room,text,excluded)])[-500:]
+        style={'role':'character' if giver and giver.is_player else 'npc','emphasis':'normal'}
+        w.runtime_notifications=(getattr(w,'runtime_notifications',[])+[(room,text,excluded,style)])[-500:]
 
 
 def offer_plan(w,p,spec,recipient=None):

@@ -219,8 +219,13 @@ def window(world, player, compiled, extent, destination=None, *, require_open=Fa
                 continue
             other = rows[target]
             target_kind, _, target_building = other['_visual_style']
+            # Building metadata is descriptive, not a navigation boundary.
+            # Legacy multiroom interiors can assign a separate building id to
+            # each connected room. Follow real, same-floor, open doorways;
+            # never reveal hidden rooms or leave the interior kind.
             if (world.rooms[target].map_visibility == 'hidden' or target_kind != kind
-                    or kind != 'outdoors' and target_building.get('id') != building.get('id')):
+                    or kind not in ('outdoors', 'building')
+                    and target_building.get('id') != building.get('id')):
                 continue
             expected = tuple(a + b for a, b in zip(positions[rid], vector))
             if positions[target] != expected and not crosses_seam(row, other, bearing):

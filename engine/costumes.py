@@ -95,7 +95,7 @@ def npc_doll(world, ent, row, appear, equipment):
 
 def distant_portrait(actor):
     """Only visible pixels cross a room boundary. Naming a stranger requires meeting."""
-    out={k:actor[k] for k in ('kind','room','subject','pixel_art','combat_pose','pose_art') if k in actor}
+    out={k:actor[k] for k in ('kind','room','subject','stationary','pixel_art','combat_pose','pose_art') if k in actor}
     out['appearance']={k:v for k,v in actor['appearance'].items() if k not in ('seed','sources')}
     if 'paperdoll' in actor:
         doll=actor['paperdoll']
