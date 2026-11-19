@@ -1,0 +1,36 @@
+name: Expanse community prototype checks
+
+on:
+  pull_request:
+    paths:
+      - "community/**"
+      - ".github/workflows/community-prototype-tests.yml"
+  push:
+    branches:
+      - "feature/expanse-community-staging-20261119"
+    paths:
+      - "community/**"
+      - ".github/workflows/community-prototype-tests.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  forum-and-wiki:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: community/requirements.txt
+      - name: Install isolated community dependencies
+        run: python -m pip install -r community/requirements.txt
+      - name: Run forum and wiki regression tests
+        run: python -m unittest discover -s community/tests -v
+      - name: Build static Fastmail wiki and status files
+        run: python community/wiki/build.py
