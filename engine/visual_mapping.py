@@ -96,6 +96,24 @@ def render_visual(byid, positions, center, visible, radius=12, visited=None, loc
     elif building:
         bid = building.get('id', center)
         context_rooms = {rid for rid in visible if styles[rid][0] == kind and styles[rid][2].get('id') == bid}
+        if kind == 'building':
+            # Adjacent rooms in the same real interior may have different
+            # authored building ids. Keep all *already visible* connected
+            # interior rooms in the projection, following either direction
+            # of a real doorway; never add an unseen room or the outdoors.
+            neighbors = {rid: set() for rid in visible if styles[rid][0] == kind}
+            for rid in neighbors:
+                for target in byid[rid].get('exits', {}).values():
+                    if target in neighbors:
+                        neighbors[rid].add(target)
+                        neighbors[target].add(rid)
+            pending = list(context_rooms | {center})
+            context_rooms.add(center)
+            while pending:
+                for target in neighbors.get(pending.pop(), ()):
+                    if target not in context_rooms:
+                        context_rooms.add(target)
+                        pending.append(target)
         context = dict(id=kind + ':' + bid, label=building.get('name', byid[center]['name']), kind=kind)
     else:
         # An unnamed interior is the connected, discovered component only.
