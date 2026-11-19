@@ -91,6 +91,35 @@ def compile_map(rooms):
         room['_visual_style'] = room_style(room)
     return {r['id']:r for r in rooms},positions,warnings
 
+
+def adjacent_step(rows, positions, source, direction, target):
+    """A real exit's surveyed same-floor step, including a named doorway.
+
+    A compass label with inconsistent coordinates remains a portal. A named
+    door may use its actual adjacent displacement, but never invents an edge,
+    collapses a long passage, changes floors or crosses an unplaced gap.
+    """
+    if source not in positions or target not in positions:
+        return None
+    bearing = direction.removeprefix('approach ')
+    vector = VECTORS.get(bearing)
+    if vector:
+        if vector[2]:
+            return None
+        expected = tuple(a + b for a, b in zip(positions[source], vector))
+        from engine.visual_mapping import crosses_seam
+        return vector if positions[target] == expected or crosses_seam(rows[source], rows[target], bearing) else None
+    delta = tuple(b - a for a, b in zip(positions[source], positions[target]))
+    return delta if len(delta) == 3 and not delta[2] and delta in VECTORS.values() else None
+
+
+def geometry_revision(world, compiled):
+    """Session revision for a rebuilt survey; no player discovery or save data."""
+    if getattr(world, '_map_revision_source', None) is not compiled:
+        world._map_revision_source = compiled
+        world._map_geometry_revision = getattr(world, '_map_geometry_revision', 0) + 1
+    return world._map_geometry_revision
+
 def render(rooms, center, player=None, players=(), explored=(), designer=False, compiled=None, strict=False, local_visible=None, local_positions=None):
     if not rooms and not compiled:return {'text':'No rooms.','cells':[],'legend':[],'warnings':[]}
     byid,pos,warnings=compiled or compile_map(rooms)

@@ -19,7 +19,8 @@
       const v = packet.visual, prev = this.packet, old = prev?.visual;
       if (prev === packet) return;
       const samePlane = old && old.context?.id === v.context?.id && old.floor === v.floor &&
-        prev.character?.id === packet.character?.id && old.travel_world === v.travel_world;
+        prev.character?.id === packet.character?.id && old.travel_world === v.travel_world &&
+        old.geometry_revision === v.geometry_revision;
       if (!samePlane) this.reset();
       else if (old.center !== v.center) {
         const here = v.tiles.find(t => t.current), before = old.tiles.find(t => t.current);
@@ -71,11 +72,12 @@
         return;
       }
       const id = ++sequence;
-      this.pending = {id, extent};
+      this.pending = {id, extent, geometry_revision:v.geometry_revision};
       if (send(v.center, extent, id) === false) this.pending = null;
     }
     receive(message) {
-      if (message.request_id !== this.pending?.id || message.center !== this.packet?.visual.center) return false;
+      if (!this.pending || message.request_id !== this.pending.id || message.center !== this.packet?.visual.center) return false;
+      if (message.geometry_revision !== undefined && message.geometry_revision !== this.pending?.geometry_revision) return false;
       if (!Array.isArray(message.tiles) || !message.tiles.some(t => t.id === message.center && t.dx === 0 && t.dy === 0))
         return false;
       this.replace(message.tiles, this.pending.extent);

@@ -37,8 +37,9 @@ def encounter_state(world, room, source):
 
 
 def prerequisite(world,player,source):
+    from engine import task_skills
     skill=source.get('required_skill')
-    if skill and skill not in player.abilities and player.progress.get('skills',{}).get(skill,0)<source.get('required_skill_level',1):
+    if skill and skill not in player.abilities and task_skills.level(world,player,skill)<source.get('required_skill_level',1):
         return 'Learn '+getattr(world,'abilities',{}).get(skill,{}).get('name',skill.replace('_',' '))+'.'
     return ''
 

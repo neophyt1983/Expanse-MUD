@@ -1,54 +1,21 @@
-name: Map, passage and panel regressions
+name: World simulation and interface regressions
 
 on:
   pull_request:
     paths:
-      - "engine/travel_window.py"
-      - "engine/visual_mapping.py"
-      - "engine/streets.py"
-      - "engine/city_justice.py"
-      - "engine/civic_program.py"
-      - "engine/costumes.py"
-      - "engine/living.py"
-      - "engine/locks.py"
-      - "engine/mortality.py"
-      - "engine/social.py"
-      - "engine/community_quests.py"
-      - "engine/livelihoods.py"
-      - "engine/singing.py"
-      - "server/game_server.py"
+      - "engine/**"
+      - "server/**"
+      - "web/**"
+      - "*.js"
+      - "*.css"
       - "index.html"
-      - "web/index.html"
-      - "web/mobile-layout.css"
-      - "web/street-actions.js"
-      - "web/player-controls.js"
-      - "web/visual-map.js"
-      - "web/visual-map.css"
-      - "web/workspace.js"
-      - "web/workspace.css"
-      - "web/locks-ui.js"
-      - "street-actions.js"
-      - "player-controls.js"
-      - "visual-map.js"
-      - "visual-map.css"
-      - "locks-ui.js"
-      - "tests/test_interior_room_visibility.py"
-      - "tests/test_street_passages.py"
-      - "tests/test_street_actions.cjs"
-      - "tests/test_location_scroll.cjs"
-      - "tests/test_custody_passages.py"
-      - "tests/test_custody_status.cjs"
-      - "tests/test_carriage_service.py"
-      - "tests/test_carriage_map.cjs"
-      - "tests/test_lock_theft_communication.py"
-      - "tests/test_lock_theft_labels.cjs"
-      - "tests/test_conversation_roles.cjs"
-      - "tests/test_conversation_notifications.py"
-      - "tests/support/menu-dom.cjs"
-      - "tools/probe_location_panel_layout.py"
-      - "tools/probe_passage_layout.py"
-      - "tools/probe_custody_layout.py"
-      - "tools/probe_conversation_layout.py"
+      - "tests/**"
+      - "tools/probe_*_layout.py"
+      - "tools/stage_*_content.py"
+      - "tools/stage_market_employment.py"
+      - "tools/author_animal_profiles.py"
+      - "tools/audit_world_map.py"
+      - "tools/audit_supply_chains.py"
       - ".github/workflows/interior-room-visibility.yml"
   workflow_dispatch:
 
@@ -104,3 +71,15 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu --no-sandbox
         run: python tools/probe_conversation_layout.py
+      - name: Check guild, theft, skill and work controls in a real browser
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu --no-sandbox
+        run: python tools/probe_task_actions_layout.py
+      - name: Check emotional expression and complete speech in a real browser
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu --no-sandbox
+        run: |
+          python tools/probe_npc_expression_layout.py
+          python tools/probe_speech_bubble_layout.py

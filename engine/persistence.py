@@ -116,6 +116,8 @@ def load_player(conn, player_id: str, mode="single"):
                 setattr(ent, field, json.loads(val))
             except json.JSONDecodeError:
                 pass
+    from engine import task_skills
+    task_skills.validate_saved(ent.progress)
     return ent
 
 

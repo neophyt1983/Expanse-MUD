@@ -175,6 +175,18 @@ def make(folder, seed):
             profile['influences']=influence
             if uid in additions_ids:addition_rows[uid]['founding_profile']=profile
             else:changes.setdefault(uid,{})['founding_profile']=profile
+    # New adventure creation is the sole automatic founding boundary. Source
+    # parameters are persisted with this roster, then realized once per NPC.
+    from engine import npc_backgrounds
+    for person in people:
+        definition = {**person, **changes.get(person['id'], {})}
+        background = npc_backgrounds.parameters(definition, rooms)
+        if background:
+            changes.setdefault(person['id'], {})['background'] = background
+    for person in additions:
+        background = npc_backgrounds.parameters(person, rooms)
+        if background:
+            person['background'] = background
     return dict(version=1,seed=seed_text,changes=changes,additions=additions)
 
 
@@ -187,10 +199,11 @@ def apply(folder, roster):
         change=roster['changes'].get(person['id'])
         if not change:continue
         person.update(change)
+        profile=change.get('founding_profile')
+        if not profile:continue
         prefs=person.setdefault('gift_preferences',{})
-        profile=change['founding_profile']
         for key,source in [('wanted_items','favourites'),('disliked_items','dislikes')]:
-            prefs[key]=list(dict.fromkeys([*prefs.get(key,[]),*profile[source]]))
+            prefs[key]=list(dict.fromkeys([*prefs.get(key,[]),*profile.get(source,[])]))
         prefs['disliked_items']=[i for i in prefs['disliked_items'] if i not in prefs['wanted_items']]
     people.extend(n for n in roster['additions'] if n['id'] not in ids)
     if roster['changes'] or roster['additions']:

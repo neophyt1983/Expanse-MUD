@@ -6,6 +6,111 @@ from engine import quest_progress, gazette
 CHUNK = 8
 STEPS = {'north': (0,-1), 'south': (0,1), 'east': (1,0), 'west': (-1,0),
          'northeast': (1,-1), 'northwest': (-1,-1), 'southeast': (1,1), 'southwest': (-1,1)}
+RECOVERIES = 'expedition_recoveries_v1'
+
+
+def search_sources(w):
+    """Actual expedition landmarks; item.location alone is never a supply."""
+    sources=[]
+    for region in getattr(w, 'field_regions', ()):
+        rid=f'{region.prefix}_{region.landmark_x}_{region.trail_y}'
+        reward=getattr(w, 'room_details', {}).get(rid, {}).get('search_reward')
+        if rid in w.rooms and isinstance(reward, str) and reward in w.items:
+            sources.append((rid, reward))
+    return sources
+
+
+def validate_recoveries(state):
+    if RECOVERIES not in state:return
+    ledger=state[RECOVERIES]
+    if (not isinstance(ledger, dict) or type(ledger.get('version')) is not int or ledger.get('version') != 1
+            or not isinstance(ledger.get('sources'), dict)):
+        raise ValueError('Invalid saved expedition recoveries.')
+    for rid, rewards in ledger['sources'].items():
+        if not isinstance(rid, str) or not isinstance(rewards, dict):
+            raise ValueError('Invalid saved expedition recovery source.')
+        for iid, record in rewards.items():
+            if not isinstance(iid, str):raise ValueError('Invalid saved expedition reward.')
+            if record is None:continue  # Examined during migration, still in place.
+            if (not isinstance(record, dict)
+                    or record.get('evidence') not in ('search', 'legacy_copy', 'legacy_claim', 'legacy_turn_in')
+                    or (record.get('minute') is not None and
+                        (type(record['minute']) is not int or record['minute'] < 0))):
+                raise ValueError('Invalid saved expedition recovery record.')
+
+
+def _other_reward_sources(w, rewards):
+    """An ordinary authored copy must not empty an unrelated search source."""
+    from engine import loot_tables
+    other=set()
+    for row in getattr(w, 'room_details', {}).values():
+        other.update(row.get('items', []))
+        other.update(i for i, n in row.get('workshop', {}).get('initial_stock', {}).items() if n > 0)
+        for lock in row.get('locks', []):other.update(lock.get('contents', []))
+    for row in w.npcs.values():
+        other.update(row.get('inventory', []));other.update(row.get('equipped', {}).values())
+        other.update(drop if isinstance(drop, str) else drop.get('item') for drop in row.get('drops', []))
+        other.update(loot_tables.possible_items(row))
+        for stock in row.get('stock', []):
+            if isinstance(stock, str):other.add(stock)
+            elif stock.get('qty', stock.get('quantity', stock.get('initial', 10))) != 0:other.add(stock.get('item'))
+    for kind, key in (('recipes', 'outputs'), ('resources', 'yields')):
+        for row in getattr(w, kind, {}).values():other.update(row.get(key, {}))
+    for row in getattr(w, 'encounters', {}).values():
+        other.update(row.get('loot', {}));other.update(row.get('harvest', {}))
+    for row in w.quests.values():other.update(row.get('reward_items', []))
+    return other & rewards
+
+
+def reconcile_recoveries(w, saved_players=()):
+    """Seed legacy evidence once, without altering copies or player records.
+
+    The server supplies only this world's/mode's offline records at lifecycle
+    boundaries. The old search wrote no counter, so a visit or accepted quest
+    is not evidence. A retained copy/claim/turn-in can identify a unique reward;
+    ambiguous rewards with other authored sources remain unguessed.
+    """
+    sources=search_sources(w)
+    if not sources:return
+    if not hasattr(w, 'living_state'):w.living_state={}
+    validate_recoveries(w.living_state)
+    ledger=w.living_state.setdefault(RECOVERIES, {'version':1, 'sources':{}})['sources']
+    pending=[(rid, iid) for rid, iid in sources if iid not in ledger.get(rid, {})]
+    if not pending:return
+    from collections import Counter
+    counts=Counter(iid for _, iid in sources)
+    unambiguous={iid for iid, count in counts.items() if count == 1}
+    # A preserved record for an older/removed source can already explain a
+    # carried copy. Adding a different source is not a second legacy recovery.
+    unambiguous-={iid for rewards in ledger.values() for iid in rewards}
+    unambiguous-=_other_reward_sources(w, unambiguous)
+    held=set();completed=set();claimed=set()
+    records=({'inventory':e.inventory, 'equipped':e.equipped, 'progress':e.progress}
+             for e in w.entities.values())
+    from itertools import chain
+    for row in chain(records, w.living_state.get('companion_reserve', {}).values(), saved_players):
+        held.update(row.get('inventory', []));held.update(row.get('equipped', {}).values())
+        progress=row.get('progress', {})
+        alternatives=progress.get('quest_alternatives', {})
+        completed.update(qid for qid, status in progress.get('quests', {}).items()
+                         if status == 'complete' and not alternatives.get(qid, {}).get('completed'))
+        completed.update(qid for qid in progress.get('quest_times', {})
+                         if not alternatives.get(qid, {}).get('completed'))
+    for room in w.rooms.values():held.update(room.items)
+    for row in w.living_state.get('physical_locks', {}).values():held.update(row.get('contents', []))
+    for row in w.living_state.get('economy', {}).get('shops', {}).values():
+        held.update(iid for iid, count in row.get('stock', {}).items() if count > 0)
+    for row in getattr(w, 'shop_state', {}).values():held.update(iid for iid, count in row.items() if count > 0)
+    for row in getattr(w, 'item_claims', {}).values():claimed.update(iid for iid, count in row.items() if count > 0)
+    completed.update(w.living_state.get('completed_world', []))
+    turned_in={iid for qid in completed for iid, count in w.quests.get(qid, {}).get('required_items', {}).items() if count > 0}
+    for rid, iid in pending:
+        evidence=None
+        if iid in unambiguous:
+            if iid in held:evidence='legacy_copy'
+            elif iid in claimed:evidence='legacy_claim'
+            elif iid in turned_in:evidence='legacy_turn_in'
+        ledger.setdefault(rid, {})[iid]=({'minute':None, 'evidence':evidence} if evidence else None)
 
 def tile(w,i,x,y):
     return f'{w.field_regions[i].prefix}_{x}_{y}'
@@ -256,9 +361,17 @@ def command(ctx,args):
         a.progress['field_shelter_until']=now+20
         return 'You find a protected place to wait through the next hazard.'
     if args=='search' and (x,y)==(r.landmark_x,r.trail_y):
-        relic=w.room_details[a.location]['search_reward']
-        if relic in a.inventory:return 'You already carry '+r.relic+'.'
+        relic=w.room_details[a.location].get('search_reward')
+        if relic not in w.items:return 'There is no relic to recover here.'
+        reconcile_recoveries(w)
+        source=w.living_state[RECOVERIES]['sources'][a.location]
+        if source[relic] is not None:return 'This place has already yielded '+r.relic+'. There is no other relic to recover here.'
+        source[relic]={'minute':now, 'evidence':'search'}
         a.inventory.append(relic)
+        quest_progress.action(a, 'search:'+a.location)
+        from engine import task_skills
+        task_skills.practice(w, a, 'observation', effort=.5,
+                             event_id='expedition-search:'+a.location+':'+relic)
         return 'You recover '+r.relic+'.'
     if args=='face' and (x,y)==(r.landmark_x,r.trail_y):
         if now<a.progress.get('field_retry',0):return 'Take a breath. You can face the vigil again at the next game minute.'

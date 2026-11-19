@@ -1,8 +1,9 @@
 """Theft wording, permissions and retained evidence use real container actions."""
 import unittest
 
-from engine import locks, mortality, speech_bubbles
+from engine import burglary, locks, mortality, speech_bubbles
 from engine.core import Entity, Room, World
+from test_burglary import Rolls
 
 
 def kitchen(*, witness=True):
@@ -41,9 +42,10 @@ class ContainerTheftCommunicationTests(unittest.TestCase):
 
     def test_witnessed_theft_names_the_act_and_retains_the_exact_container_source(self):
         world, player, row = kitchen()
-        text = locks.act(world, player, 'take', 'pantry')
-        self.assertIn('You steal the contents of Pantry cabinet.', text)
-        self.assertIn('Arden Lightbrook witnesses the theft.', text)
+        player.progress['skills'] = {'burglary': 10}
+        text = locks.act(world, player, 'take', 'pantry', rng=Rolls(.1, .1, 0))
+        self.assertIn('You steal 2 × Bread from Pantry cabinet.', text)
+        self.assertIn('Arden Lightbrook notices the theft.', text)
         self.assertEqual(world.runtime_notifications, [('kitchen',
                          'Arden Lightbrook shouts at Gorimore Wild, “Stop! Taking from Pantry cabinet is theft!”', player.id,
                          {'role':'npc','emphasis':'shout'})])
@@ -61,14 +63,18 @@ class ContainerTheftCommunicationTests(unittest.TestCase):
         self.assertEqual(report['witnesses'], ['arden'])
         evidence = report['evidence'][-1]
         self.assertEqual(evidence['source'], {'kind': 'container', 'id': 'pantry',
-                                             'name': 'Pantry cabinet', 'action': 'take'})
+                                             'name': 'Pantry cabinet', 'action': 'take', 'quantity': 2})
         self.assertEqual(evidence['room'], 'kitchen')
         self.assertEqual(evidence['actor'], player.id)
 
     def test_unwitnessed_taking_still_says_steal_without_inventing_an_accusation(self):
         world, player, row = kitchen(witness=False)
-        text = locks.transfer(world, player, 'pantry', 'bread', 1)
-        self.assertEqual(text, 'You steal 1 × Bread from Pantry cabinet.')
+        text = locks.transfer(world, player, 'pantry', 'bread', 1, rng=Rolls(.1, .1))
+        self.assertTrue(text.startswith('You steal 1 × Bread from Pantry cabinet.'))
+        self.assertNotIn('improves to 1', text)
+        self.assertGreater(player.progress['task_practice_v1']['burglary']['xp'],0)
+        self.assertEqual(burglary.skill(world,player,'burglary'),0)
+        self.assertNotIn('notices', text)
         self.assertEqual(mortality.state(world)['wanted'], {})
         self.assertEqual(getattr(world, 'runtime_notifications', []), [])
         self.assertIsNone(speech_bubbles.visible(world, player, world.entities)[0])
@@ -88,25 +94,35 @@ class ContainerTheftCommunicationTests(unittest.TestCase):
                 view = locks.projection(world, player)[0]
                 self.assertTrue(view['permitted'])
                 self.assertEqual(view['permission_warning'], '')
-                text = locks.act(world, player, 'take', 'pantry')
+                rolls = Rolls()
+                text = locks.act(world, player, 'take', 'pantry', rng=rolls)
                 self.assertEqual(text, 'You take the contents of Pantry cabinet.')
+                self.assertEqual(rolls.calls, 0)
+                self.assertNotIn(burglary.ATTEMPT_KEY, player.progress)
+                self.assertNotIn(burglary.PRACTICE_KEY, player.progress)
                 self.assertEqual(mortality.state(world)['wanted'], {})
                 self.assertEqual(getattr(world, 'runtime_notifications', []), [])
 
-    def test_an_awake_owner_calls_out_once_and_all_actual_witnesses_remain_in_evidence(self):
+    def test_a_detecting_owner_calls_out_once_and_only_detectors_remain_in_evidence(self):
         world, player, _ = kitchen()
         world.npcs['visitor'] = {'social_profile': {'sentient': True}}
         for ident, name in [('visitor1', 'First Visitor'), ('visitor2', 'Second Visitor')]:
             person = Entity(ident, name, 100, 100, 10, 10, source_def='visitor', location='kitchen')
             world.entities[ident] = person
             world.rooms['kitchen'].entities.insert(0, ident)
-        text = locks.act(world, player, 'take', 'pantry')
-        self.assertIn('witness the theft', text)
+        # The owner and second visitor notice; the first visitor misses it.
+        text = locks.act(world, player, 'take', 'pantry', rng=Rolls(.1, .1, 0, .99, 0))
+        self.assertIn('Arden Lightbrook notices the theft.', text)
         self.assertIn('Arden Lightbrook shouts', world.rest_notifications[0][1])
         self.assertEqual(len(world.rest_notifications), 1)
         self.assertEqual(set(mortality.state(world)['wanted'][player.id]['witnesses']),
-                         {'arden', 'visitor1', 'visitor2'})
+                         {'arden', 'visitor2'})
         self.assertEqual(len(world.runtime_notifications), 1)
+        for ident in ('arden','visitor2','visitor1'):
+            self.assertEqual(burglary.skill(world,world.entities[ident],'observation'),0)
+            self.assertGreater(world.entities[ident].progress['task_practice_v1']['observation']['xp'],0)
+        self.assertGreater(world.entities['visitor2'].progress['task_practice_v1']['observation']['xp'],
+                           world.entities['visitor1'].progress['task_practice_v1']['observation']['xp'])
 
 
 if __name__ == '__main__':

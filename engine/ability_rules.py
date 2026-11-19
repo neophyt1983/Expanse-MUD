@@ -152,6 +152,9 @@ def _cast(w,p,a,target,*,lawful=False,counter=True,npc_allies=None):
         if c['cooldown_minutes']:
             p.progress.setdefault('ability_recovery_v1',{})[a['id']]=living.state(w)['minute']+c['cooldown_minutes']
         committed=True
+        from engine import task_skills
+        task_skills.practice(w,p,'spellcraft' if c['family']=='mage' else 'fighting',
+                             difficulty=c.get('minimum_level',1),effort=2)
     def finish(text,targets,changed=True):
         commit()
         if changed:magic_visuals.record(w,a.get('presentation'),p,targets,witnesses=witness_ids)
@@ -306,6 +309,8 @@ def cast_legacy(ctx,a,target):
     def finish(text,targets,changed=True):
         if changed:
             pr['mana']-=cost
+            from engine import task_skills
+            task_skills.practice(w,p,'spellcraft',difficulty=a.get('minimum_level',1),effort=2)
             magic_visuals.record(w,a.get('presentation'),p,targets,witnesses=witness_ids)
         return text
     if effect=='heal':
@@ -331,6 +336,8 @@ def cast_legacy(ctx,a,target):
         plan=spell_travel.prepare_escape(w,p,a)
         text=spell_travel.execute(w,p,a,plan)
         pr['mana']-=cost
+        from engine import task_skills
+        task_skills.practice(w,p,'spellcraft',difficulty=a.get('minimum_level',1),effort=2)
         return text
     if effect=='enchant':
         before=dict(pr['enchants'])

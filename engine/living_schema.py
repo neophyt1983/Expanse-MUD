@@ -120,6 +120,17 @@ DEFAULTS['room']['locks']=[]
 DEFAULTS['npc'].update(lockpicking=0,lock_keys=[],locksmith=False,lock_trainer=False,locksmith_fee=0,lock_lesson_fee=2,lock_work_start=0,lock_work_end=1500)
 DEFAULTS['class']['lockpicking']=0
 DEFAULTS['item']['lockpick_tool']=False
+for _theft_kind in ('npc','class'):
+    DEFAULTS[_theft_kind].update(burglary=0,observation=0,theft_difficulty=25)
+DEFAULTS['npc']['burglary_plan']={}
+
+# Empty profiles use bounded local needs; flight and livestock remain explicit.
+DEFAULTS['species'].update(animal_behavior={},flight={})
+DEFAULTS['npc']['livestock']={}
+DEFAULTS['room']['animal_shelter']=False
+DEFAULTS['item']['publication']={}
+DEFAULTS['room']['employment']=[]
+DEFAULTS['npc']['employment_plan']={}
 
 # Optional ability rules retain legacy behavior when absent.
 DEFAULTS["ability"]["ability_rules"]={}
@@ -139,3 +150,14 @@ DEFAULTS['quest'].update(quest_chain={},quest_split_migration={})
 DEFAULTS['race']['singing']={}
 DEFAULTS['npc']['singing']={}
 DEFAULTS['item'].update(song={},instrument={})
+
+# Task guilds remain absent until a world authors actual services and sources.
+DEFAULTS['group']['guild']={}
+DEFAULTS['quest']['guild']={}
+DEFAULTS['npc']['guild_plan']={}
+DEFAULTS['npc']['task_skills']={}
+DEFAULTS['class']['task_skills']={}
+DEFAULTS['room']['clinical_services']={}
+DEFAULTS['recipe']['artwork']={}
+DEFAULTS['npc'].update(art_commissions=[],art_taste={},art_plan={})
+DEFAULTS['npc']['background']={}

@@ -8,6 +8,8 @@ def requirement(w,p,e):
     if e.is_player or e.location!=p.location or not d.get('tameable'):raise ValueError('Choose a tameable creature that is here now.')
     if not p.alive or not e.alive:raise ValueError('Both you and the creature must be alive.')
     if e.progress.get('companion_owner'):raise ValueError('That animal already has a caregiver.')
+    from engine import animal_life
+    if animal_life.livestock(w,e):raise ValueError('That animal already belongs to a livestock keeper.')
     from engine import companion_union
     if companion_union.eligible(w,p):companion_union.check_space(w,p,new=True)
     elif len(living.progress(p)['companions'])>=2:raise ValueError('You can travel with at most two companions.')

@@ -58,27 +58,35 @@ def price(w,iid,buying=True,rid=None):
         cfg,s=shop(w,rid);value=needs_market.quote(w,iid,s['stock'].get(iid,0),cfg.get('stock_limit',40),value,w.rooms[rid].group)
     return value if buying else max(1,value//2)
 
-def produce(w):
+def produce(w, *, unavailable_workers=()):
     if not enabled(w):return
     now=living.state(w)['minute'];e=economy(w)
     if now==e['minute']:return
     e['minute']=now
-    from engine import livelihoods
+    from engine import livelihoods,employment,knowledge,gathering,task_skills,sleep_movement,artworks
     # A production phase does not advance time or change opening rules/structure
     # damage. Keep this cache local so creator edits and later hazards are fresh.
     open_rooms={}
     def is_open(rid):
         if rid not in open_rooms:open_rooms[rid]=livelihoods.room_open(w,rid)
         return open_rooms[rid]
+    def committed(worker):
+        art=artworks.active(w,worker)
+        return (worker.id in unavailable_workers or employment.active(w,worker)
+                or art and not art.get('paused') or worker.progress.get('guild_work_v1',{}).get('operation'))
     for rid,rd in w.room_details.items():
         cfg=rd.get('workshop')
         if not cfg:continue
         cfg,s=shop(w,rid)
         from engine import livelihoods
-        workers=[n for n in w.entities_in_room(rid) if not n.is_player and n.alive and livelihoods.definition(w,n).get('profession')=='producer' and livelihoods.on_shift(w,n) and is_open(rid)]
+        workers=[n for n in w.entities_in_room(rid) if not n.is_player and n.alive and not sleep_movement.asleep(w,n) and not committed(n) and livelihoods.definition(w,n).get('profession')=='producer' and livelihoods.on_shift(w,n) and is_open(rid)]
         s['workers']=[n.name for n in workers]
         if not workers or now-s['last']<cfg.get('interval',30):continue
         s['last']=now
+        s['shortages']=[]
+        # Being physically at a posted workshop is a source of instruction.
+        # This never grants private recipes or unread publication contents.
+        for worker in workers:knowledge.learn_local_recipes(w,worker)
         # Workers share local batches and cooldowns, including finite reserves.
         for resource_id in rd.get('resources',[]):
             res=getattr(w,'resources',{}).get(resource_id,{})
@@ -87,52 +95,77 @@ def produce(w):
             from engine import ecology,resource_nodes,geology_impacts
             if geology_impacts.resource_blocked(w,rid,resource_id):continue
             if not ecology.in_season(w,res,rid) or not ecology.available(w,rid,res):continue
+            eligible=[worker for worker in workers if worker.group_id==w.rooms[rid].group
+                      and (not res.get('tool') or res['tool'] in worker.inventory)
+                      and not gathering.prerequisite(w,worker,res)]
+            if not eligible:continue
             if resource_nodes.managed(res,w.items):
-                eligible=[worker for worker in workers if worker.group_id==w.rooms[rid].group and (not res.get('tool') or res['tool'] in worker.inventory)]
                 if 'reserve_batches' in res and resource_nodes.visual_config(res,w.items) is not None:
                     # Never spend a finite mixed batch unless every yield fits.
                     # Renewable resources retain their existing capped stock.
                     if any(type(s['stock'].get(iid,0)) is not int or not 0<=s['stock'].get(iid,0)<=200-count for iid,count in res['yields'].items()):continue
                 if eligible and resource_nodes.harvest(w,rid,res,eligible[0]):
                     for iid,n in res.get('yields',{}).items():s['stock'][iid]=min(200,s['stock'].get(iid,0)+n)
+                    task_skills.practice(w,eligible[0],task_skills.resource_task(w,res),difficulty=res.get('required_skill_level',10),effort=2,event_id=f'produce:{rid}:{resource_id}:{now}')
                 continue
             # Shared wildlife collection leaves a due batch available to others
             # while this workshop already holds one batch of each output.
             if res.get('shared_renewal') and all(s['stock'].get(i,0)>=n for i,n in res.get('yields',{}).items()):continue
+            if all(s['stock'].get(i,0)>=200 for i in res.get('yields',{})):continue
             key=rid+':'+resource_id
             ledger=living.state(w).setdefault('shared_resource_times',{}) if res.get('shared_renewal') else e.setdefault('harvest_times',{})
             due=ledger.get(key,-100000)
             if now-due<res.get('renewal_minutes',60):continue
             ledger[key]=now
-            for iid,n in res.get('yields',{}).items():s['stock'][iid]=min(200,s['stock'].get(iid,0)+n*(1 if res.get('shared_renewal') else len(workers)))
+            contributors=eligible[:1] if res.get('shared_renewal') else eligible
+            for iid,n in res.get('yields',{}).items():s['stock'][iid]=min(200,s['stock'].get(iid,0)+n*len(contributors))
+            for worker in contributors:task_skills.practice(w,worker,task_skills.resource_task(w,res),difficulty=res.get('required_skill_level',10),effort=2,event_id=f'produce:{rid}:{resource_id}:{now}')
         for recipe_id in cfg.get('recipes',[]):
             rec=getattr(w,'recipes',{}).get(recipe_id,{})
             ingredients=rec.get('ingredients',{});outputs=rec.get('outputs',{})
             if not ingredients or not outputs:continue
             from engine import ecology
             if not ecology.available(w,rid,rec):continue
+            makers=[worker for worker in workers if recipe_id in knowledge.known_ids(w,worker,'recipes')
+                    and knowledge.recipe_source_ready(worker,rec)
+                    and not gathering.prerequisite(w,worker,rec)
+                    and (not rec.get('tool') or rec['tool'] in worker.inventory)
+                    and all(ability in worker.abilities for ability in rec.get('required_abilities',[]))]
+            if rec.get('station','hand')!='hand' and rec['station'] not in rd.get('facilities',[]):makers=[]
+            if rec.get('prerequisites'):
+                from engine.quest_progress import status as quest_status
+                makers=[worker for worker in makers if all(quest_status(w,worker,qid)=='complete' for qid in rec['prerequisites'])]
+            if not makers:
+                s['shortages'].append(rec.get('name',recipe_id)+': no available worker with the instruction, tools and skills.')
+                continue
             # One bounded batch per staffed shift; inputs are actually consumed.
-            if any(s['stock'].get(i,0)<n for i,n in ingredients.items()):continue
+            missing=[w.items.get(i,{}).get('name',i) for i,n in ingredients.items() if s['stock'].get(i,0)<n]
+            if missing:
+                s['shortages'].append(rec.get('name',recipe_id)+': missing '+', '.join(missing)+'.')
+                continue
             if any(s['stock'].get(i,0)>=cfg.get('stock_limit',40) for i in outputs):continue
+            maker=makers[0]
             for i,n in ingredients.items():s['stock'][i]-=n
             for i,n in outputs.items():s['stock'][i]=s['stock'].get(i,0)+n
             if s['gold']>0:
-                s['gold']-=1;workers[0].gold+=1
+                s['gold']-=1;maker.gold+=1
                 from engine import npc_life
-                npc_life.earned(w,workers[0],1)
-            wear(workers[0])
-            for iid in workers[0].inventory:
-                if durability(workers[0],iid)<75 and s['stock'].get('sx_repair_kit',0)>0 and workers[0].gold>=2:
-                    workers[0].gold-=2;s['gold']+=2;s['stock']['sx_repair_kit']-=1;workers[0].progress.setdefault('durability',{})[iid]=100
+                npc_life.earned(w,maker,1)
+            task_skills.practice(w,maker,rec.get('task_skill','cooking' if rec.get('kind')=='cooking' else 'crafting'),difficulty=rec.get('required_skill_level',10),effort=max(1,rec.get('minutes',5)),event_id=f'produce:{rid}:{recipe_id}:{now}')
+            wear(maker)
+            for iid in maker.inventory:
+                if durability(maker,iid)<75 and s['stock'].get('sx_repair_kit',0)>0 and maker.gold>=2:
+                    maker.gold-=2;s['gold']+=2;s['stock']['sx_repair_kit']-=1;maker.progress.setdefault('durability',{})[iid]=100
+                    task_skills.practice(w,maker,'repairing',difficulty=10,effort=2,event_id=f'repair:{iid}:{now}')
             from engine import gazette
             products=', '.join(f"{n} × {w.items.get(i,{}).get('name',i)}" for i,n in outputs.items())
             from engine.npc_activity import note
-            note(workers[0],'work','Finished '+products)
+            note(maker,'work','Finished '+products)
             if getattr(w,'living_state',{}).get('resident_watches'):
                 from engine import resident_watch
-                resident_watch.note(w,[workers[0].id],'Finished '+products+'.')
-            gazette.record(w,rid,'Trade',workers[0].name+' completed '+products+'.',key=rid+':'+recipe_id+':'+workers[0].name)
-            e['log']=(e['log']+[{'minute':now,'room':rid,'recipe':recipe_id,'worker':workers[0].name}])[-200:]
+                resident_watch.note(w,[maker.id],'Finished '+products+'.')
+            gazette.record(w,rid,'Trade',maker.name+' completed '+products+'.',key=rid+':'+recipe_id+':'+maker.name)
+            e['log']=(e['log']+[{'minute':now,'room':rid,'recipe':recipe_id,'worker':maker.name}])[-200:]
         # Regional logistics remains abstract (not road-routed); both endpoints must be open.
         # Buy required material from another workshop's surplus.
         for recid in cfg.get('recipes',[])+(['__repair__'] if cfg.get('repair') else []):
@@ -197,6 +230,7 @@ def command(ctx,args,name):
         cfg,s=shop(w,p.location)
         lines=[cfg.get('name','Workshop')+' | Location: '+w.rooms[p.location].name,'Workers: '+(', '.join(s['workers']) or 'Off shift'),'Treasury: '+str(s['gold'])+' gold','Stock:']
         lines.extend(f'{w.items[i]["name"]}: {n}; buy {price(w,i,rid=p.location)} / sell {price(w,i,False,rid=p.location)} gold' for i,n in s['stock'].items())
+        lines.extend('Production blocked: '+reason for reason in s.get('shortages',[]))
         needs={i for rid in cfg.get('recipes',[]) for i in getattr(w,'recipes',{}).get(rid,{}).get('ingredients',{})}
         try:
             from engine import knowledge
@@ -212,7 +246,10 @@ def command(ctx,args,name):
             if 'sx_repair_kit' not in p.inventory:raise ValueError('You need a crafted repair kit.')
             if iid not in p.inventory:raise ValueError('You do not carry that item.')
             if w.items[iid].get('type') not in ('weapon','armor'):raise ValueError('Only equipment can be repaired.')
+            if durability(p,iid)==100:return 'No repair is needed.'
             p.inventory.remove('sx_repair_kit');p.progress.setdefault('durability',{})[iid]=100
+            from engine import task_skills
+            task_skills.practice(w,p,'repairing',difficulty=10,effort=2)
             return 'Repaired using one repair kit.'
         cfg,s=shop(w,p.location)
         from engine import livelihoods

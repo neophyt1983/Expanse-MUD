@@ -70,6 +70,9 @@ def public(world, room):
 def travel(world, person, start, end):
     from engine import encounter_stories
     encounter_stories.travel(world,person,start,end)
+    if person.location == end and end in world.rooms and relationships.sentient(world, person):
+        knowledge.observe_room(world, person,
+            event_id='travel:' + start + ':' + end + ':' + str(int(living.state(world)['minute'])))
     if (not society.enabled(world) or not relationships.sentient(world, person)
             or not public(world, start) or not public(world, end)):
         return
@@ -83,14 +86,16 @@ def travel(world, person, start, end):
 
 def visible_feature(world, person):
     from engine.costumes import npc_doll
-    from engine.visual_mapping import appearance_for, _player_equipment
-    equipment = _player_equipment(world, person)
-    body = next((piece for piece in equipment if piece['layer'] == 'body'), {})
-    garment = body.get('color', '') + ' ' + body.get('kind', '').replace('_', ' ')
+    from engine.visual_mapping import appearance_for, _equipment_rows
+    equipment = []
     # Equipped body layers suppress generated workwear in npc_doll, so their
     # nonempty label is already the final visible feature.
-    if garment.strip():
-        return garment.strip()
+    for piece in _equipment_rows(world, person):
+        equipment.append(piece)
+        if piece['layer'] == 'body':
+            garment = piece.get('color', '') + ' ' + piece.get('kind', '').replace('_', ' ')
+            if garment.strip():
+                return garment.strip()
     row = world.npcs.get(person.source_def, {})
     race = person.race or row.get('race', '')
     role = person.char_class or row.get('char_class', '')
@@ -166,9 +171,18 @@ def directions(world, guide, listener, destination):
     return route[::-1]
 
 
-def pass_route(world, listener, path):
-    if listener.is_player:
-        knowledge.teach(world, listener, {'rooms': [dest for _, _, dest in path]})
+def pass_route(world, listener, path, source=None):
+    knowledge.teach(world, listener, {'rooms': [dest for _, _, dest in path]})
+    if source is not None:
+        from engine import knowledge_sources
+        for _, _, destination in path:
+            origin = knowledge_sources.view(source, 'rooms', destination) or {}
+            reference = {'kind': 'npc' if not source.is_player else 'character',
+                         'id': source.source_def or source.id,
+                         'evidence_roots': origin.get('evidence_roots', [])}
+            knowledge_sources.record(world, listener, {'rooms': [destination]}, source=reference,
+                certainty='sourced', event_id='directions:' + source.id + ':' + destination + ':' +
+                str(int(living.state(world)['minute'])))
     roads = notebook(listener)['roads']
     for src, direction, dest in path:
         remember(roads, src, {**roads.get(src, {}), direction: dest}, ROAD_LIMIT)
@@ -203,8 +217,9 @@ def ask(world, player, guide, action, query):
     names = {key: fact['name'] for key, fact in contacts.items() if key != player.id}
     prefix = guide.name+' says, '
     if action in ('people','work','activities','plans','creatures','localnews'):
-        from engine import resident_discussion
-        return prefix+'“'+resident_discussion.discuss(world,guide,action)+'”'
+        from engine import resident_discussion, npc_emotions
+        words=resident_discussion.discuss(world,guide,action,listener=player)
+        return guide.name+' '+npc_emotions.speech_tone(world,guide)+', “'+words+'”'
     if action=='memories':
         from engine import encounter_stories
         recent=[encounter_stories.words(world,row,player) for row in encounter_stories.accounts(world,guide,player)]
@@ -236,7 +251,7 @@ def ask(world, player, guide, action, query):
         dest = match(places,query)
         route = directions(world,player,guide,dest) if dest else []
         if not route: return 'You do not know an open route there from here.'
-        pass_route(world,guide,route)
+        pass_route(world,guide,route,source=player)
         return 'You explain the way to '+places[dest]+' to '+guide.name+'.'
     if action == 'headline':
         headlines = getattr(player,'_read_news',{})
@@ -246,6 +261,9 @@ def ask(world, player, guide, action, query):
         if query in reports:
             return prefix+'“I’ve heard that one.”'
         remember(reports,query,headlines[query],8)
+        from engine import npc_emotions
+        npc_emotions.read_article(world,guide,query)
+        npc_emotions.context(world,guide,partner=player,topic='localnews',article_id=query)
         return 'You share the report with '+guide.name+'.'
     if action == 'about':
         if not query:
@@ -288,7 +306,7 @@ def ask(world, player, guide, action, query):
             return prefix+'“I already have directions to pass on to '+names[who]+'.'+'”'
         errands[who] = dest
         return prefix+'“I’ll tell '+names[who]+' the way to '+places[dest]+' when we meet.”'
-    pass_route(world, player, path)
+    pass_route(world, player, path, source=guide)
     return prefix+'“'+ ' Then '.join(direction.capitalize()+' to '+world.rooms[end].name+'.' for _, direction, end in path)+'”'
 
 
@@ -299,6 +317,9 @@ def everyday(world, speaker, listener, turn):
 
 def exchange(world, speaker, listener, turn):
     # Keep ordinary greetings in the rotation. An addressed message wins the next meeting.
+    from engine import npc_emotions
+    npc_emotions.context(world,speaker,partner=listener,topic='')
+    npc_emotions.context(world,listener,partner=speaker,topic='')
     notes = notebook(speaker)
     if min(society.friendliness(world, speaker, listener),society.friendliness(world, listener, speaker)) < 50:
         return None
@@ -310,7 +331,7 @@ def exchange(world, speaker, listener, turn):
             return 'says', 'Right here.', 'Found it.'
         route = directions(world, speaker, listener, dest)
         if route:
-            pass_route(world, listener, route)
+            pass_route(world, listener, route, source=speaker)
             del errands[listener.id]
             return 'says', route[0][1].capitalize()+' first.', 'Got it.'
     daily = everyday(world, speaker, listener, turn)
@@ -334,6 +355,6 @@ def exchange(world, speaker, listener, turn):
             end = places[(turn//7) % len(places)]
             route = directions(world, speaker, listener, end)
             if route and any(notebook(listener)['roads'].get(src, {}).get(d) != dst for src, d, dst in route):
-                pass_route(world, listener, route)
+                pass_route(world, listener, route, source=speaker)
                 return 'says','If you are heading to '+world.rooms[end].name+', start '+route[0][1]+' from here. I can describe the route I know if you need more directions.','Thank you. I would rather ask someone who knows the road than guess.'
     return daily

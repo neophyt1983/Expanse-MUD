@@ -11,7 +11,7 @@ MAX_MINUTES = 1500  # One 25-hour Expanse day.
 READONLY = {'look','map','inventory','score','status','help','standing','workshop',
     'provenance','survey','recipes','catalog','wardrobe','materials','quests',
     'adventures','market','journal','condition','time','inspect','spells',
-    'companions','services','route','guide','interface','track','untrack','save','atlas','songs',
+    'companions','services','route','guide','interface','track','untrack','save','atlas','songs','skills',
     'rest','sleep','wait','tradeactive','tradeview','tradeclose','tradecancel'}
 
 
@@ -63,6 +63,14 @@ def canonical(w,command,registry=None,*,resolve_shortcuts=True):
 
 
 def before_command(w,p,command,registry=None,*,resolve_shortcuts=True):
+    from engine import employment,artworks
+    employment.before_command(w,p,command,registry,resolve_shortcuts=resolve_shortcuts)
+    if p and artworks.active(w,p):
+        verb,args=canonical(w,command,registry,resolve_shortcuts=resolve_shortcuts)
+        art_control=verb=='art' and (not args or args.split(None,1)[0] in ('finish','cancel','resume'))
+        job_view=verb in ('jobs','job') and (not args or args in ('list','view','status'))
+        if verb not in READONLY and not art_control and not job_view:
+            artworks.interrupt(w,p,'you began another action')
     if not p or not active(p):return
     from engine import sleep_movement
     if sleep_movement.asleep(w,p):return
@@ -103,6 +111,38 @@ def _valid(row):
         and isinstance(row.get('room'),str) and isinstance(row.get('token'),str))
 
 
+def interruption_problem(w,p,row):
+    """The same live-session and safety checks gate recovery and fast time."""
+    from engine import living
+    if not _valid(row) or getattr(p,'_rest_token',None)!=row.get('token'):
+        return 'a saved session cannot resume automatically'
+    problem=row.get('interrupted') or shelter_problem(w,p)
+    if p.location!=row['room']:problem='you left your resting place'
+    pr=living.progress(p)
+    if p.hp<row['hp'] or pr['injury']>row['injury']:problem='you were hurt'
+    if pr['mana']!=row['mana'] or p.hp!=row['hp'] or pr['injury']!=row['injury']:
+        problem=problem or 'your condition changed during rest'
+    return problem or ''
+
+
+def clock_status(w):
+    """Describe the present shared-clock eligibility without exposing players."""
+    from engine import living
+    participants=getattr(w,'online_player_ids',None)
+    if participants is None:
+        return 'Time advances quickly in short steps when every connected player rests safely.'
+    if not participants:return 'Fast time is paused because no player is connected.'
+    now=living.state(w)['minute']
+    for ident in participants:
+        player=w.entities.get(ident)
+        row=active(player) if player and player.is_player else None
+        if not row:
+            return 'Time advances at the normal shared pace while another connected player is awake or not resting.'
+        if interruption_problem(w,player,row) or row['last_minute']!=now:
+            return 'Fast time is paused because a connected player cannot continue resting safely.'
+    return 'Time is moving quickly in short shared steps while every connected player rests safely. Wake or danger stops fast time.'
+
+
 def status(w,p):
     row=active(p)
     if row:
@@ -112,7 +152,7 @@ def status(w,p):
             return cancel(w,p,row['interrupted'],notify=False)
         return (f"You are {row['kind']}: {row['elapsed']} of {counted(row['duration'],'minute')} elapsed, "
             f"{row['duration']-row['elapsed']} remaining. Use rest stop or wake self to stop. "
-            + ('The shared world clock continues normally.' if getattr(w,'realtime',False) else 'Time advances in small steps; you can stop at any time.') if (getattr(w,'realtime',False) or getattr(w,'deferred_rest',False)) else
+            + clock_status(w) if (getattr(w,'realtime',False) or getattr(w,'deferred_rest',False)) else
             f"Rest: {row['elapsed']} of {counted(row['duration'],'minute')} elapsed.")
     previous=p.progress.get(KEY,{})
     return previous.get('message','You are not resting.') if isinstance(previous,dict) else 'You are not resting.'
@@ -130,6 +170,9 @@ def command(w,p,args,kind):
     if not 1<=duration<=MAX_MINUTES:return 'Rest or sleep between 1 and 1500 minutes at a time.'
     problem=shelter_problem(w,p)
     if problem:return problem[0].upper()+problem[1:]+'.'
+    from engine import employment,artworks
+    employment.interrupt(w,p,'you began resting')
+    artworks.interrupt(w,p,'you began resting')
     pr=living.progress(p);now=living.state(w)['minute'];token=uuid.uuid4().hex
     target=max(1,p.max_hp-pr['disease']//5)
     row={'version':1,'state':'active','kind':'sleeping' if kind=='sleep' else 'resting',
@@ -151,19 +194,15 @@ def command(w,p,args,kind):
 def advance(w,minutes):
     from engine import living,quest_progress
     if getattr(w,'realtime',False) and not getattr(w,'tick_authorized',False):return
-    now=living.state(w)['minute']
+    now=living.state(w)['minute'];updates=[]
     for p in list(w.entities.values()):
         row=active(p)
         if not p.is_player or not row:continue
-        if not _valid(row) or getattr(p,'_rest_token',None)!=row.get('token'):
-            cancel(w,p,'a saved session cannot resume automatically');continue
-        problem=row.get('interrupted') or shelter_problem(w,p)
-        if p.location!=row['room']:problem='you left your resting place'
-        pr=living.progress(p)
-        if p.hp<row['hp'] or pr['injury']>row['injury']:problem='you were hurt'
-        if pr['mana']!=row['mana'] or p.hp!=row['hp'] or pr['injury']!=row['injury']:
-            problem=problem or 'your condition changed during rest'
+        if hasattr(w,'online_player_ids') and p.id not in w.online_player_ids:
+            cancel(w,p,'you disconnected; offline time does not count');continue
+        problem=interruption_problem(w,p,row)
         if problem:cancel(w,p,problem);continue
+        pr=living.progress(p)
         if type(minutes) is not int or minutes<=0 or row['last_minute']!=now-minutes:
             cancel(w,p,'the world clock changed outside this resting session');continue
         old=row['elapsed'];elapsed=min(row['duration'],old+minutes)
@@ -184,4 +223,7 @@ def advance(w,minutes):
             if row['kind']=='sleeping':quest_progress.action(p,'sleep')
             _notify(w,p,text)
         elif (getattr(w,'realtime',False) or getattr(w,'deferred_rest',False)) and elapsed//15>old//15:
-            _notify(w,p,status(w,p))
+            updates.append(p)
+    # All participants must reach the same quantum before describing the
+    # shared clock; a later player in this loop is not an interrupted sleeper.
+    for p in updates:_notify(w,p,status(w,p))

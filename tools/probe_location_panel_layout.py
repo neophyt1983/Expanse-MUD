@@ -27,6 +27,7 @@ def fixture(renderer):
     html += '''<script>
 let selectGame=async()=>{},ws=null;function append(){}function refreshDesignerMap(){}function setStatus(){}
 for(const id of ['player-map-panel','character-frame','session-actions','society-panels']){
+ if(document.getElementById(id))continue;
  const n=document.createElement('div');n.id=id;document.getElementById('tab-game').append(n);
 }
 </script>'''

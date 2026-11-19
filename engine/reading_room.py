@@ -20,6 +20,22 @@ def publication_text(world, item):
         lines.append('This edition: '+chronicles.date_text(info['edition_minute'], present))
     if info.get('attributed_to'):
         lines.append('Current attribution or editorial transmission: '+info['attributed_to'])
+    from engine import publications
+    source = publications.source(world, item['id'])
+    if source:
+        links = source.get('derives_from', [])
+        if links:
+            labels = {'copy': 'Copy of', 'quote': 'Quotes', 'revision': 'Revises'}
+            for link in links:
+                title = link.get('title')
+                lines.append(labels.get(link.get('relation'), 'Draws on') +
+                             (' '+title if title else ' an attributed earlier edition') + '.')
+        for claim in source.get('claims', []):
+            label = {'observed':'Recorded observation', 'sourced':'Sourced account', 'uncertain':'Uncertain account',
+                     'rumor':'Rumor', 'opinion':'Opinion'}.get(claim.get('certainty'), 'Sourced account')
+            lines.append(label+': '+claim['text'])
+            if claim.get('qualification'): lines.append(claim['qualification'])
+            if claim.get('revises'): lines.append('This statement revises an earlier claim; the older text is retained.')
     return '\n'.join(line for line in lines if line)+'\n\n'
 
 

@@ -66,7 +66,9 @@ def cooldown(w,a,b,action):
 
 def notify(w,a,b,emotion,note='',response=None,lines=None):
     from engine.npc_activity import note as visible
-    from engine import speech_bubbles
+    from engine import speech_bubbles, npc_emotions
+    npc_emotions.context(w,a,partner=b,topic=None if lines else '')
+    npc_emotions.context(w,b,partner=a,topic=None if lines else '')
     speech_bubbles.mark(a, b, emotion, response, lines)
     if lines and getattr(w,'living_state',{}).get('resident_watches'):
         from engine import resident_watch
@@ -101,7 +103,10 @@ def emote(w,a,b,emotion,*,town_turn=None):
     from engine import npc_attention
     npc_attention.begin(w,a,b)
     cooldown(w,a,b,'emotion:'+emotion)
-    change(w,a,b,DELTAS[emotion],emotion)
+    # An autonomous conversation is an actual social experience, not evidence
+    # that both participants feel whichever emoji the old rotation selected.
+    change(w,a,b,DELTAS[emotion] if town_turn is None else 1,
+           emotion if town_turn is None else 'conversation')
     from engine import needs_market
     if needs_market.applies(w,b) and DELTAS[emotion]>0:needs_market.relieve(b,'belonging',10)
     response='insulted' if emotion=='insulting' else 'angry' if DELTAS[emotion]<0 else emotion
@@ -209,10 +214,11 @@ def command(ctx,args):
         return town_talk.ask(w,a,target(w,a,who),action,query.strip())
     if action=='wake':return wake(w,a,target(w,a,rest))
     if action=='begin':
-        from engine import npc_attention, livelihoods
+        from engine import npc_attention, livelihoods, npc_emotions
         b=target(w,a,rest)
         if not livelihoods.awake(w,b):return b.name+' is sleeping. Choose Wake NPC if you want to disturb them.'
         npc_attention.begin(w,a,b)
+        npc_emotions.context(w,b,partner=a,topic='')
         from engine import town_talk
         town_talk.meet(w,a,b)
         return 'You approach '+b.name+'. Choose an expression, gift or quest conversation.'
@@ -261,10 +267,11 @@ def _resident_profile(w, b):
 
 def view(w,a):
     nearby=[e for e in w.entities_in_room(a.location) if not e.is_player and e.alive and rel.profile(w,e)['sentient']]
-    from engine import needs_market,barter,livelihoods,life_stages
+    from engine import needs_market,barter,livelihoods,life_stages,npc_emotions
     rows=[]
     for b in nearby:
         row=dict(id=b.id,name=b.name,adult=life_stages.for_entity(w,b)['adult'],awake=livelihoods.awake(w,b),commerce=barter.view(w,a,b),needs=needs_market.describe(w,b)+' '+livelihoods.summary(w,b),trust=rel.bond(w,a,b)['trust'],likes=', '.join([w.items.get(i,{}).get('name',i) for i in prefs(w,b)['wanted_items']]+prefs(w,b)['wanted_types']),quests=quests(w,a,b))
+        row['expression']=npc_emotions.project(w,b)
         profile = _resident_profile(w,b)
         if profile is not None: row['population'] = profile
         rows.append(row)
@@ -272,7 +279,7 @@ def view(w,a):
 
 def nearby_conversations(w, turn):
     from collections import defaultdict
-    from engine import livelihoods, resident_watch, speech_bubbles, town_talk
+    from engine import livelihoods, resident_watch, speech_bubbles, town_talk, npc_emotions
     from engine.npc_activity import note
     rooms=defaultdict(list)
     audience=set()
@@ -308,6 +315,8 @@ def nearby_conversations(w, turn):
             words,answer=topics[(turn+offset)%len(topics)] if topics else speech_bubbles.WORDS['happy']
             lines=('says',words,answer)
         tone,words,answer=lines
+        npc_emotions.context(w,speaker,partner=listener)
+        npc_emotions.context(w,listener,partner=speaker)
         speech_bubbles.mark(speaker,listener,'serious','happy',lines)
         for p in (speaker,listener):note(p,'social','In conversation',7)
         statement=f'{speaker.name} {tone} to {listener.name}, “{words}” {listener.name} replies, “{answer}”'

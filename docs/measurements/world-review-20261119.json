@@ -1,0 +1,166 @@
+{
+  "source_base_commit": "b84b2c48b29d753ce739aeb52b63d51d7a9797b5",
+  "review_branch": "feature/burglary-observation-20261119",
+  "original_files_unchanged": true,
+  "archive": {
+    "name": "Expanse-Wild-Lands-1.9.16-Review-20261119.expanse",
+    "bytes": 12836703,
+    "sha256": "46dbc015f28423e63ed27caaea03b8ba913da1588caebbfd9c50e0f81e61477a"
+  },
+  "catalog_counts": {
+    "interactions": 4,
+    "buildings": 259,
+    "species": 150,
+    "sexes": 4,
+    "classes": 17,
+    "races": 6,
+    "npcs": 3782,
+    "items": 5128,
+    "resources": 438,
+    "abilities": 122,
+    "groups": 24,
+    "recipes": 4026,
+    "rooms": 32426,
+    "encounters": 61,
+    "quests": 2650
+  },
+  "map": {
+    "authored_rooms": 32426,
+    "authored_buildings": 259,
+    "generated_frontages": 1093,
+    "civic_repaired_rooms": 0,
+    "source_cell_collisions": 0,
+    "scope": "Authored topology and actual runtime footprint rules; visibility remains character-specific."
+  },
+  "map_issues": [],
+  "civic_rooms_repaired": 232,
+  "civic_complexes_repaired": 40,
+  "loader_errors": [],
+  "loader_warnings": [
+    "npc 'lw_bees_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_bees_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_spiders_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_spiders_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_boars_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_boars_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_wolves_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_wolves_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_slimes_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_slimes_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_crabs_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_crabs_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_moths_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_moths_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_sprites_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_sprites_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_golems_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_golems_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_embers_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_embers_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_serpents_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_serpents_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_oysters_mob' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'lw_oysters_source' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'sx_child' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'magic115_cinder_hound' has no spawn/workplace/guard location and is not in any roster (will never appear)",
+    "npc 'magic115_chalk_sentry' has no spawn/workplace/guard location and is not in any roster (will never appear)"
+  ],
+  "supply_summary": {
+    "items": 5128,
+    "rooms": 32426,
+    "structurally_reachable_rooms": 32426,
+    "starting_rooms": [
+      "emberhollow_inn",
+      "emberhollow_square",
+      "emberhollow_underworld",
+      "lw_cinder_inn",
+      "lw_glass_inn",
+      "lw_hearth_inn",
+      "lw_pine_inn",
+      "lw_reed_inn",
+      "lw_star_inn"
+    ],
+    "statuses": {
+      "renewable": 3366,
+      "finite_initial": 1298,
+      "gated": 451,
+      "obtainable": 13
+    },
+    "blocked_recipes": 721,
+    "bootstrap_components": 0,
+    "service_tasks": 22,
+    "tasks_with_unavailable_inputs": 0
+  },
+  "layout": [
+    {
+      "probe": "location_panel",
+      "exit": 0,
+      "runtime": "Qt 6.12.0",
+      "checks": 27,
+      "passed": 27
+    },
+    {
+      "probe": "passage",
+      "exit": 0,
+      "runtime": "Qt 6.12.0",
+      "checks": 6,
+      "passed": 6
+    },
+    {
+      "probe": "custody",
+      "exit": 0,
+      "runtime": "6.12.0",
+      "checks": 12,
+      "passed": 12
+    },
+    {
+      "probe": "conversation",
+      "exit": 0,
+      "runtime": "Qt 6.12.0",
+      "checks": 28,
+      "passed": 28
+    },
+    {
+      "probe": "npc_expression",
+      "exit": 0,
+      "runtime": "6.12.0",
+      "checks": 8,
+      "passed": 8
+    },
+    {
+      "probe": "speech_bubble",
+      "exit": 0,
+      "runtime": "6.12.0",
+      "checks": 12,
+      "passed": 12
+    },
+    {
+      "probe": "task_actions",
+      "runtime": "6.12.0",
+      "checks": 24,
+      "passed": 24
+    }
+  ],
+  "limits": [
+    "Local source/content verification; not a production crash diagnosis.",
+    "No live import, deployment, account reset or public MMO enablement.",
+    "World archive requires the matching engine feature branch.",
+    "Native Windows/Android packages and physical devices were not tested."
+  ],
+  "local_tests": {
+    "python": {
+      "run": 410,
+      "passed": 409,
+      "skipped": 1,
+      "skip": "Windows-native read-handle sharing semantics",
+      "original_world_gates_enabled": true
+    },
+    "javascript": {
+      "passed": 114
+    },
+    "real_browser_layout": {
+      "passed": 117,
+      "runtime": "Qt WebEngine 6.12.0"
+    }
+  }
+}

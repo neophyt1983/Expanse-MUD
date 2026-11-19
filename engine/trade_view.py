@@ -152,6 +152,8 @@ def shop_sale(w, p, n, iid):
     cost = quote['price']
     n.gold -= cost; p.gold += cost; p.inventory.remove(iid)
     stock = w.shop_state[n.source_def]; stock[iid] = stock.get(iid, 0) + 1
+    from engine import task_skills
+    task_skills.transaction(w,p,n)
     if getattr(w,'living_state',{}).get('resident_watches'):
         from engine import resident_watch
         resident_watch.note(w,[n.id],f"Bought {w.items[iid]['name']} for {cost} gold.")
@@ -182,6 +184,8 @@ def command(ctx, args):
     # Exact selected counter, not a potentially cheaper/different nearby counter.
     s = market_shifts.depot(w, cfg)
     s['stock'][iid] -= 1; p.gold -= expected; s['gold'] += expected; p.inventory.append(iid)
+    from engine import task_skills
+    task_skills.transaction(w,p,n)
     return 'Purchased ' + w.items[iid]['name'] + ' for ' + str(expected) + ' gold at ' + cfg['name'] + '.'
 
 

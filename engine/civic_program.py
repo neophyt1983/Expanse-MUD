@@ -124,9 +124,10 @@ def command(ctx,args,verb):
         if p.id in people:return 'You have already joined this event.'
         people[p.id]=p.name
         if event['kind']=='class':
-            skills=p.progress.setdefault('skills',{})
-            skills['fieldcraft']=skills.get('fieldcraft',0)+1
-            return 'You compare two trail bearings and trace your route back to the square. Fieldcraft improves by one.'
+            from engine import task_skills
+            gained=task_skills.practice(w,p,'fieldcraft',difficulty=10,effort=10,event_id='class:'+event['id'])
+            return ('You compare two trail bearings and trace your route back to the square. You gain fieldcraft practice.'+
+                    (' Fieldcraft reaches '+str(task_skills.level(w,p,'fieldcraft'))+'.' if gained else ''))
         if event['kind']=='speech':
             return f"The council opens the floor at {w.rooms[p.location].name}. A speaker explains the carriage fare of {FARE} gold and the last departure at 20:00."
         return 'You join the '+event['title']+'. '+event['detail']
