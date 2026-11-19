@@ -526,6 +526,12 @@ def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tup
     async def health(req):
         return web.json_response({'status':'ok','service':'expanse-community-staging'}, headers={'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'})
 
+    async def directory(req):
+        with store.db() as db:
+            categories = [dict(row) for row in db.execute('SELECT slug,title FROM categories ORDER BY position')]
+            topics = [dict(row) for row in db.execute('SELECT id,title FROM topics ORDER BY updated_at DESC,id DESC LIMIT 25')]
+        return web.json_response({'categories':categories,'topics':topics}, headers={'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'})
+
     async def stylesheet(req):
         return web.FileResponse(STYLESHEET,headers={'Cache-Control':'public,max-age=3600'})
     app.add_routes([
@@ -535,7 +541,7 @@ def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tup
         web.get('/login',forum.login),web.post('/login',forum.post_login),web.post('/logout',forum.logout),
         web.get('/admin',forum.admin),web.post('/admin/member',forum.admin_member),web.post('/admin/report',forum.admin_report),
         web.post('/moderate',forum.moderate),web.post('/report',forum.report),web.get('/news.rss',forum.rss),
-        web.get('/healthz',health),
+        web.get('/healthz',health), web.get('/api/public/directory',directory),
         web.get('/style.css',stylesheet),
     ])
     return app
