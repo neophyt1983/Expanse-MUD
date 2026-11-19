@@ -524,7 +524,7 @@ def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tup
     app[forum_key]=forum
 
     async def health(req):
-        return web.json_response({'status':'ok','service':'expanse-community-staging'})
+        return web.json_response({'status':'ok','service':'expanse-community-staging'}, headers={'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'})
 
     async def stylesheet(req):
         return web.FileResponse(STYLESHEET,headers={'Cache-Control':'public,max-age=3600'})
