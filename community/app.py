@@ -582,6 +582,16 @@ class Forum:
 
 
 def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tuple[str,str] | None = None, registration_enabled: bool = False):
+    if db_path is None and os.environ.get('EXPANSE_FORUM_MOVED') == '1':
+        async def moved(req):
+            # Use a fixed destination and preserve bookmarks and status requests.
+            destination = 'https://expanse-mud.onrender.com/forum' + req.rel_url.raw_path_qs
+            if req.method not in ('GET', 'HEAD'):
+                raise web.HTTPSeeOther('https://expanse-mud.onrender.com/forum/login')
+            raise web.HTTPFound(destination)
+        app = web.Application()
+        app.router.add_route('*', '/{path:.*}', moved)
+        return app
     path = db_path or Path(os.environ.get('EXPANSE_COMMUNITY_DATA_DIR','./.community-data'))/'community.sqlite3'
     store = Store(path)
     if bootstrap is None and db_path is None:
