@@ -170,7 +170,15 @@ class Store:
         if not NAME.fullmatch(username) or not 12 <= len(password) <= 128:
             raise ValueError('Admin username or password does not meet the minimum requirements.')
         with self.db() as db:
-            admin = db.execute("SELECT id FROM users WHERE role = 'admin' LIMIT 1").fetchone()
+            db.execute('BEGIN IMMEDIATE')
+            admin = db.execute("SELECT id,salt,verifier FROM users WHERE role='admin' AND username=?", (username,)).fetchone()
+            if admin and not hmac.compare_digest(admin['verifier'], password_digest(password, admin['salt'])):
+                salt = secrets.token_bytes(16)
+                db.execute('UPDATE users SET salt=?, verifier=? WHERE id=?',
+                           (salt, password_digest(password, salt), admin['id']))
+                db.execute('DELETE FROM sessions WHERE user_id=?', (admin['id'],))
+            if not admin and db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone():
+                raise ValueError('Configured forum administrator username differs from the existing administrator.')
             if admin:
                 return
             row = db.execute('SELECT id FROM users WHERE username=?', (username,)).fetchone()
