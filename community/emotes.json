@@ -1,0 +1,338 @@
+{
+  "entries": [
+    [
+      "angry",
+      "Angry"
+    ],
+    [
+      "back",
+      "Welcome back"
+    ],
+    [
+      "blush",
+      "Blush"
+    ],
+    [
+      "book",
+      "Reading"
+    ],
+    [
+      "bow",
+      "Bow"
+    ],
+    [
+      "brb",
+      "Be right back"
+    ],
+    [
+      "build",
+      "Building"
+    ],
+    [
+      "celebrate",
+      "Celebrate"
+    ],
+    [
+      "chat",
+      "Let’s talk"
+    ],
+    [
+      "clap",
+      "Applause"
+    ],
+    [
+      "confused",
+      "Confused"
+    ],
+    [
+      "cool",
+      "Cool"
+    ],
+    [
+      "cry",
+      "Crying"
+    ],
+    [
+      "explore",
+      "Explore"
+    ],
+    [
+      "facepalm",
+      "Facepalm"
+    ],
+    [
+      "farm",
+      "Farming"
+    ],
+    [
+      "goodgame",
+      "Good game"
+    ],
+    [
+      "grin",
+      "Big grin"
+    ],
+    [
+      "heal",
+      "Healing"
+    ],
+    [
+      "heart_eyes",
+      "Heart eyes"
+    ],
+    [
+      "hug",
+      "Hug"
+    ],
+    [
+      "hype",
+      "Hype"
+    ],
+    [
+      "idea",
+      "Idea"
+    ],
+    [
+      "laugh",
+      "Laugh"
+    ],
+    [
+      "love",
+      "Love"
+    ],
+    [
+      "lurking",
+      "Lurking"
+    ],
+    [
+      "magic",
+      "Magic"
+    ],
+    [
+      "map",
+      "Map"
+    ],
+    [
+      "nervous",
+      "Nervous"
+    ],
+    [
+      "no",
+      "No"
+    ],
+    [
+      "potion",
+      "Potion"
+    ],
+    [
+      "proud",
+      "Proud"
+    ],
+    [
+      "question",
+      "Question"
+    ],
+    [
+      "sad",
+      "Sad"
+    ],
+    [
+      "salute",
+      "Salute"
+    ],
+    [
+      "shield",
+      "Shield"
+    ],
+    [
+      "sing",
+      "Singing"
+    ],
+    [
+      "sleepy",
+      "Sleepy"
+    ],
+    [
+      "smile",
+      "Smile"
+    ],
+    [
+      "sorry",
+      "Sorry"
+    ],
+    [
+      "sword",
+      "Sword"
+    ],
+    [
+      "thanks",
+      "Thank you"
+    ],
+    [
+      "think",
+      "Thinking"
+    ],
+    [
+      "thumbs_down",
+      "Thumbs down"
+    ],
+    [
+      "thumbs_up",
+      "Thumbs up"
+    ],
+    [
+      "trade",
+      "Trading"
+    ],
+    [
+      "warning",
+      "Warning"
+    ],
+    [
+      "wave",
+      "Wave"
+    ],
+    [
+      "wink",
+      "Wink"
+    ],
+    [
+      "wolf",
+      "Wolf"
+    ],
+    [
+      "wow",
+      "Wow"
+    ],
+    [
+      "yes",
+      "Yes"
+    ],
+    [
+      "npc_blade",
+      "Blade stance"
+    ],
+    [
+      "npc_bow_pose",
+      "Bow stance"
+    ],
+    [
+      "npc_harvesting",
+      "Harvesting"
+    ],
+    [
+      "npc_natural_attack",
+      "Natural attack"
+    ],
+    [
+      "npc_performing",
+      "Performing"
+    ],
+    [
+      "npc_shield_pose",
+      "Shield stance"
+    ],
+    [
+      "npc_spear",
+      "Spear stance"
+    ],
+    [
+      "npc_studying",
+      "Studying"
+    ],
+    [
+      "npc_trading",
+      "Trading NPC"
+    ],
+    [
+      "npc_unarmed",
+      "Unarmed"
+    ],
+    [
+      "npc_walking",
+      "Walking NPC"
+    ],
+    [
+      "npc_working",
+      "Working NPC"
+    ]
+  ],
+  "symbols": {
+    "😠": "angry",
+    "😡": "angry",
+    "☺": "blush",
+    "😊": "blush",
+    "📚": "book",
+    "📖": "book",
+    "🙇": "bow",
+    "🛠": "build",
+    "🔨": "build",
+    "🎉": "celebrate",
+    "🥳": "celebrate",
+    "💬": "chat",
+    "👏": "clap",
+    "😕": "confused",
+    "😧": "confused",
+    "😎": "cool",
+    "😢": "cry",
+    "😭": "cry",
+    "🧭": "explore",
+    "🤦": "facepalm",
+    "🌾": "farm",
+    "😁": "grin",
+    "🩹": "heal",
+    "😍": "heart_eyes",
+    "🥰": "heart_eyes",
+    "🤗": "hug",
+    "🫂": "hug",
+    "🤩": "hype",
+    "💡": "idea",
+    "😄": "laugh",
+    "😂": "laugh",
+    "🤣": "laugh",
+    "😆": "laugh",
+    "❤": "love",
+    "💕": "love",
+    "💖": "love",
+    "👀": "lurking",
+    "🪄": "magic",
+    "🗺": "map",
+    "😬": "nervous",
+    "😰": "nervous",
+    "🙅": "no",
+    "❌": "no",
+    "🧪": "potion",
+    "😌": "proud",
+    "❓": "question",
+    "🙁": "sad",
+    "☹": "sad",
+    "😔": "sad",
+    "🫡": "salute",
+    "🛡": "shield",
+    "🎤": "sing",
+    "🎶": "sing",
+    "😴": "sleepy",
+    "🥱": "sleepy",
+    "🙂": "smile",
+    "😀": "smile",
+    "😃": "smile",
+    "🥺": "sorry",
+    "⚔": "sword",
+    "🗡": "sword",
+    "🙏": "thanks",
+    "🤔": "think",
+    "😐": "think",
+    "👎": "thumbs_down",
+    "😒": "thumbs_down",
+    "👍": "thumbs_up",
+    "🤝": "trade",
+    "⚠": "warning",
+    "👋": "wave",
+    "😉": "wink",
+    "😏": "wink",
+    "🐺": "wolf",
+    "😮": "wow",
+    "😲": "wow",
+    "✅": "yes"
+  }
+}

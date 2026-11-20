@@ -4,6 +4,7 @@ STAGING ONLY: requires moderation, recovery, accessibility, privacy and durabili
 review before publishing to the public. No game credentials, saves or worlds read.
 """
 from __future__ import annotations
+import json
 
 import asyncio
 from contextlib import contextmanager
@@ -62,9 +63,26 @@ def hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode('ascii')).hexdigest()
 
 
+_emotes = json.loads(Path(__file__).with_name('emotes.json').read_text(encoding='utf-8'))
+_emote_labels = dict(_emotes['entries'])
+_symbols = _emotes['symbols']
+_emote_token = re.compile(r':([a-zA-Z_]+):|(?<!\u200d)([' + re.escape(''.join(_symbols))
+                          + r'])[\ufe0e\ufe0f]?[\U0001f3fb-\U0001f3ff]?(?![\u200d\ufe0e\ufe0f\U0001f3fb-\U0001f3ff])')
+
+
 def text_html(text: str) -> str:
-    # User content is intentionally plaintext. No unsafe HTML or Markdown rendering.
-    return '<p>' + escape(text).replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
+    parts = []
+    start = 0
+    for match in _emote_token.finditer(text):
+        name = match[1].lower() if match[1] else _symbols[match[2]]
+        if name not in _emote_labels:
+            continue
+        parts.append(escape(text[start:match.start()]))
+        label = escape(_emote_labels[name], quote=True)
+        parts.append(f'<span class="expanse-emote e-{name}" role="img" aria-label="{label}" title="{label}"></span>')
+        start = match.end()
+    parts.append(escape(text[start:]))
+    return '<p>' + ''.join(parts).replace('\n\n', '</p><p>').replace('\n', '<br>') + '</p>'
 
 
 def valid_text(value: str, limit: int, field: str) -> str:
@@ -257,7 +275,7 @@ class Forum:
         doc = '''<!doctype html><html lang="en"><head><meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <meta name="color-scheme" content="dark"><title>'''+escape(title)+''' · Expanse Community</title>
-        <link rel="stylesheet" href="/style.css"></head><body><div class="shell">'''+self.nav(user)+'''
+        <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/emotes.css"></head><body><div class="shell">'''+self.nav(user)+'''
         <main id="main">'''+('<p class="note">Read-only preview. Browse the guides below. Player registration and posting are closed.</p>' if not self.registration_enabled and not user else '')+content+'''</main><footer>Official Expanse community · Independent, creator-directed and AI-assisted.
         <a href="https://expansemud.com/">expansemud.com</a></footer></div></body></html>'''
         return web.Response(text=doc, content_type='text/html', status=status,
@@ -637,6 +655,10 @@ def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tup
             topics = [dict(row) for row in db.execute('SELECT id,title FROM topics ORDER BY updated_at DESC,id DESC LIMIT 25')]
         return web.json_response({'categories':categories,'topics':topics,'registration_open':forum.registration_enabled}, headers={'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'})
 
+    async def emote_styles(req):
+        web_css = Path(__file__).resolve().parents[1]/'web/community-emotes.css'
+        return web.Response(text=web_css.read_text() + Path(__file__).with_name('emote-positions.css').read_text(),
+                            content_type='text/css',headers={'Cache-Control':'public,max-age=3600'})
     async def stylesheet(req):
         return web.FileResponse(STYLESHEET,headers={'Cache-Control':'public,max-age=3600'})
     app.add_routes([
@@ -647,7 +669,7 @@ def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tup
         web.get('/admin',forum.admin),web.post('/admin/member',forum.admin_member),web.post('/admin/report',forum.admin_report),
         web.post('/moderate',forum.moderate),web.post('/report',forum.report),web.get('/news.rss',forum.rss),
         web.get('/healthz',health), web.get('/api/public/directory',directory),
-        web.get('/style.css',stylesheet),
+        web.get('/style.css',stylesheet),web.get('/emotes.css',emote_styles),
     ])
     return app
 
