@@ -20,7 +20,7 @@ import time
 from urllib.parse import quote
 from xml.sax.saxutils import escape as xml_escape
 
-from aiohttp import web
+from aiohttp import ClientSession, ClientTimeout, ClientError, web
 
 ROOT = Path(__file__).resolve().parent
 STYLESHEET = ROOT / 'static' / 'style.css'
@@ -29,6 +29,8 @@ REPLY_MAX = 4000
 SESSION_AGE = 60 * 60 * 24 * 7
 NAME = re.compile(r'^[A-Za-z0-9][A-Za-z0-9_\-]{2,23}$')
 PAGESIZE = 25
+STARTER_GUIDES = [('creators', 'Build and test a two-room adventure', 'Make a copy of your world before editing. Create two rooms with distinct names, connect them with opposite exits, and start a new adventure from the copy. Walk through both exits. If the return trip fails, inspect the exit on the second room. Record the world version when sharing your creation.'), ('news', 'How to check game and forum availability', 'Open the status lights on the website. Game and Forum are checked separately. If the game fails to load, record the time and whether sign-in appeared. A green forum light means the forum answered its health check.'), ('help', 'Keep your place on the explored map', 'Open the explored atlas and choose Lock map. Walk a few rooms, then drag the map to inspect another location. Choose Follow player to center your character again. Search for a known room to inspect its location.'), ('discussion', 'Explore Dawnwatch from the Gilded Tankard', 'Start at the Dawnwatch Gilded Tankard and inspect the room description and exits. Visit a neighboring room, then open your atlas and look for your current-location marker. Compare the places you have visited with locations you have only learned about.'), ('suggestions', 'Describe a change you would like to play', 'Start with the task you were trying to complete. Describe what happened, the change you want, and one example of how a player would use it. Include whether you were playing online or using a desktop installation.'), ('bugs', 'Collect the details for a reproducible bug report', 'Record the engine and world versions, your device, the room, and whether you loaded a save. List the shortest sequence that produces the problem. Include the expected and actual results. For a map issue, capture the same view before and after the action.')]
+
 SECTIONS = (
     ('news', 'Official News & Server Status', 'Confirmed maintenance, outages, releases and development announcements', 1),
     ('help', 'Questions & Help', 'Help for players, installation, commands and game mechanics', 0),
@@ -106,6 +108,12 @@ class Store:
                 status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','active','suspended')),
                 created_at INTEGER NOT NULL
               );
+              CREATE TABLE IF NOT EXISTS verification_codes (
+                digest TEXT PRIMARY KEY, email TEXT NOT NULL, expires INTEGER NOT NULL
+              );
+              CREATE TABLE IF NOT EXISTS verified_members (
+                email TEXT PRIMARY KEY, user_id INTEGER UNIQUE NOT NULL REFERENCES users(id)
+              );
               CREATE TABLE IF NOT EXISTS sessions (
                 token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
                 csrf TEXT NOT NULL, expires_at INTEGER NOT NULL
@@ -147,6 +155,17 @@ class Store:
                 db.execute('INSERT OR IGNORE INTO categories(slug,title,description,official,position) VALUES(?,?,?,?,?)',
                            (ident,title,description,official,idx))
 
+            # The reserved byline contains a space, so it cannot be registered by a player.
+            byline = 'Expanse Guides'
+            db.execute("INSERT OR IGNORE INTO users(username,salt,verifier,status,created_at) VALUES(?,randomblob(16),randomblob(32),'suspended',?)",(byline,utc()))
+            author = db.execute('SELECT id FROM users WHERE username=?',(byline,)).fetchone()['id']
+            db.execute("UPDATE users SET status='suspended' WHERE id=? AND status!='suspended'", (author,))
+            for slug,title,body in STARTER_GUIDES:
+                db.execute("""INSERT INTO topics(category_id,author_id,title,body,pinned,created_at,updated_at)
+                    SELECT c.id,?,?,?,1,?,? FROM categories c WHERE c.slug=?
+                    AND NOT EXISTS (SELECT 1 FROM topics WHERE category_id=c.id AND author_id=? AND title=?)""",
+                    (author,title,body,utc(),utc(),slug,author,title))
+
     def bootstrap_admin(self, username: str, password: str):
         if not NAME.fullmatch(username) or not 12 <= len(password) <= 128:
             raise ValueError('Admin username or password does not meet the minimum requirements.')
@@ -176,7 +195,13 @@ class Forum:
     def __init__(self, store: Store, secure: bool = True, registration_enabled: bool = False):
         self.store = store
         self.secure = secure
-        self.registration_enabled = registration_enabled
+        self.email_signup = os.environ.get('EXPANSE_COMMUNITY_REGISTRATION_MODE') == 'email'
+        directory = os.environ.get('EXPANSE_COMMUNITY_DATA_DIR')
+        persistent = bool(directory and os.path.ismount(directory))
+        self.registration_enabled = registration_enabled or (persistent and (
+            os.environ.get('EXPANSE_COMMUNITY_REGISTRATION_MODE') == 'manual' or self.email_signup and bool(
+            os.environ.get('RESEND_API_KEY') and os.environ.get('EXPANSE_COMMUNITY_MAIL_FROM')
+            )))
         self.failed = {}
 
     def member(self, req):
@@ -220,7 +245,7 @@ class Forum:
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <meta name="color-scheme" content="dark"><title>'''+escape(title)+''' · Expanse Community</title>
         <link rel="stylesheet" href="/style.css"></head><body><div class="shell">'''+self.nav(user)+'''
-        <main id="main">'''+content+'''</main><footer>Official Expanse community · Independent, creator-directed and AI-assisted.
+        <main id="main">'''+('<p class="note">Read-only preview. Browse the guides below. Player registration and posting are closed.</p>' if not self.registration_enabled and not user else '')+content+'''</main><footer>Official Expanse community · Independent, creator-directed and AI-assisted.
         <a href="https://expansemud.com/">expansemud.com</a></footer></div></body></html>'''
         return web.Response(text=doc, content_type='text/html', status=status,
                             headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
@@ -250,7 +275,7 @@ class Forum:
                         parts.append('<li><a href="/t/'+str(topic['id'])+'">'+escape(topic['title'])+'</a> <small>'+escape(topic['username'])+'</small></li>')
                     parts.append('</ul></div>')
                 parts.append('</section>')
-        if not user:
+        if not user and self.registration_enabled and not self.email_signup:
             parts.append('<p class="note">Reading is public. New community accounts require staff approval before posting.</p>')
         return self.page('Community Forum',''.join(parts),user)
 
@@ -356,15 +381,56 @@ class Forum:
     async def register(self,req):
         if not self.registration_enabled:
             return self.message(req, 'Registration closed', 'Community accounts are not open while security and recovery safeguards are being completed.', 503)
-        return self.page('Create account','''<div class="panel compose"><h1>Join the community</h1>
-         <p>Registration requests require staff approval. Please choose a unique community name.
+        return self.page('Create account', self.registration_form(), self.member(req))
+
+    def registration_form(self):
+        if self.email_signup:
+            return ('<section class="panel compose"><h2>Create a forum account</h2>'
+                    '<form action="/verify-email" method="post"><label for="signup-email">Email address</label>'
+                    '<input id="signup-email" type="email" name="email" autocomplete="email" required>'
+                    '<button>Send verification code</button></form></section>')
+        return self.credentials_form()
+
+    def credentials_form(self, email_input=''):
+        return '''<div class="panel compose"><h2>Create a forum account</h2>
+         <p>'''+('Enter the code from your email to activate your account.' if email_input else 'Registration requests require staff approval.')+'''
          Community accounts are separate from Expanse game accounts.</p>
-         <form method="post" action="/register"><label for="username">Username</label>
-         <input id="username" name="username" minlength="3" maxlength="24" pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,23}" autocomplete="username" required>
-         <label for="password">Password (12 or more characters)</label>
-         <input id="password" type="password" name="password" minlength="12" maxlength="128" autocomplete="new-password" required>
-         <button type="submit">Request account</button></form><p class="note">Account recovery by email is planned but not available in this staging version.
-         Avoid reusing a password from your game account.</p></div>''',self.member(req))
+         <form method="post" action="/register">'''+email_input+'''<label for="new-username">Username</label>
+         <input id="new-username" name="username" minlength="3" maxlength="24" pattern="[A-Za-z0-9][A-Za-z0-9_\\-]{2,23}" autocomplete="username" required>
+         <label for="new-password">Password (12 or more characters)</label>
+         <input id="new-password" type="password" name="password" minlength="12" maxlength="128" autocomplete="new-password" required>
+         <button type="submit">Create account</button></form><p class="note">Account recovery by email is planned but not available in this staging version.
+         Avoid reusing a password from your game account.</p></div>'''
+
+    async def verify_email(self, req):
+        if not self.registration_enabled or not self.email_signup:
+            raise web.HTTPServiceUnavailable()
+        self.limit('send-code:'+str(req.remote), 3, 300)
+        email = str((await self.post_data(req)).get('email','')).strip().lower()
+        if len(email)>254 or not re.fullmatch(r'[^@,;<>\s]+@[^@,;<>\s]+\.[^@,;<>\s]+',email):
+            raise web.HTTPBadRequest(text='Enter a valid email address.')
+        code = secrets.token_urlsafe(18)
+        digest = hash_token(code)
+        with self.store.db() as db:
+            db.execute('DELETE FROM verification_codes WHERE expires<=?',(utc(),))
+            if db.execute('SELECT 1 FROM verification_codes WHERE email=? AND expires>?',(email,utc()+840)).fetchone():
+                raise web.HTTPTooManyRequests(text='Wait a minute before requesting another code.')
+            db.execute('INSERT INTO verification_codes VALUES(?,?,?)',(digest,email,utc()+900))
+        try:
+            async with ClientSession(timeout=ClientTimeout(total=15)) as client:
+                async with client.post('https://api.resend.com/emails',
+                        headers={'Authorization':'Bearer '+os.environ['RESEND_API_KEY']},
+                        json={'from':os.environ['EXPANSE_COMMUNITY_MAIL_FROM'],'to':[email],
+                              'subject':'Your Expanse forum verification code',
+                              'text':'Your code is '+code+' and expires in 15 minutes. If you did not request it, ignore this email.'}) as response:
+                    response.raise_for_status()
+        except (ClientError,TimeoutError):
+            with self.store.db() as db:
+                db.execute('DELETE FROM verification_codes WHERE digest=?',(digest,))
+            raise web.HTTPServiceUnavailable(text='Email delivery is unavailable. Please try again.')
+        fields = ('<label for="code">Verification code</label>'
+                  '<input id="code" name="code" autocomplete="one-time-code" required>')
+        return self.page('Verify your email', self.credentials_form(fields))
 
     def limit(self,key,max_attempts=6,period=60):
         now=utc();bucket=[t for t in self.failed.get(key,[]) if t>now-period]
@@ -381,6 +447,17 @@ class Forum:
         salt=secrets.token_bytes(16)
         try:
             with self.store.db() as db:
+                if self.email_signup:
+                    db.execute('BEGIN IMMEDIATE')
+                    digest = hash_token(str(form.get('code','')).strip())
+                    row = db.execute('SELECT email FROM verification_codes WHERE digest=? AND expires>?',(digest,utc())).fetchone()
+                    if row is None:
+                        raise web.HTTPBadRequest(text='Verification code is invalid or expired.')
+                    member = db.execute("INSERT INTO users(username,salt,verifier,status,created_at) VALUES(?,?,?,'active',?)",
+                                        (username,salt,password_digest(password,salt),utc()))
+                    db.execute('INSERT INTO verified_members VALUES(?,?)',(row['email'],member.lastrowid))
+                    db.execute('DELETE FROM verification_codes WHERE email=?',(row['email'],))
+                    return self.page('Account created','<h1>Account created</h1><a href="/login">Sign in to the forum</a>')
                 db.execute('INSERT INTO users(username,salt,verifier,created_at) VALUES(?,?,?,?)',
                            (username,salt,password_digest(password,salt),utc()))
         except sqlite3.IntegrityError:
@@ -388,10 +465,11 @@ class Forum:
         return self.message(req,'Registration received','An administrator must approve your account before you can sign in and post.')
 
     async def login(self,req):
+        signup = self.registration_form() if self.registration_enabled else '<p>New player registration is currently closed.</p>'
         return self.page('Sign in','''<div class="panel compose"><h1>Community sign in</h1><form method="post" action="/login">
          <label for="username">Username</label><input id="username" name="username" autocomplete="username" required>
          <label for="password">Password</label><input type="password" id="password" name="password" autocomplete="current-password" required>
-         <button type="submit">Sign in</button></form><p class="note">These are separate community credentials. This prototype does not reset passwords by email.</p></div>''',self.member(req))
+         <button type="submit">Sign in</button></form><p class="note">These are separate community credentials. This prototype does not reset passwords by email.</p></div>'''+signup,self.member(req))
 
     async def post_login(self,req):
         self.limit('login:'+str(req.remote),8,120)
@@ -424,15 +502,23 @@ class Forum:
         user=self.require_member(req)
         if user['role']!='admin':raise web.HTTPForbidden()
         with self.store.db() as db:
-            accounts=db.execute("SELECT * FROM users WHERE role!='admin' ORDER BY status,created_at DESC LIMIT 100").fetchall()
+            accounts=db.execute("SELECT * FROM users WHERE role='member' AND username!='Expanse Guides' ORDER BY status,created_at DESC LIMIT 100").fetchall()
             reports=db.execute('''SELECT r.*,u.username,t.title FROM reports r JOIN users u ON u.id=r.reporter_id
                                   JOIN topics t ON t.id=r.topic_id WHERE handled=0 ORDER BY r.created_at DESC LIMIT 100''').fetchall()
-        parts=['<h1>Community moderation</h1><div class="panel"><h2>Member approvals</h2>']
+        parts=['<h1>Community moderation</h1><div class="panel"><h2>Forum members</h2>']
+        if not accounts: parts.append('<p>No player accounts to review.</p>')
         for row in accounts:
+            buttons = []
+            if row['status'] != 'active':
+                label = 'Restore' if row['status'] == 'suspended' else 'Approve'
+                buttons.append('<button name="action" value="approve">'+label+'</button>')
+            if row['status'] != 'suspended':
+                buttons.append('<button name="action" value="suspend">Suspend</button>')
             parts.append('<form method="post" action="/admin/member" class="admin-row"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
                          '<input type="hidden" name="user_id" value="'+str(row['id'])+'"><span>'+escape(row['username'])+' ('+escape(row['status'])+')</span> '
-                         '<button name="action" value="approve">Approve</button> <button name="action" value="suspend">Suspend</button></form>')
+                         + ' '.join(buttons) + '</form>')
         parts.append('</div><div class="panel"><h2>Unresolved reports</h2>')
+        if not reports: parts.append('<p>No unresolved reports.</p>')
         for row in reports:
             parts.append('<form method="post" action="/admin/report" class="admin-row"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
                          '<input type="hidden" name="report_id" value="'+str(row['id'])+'"><span>'+escape(row['username'])+' reported '
@@ -449,7 +535,8 @@ class Forum:
         action=str(form.get('action',''))
         if action not in ('approve','suspend'):raise web.HTTPBadRequest()
         with self.store.db() as db:
-            db.execute("UPDATE users SET status=? WHERE id=? AND role='member'",('active' if action=='approve' else 'suspended',member_id))
+            updated = db.execute("UPDATE users SET status=? WHERE id=? AND role='member' AND username!='Expanse Guides'",('active' if action=='approve' else 'suspended',member_id))
+            if not updated.rowcount: raise web.HTTPNotFound()
             if action=='suspend':db.execute('DELETE FROM sessions WHERE user_id=?',(member_id,))
         raise web.HTTPSeeOther('/admin')
 
@@ -497,6 +584,11 @@ class Forum:
 def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tuple[str,str] | None = None, registration_enabled: bool = False):
     path = db_path or Path(os.environ.get('EXPANSE_COMMUNITY_DATA_DIR','./.community-data'))/'community.sqlite3'
     store = Store(path)
+    if bootstrap is None and db_path is None:
+        username = os.environ.get('EXPANSE_COMMUNITY_ADMIN_USER', '')
+        password = os.environ.get('EXPANSE_COMMUNITY_ADMIN_PASSWORD', '')
+        if username or password:
+            bootstrap = (username, password)
     if bootstrap:
         store.bootstrap_admin(*bootstrap)
     forum = Forum(store, secure=secure, registration_enabled=registration_enabled)
@@ -526,18 +618,51 @@ def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tup
     async def health(req):
         return web.json_response({'status':'ok','service':'expanse-community-staging'}, headers={'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'})
 
+    async def directory(req):
+        with store.db() as db:
+            categories = [dict(row) for row in db.execute('SELECT slug,title FROM categories ORDER BY position')]
+            topics = [dict(row) for row in db.execute('SELECT id,title FROM topics ORDER BY updated_at DESC,id DESC LIMIT 25')]
+        return web.json_response({'categories':categories,'topics':topics,'registration_open':forum.registration_enabled}, headers={'Access-Control-Allow-Origin':'*','Cache-Control':'no-store'})
+
     async def stylesheet(req):
         return web.FileResponse(STYLESHEET,headers={'Cache-Control':'public,max-age=3600'})
     app.add_routes([
         web.get('/',forum.home),web.get('/c/{slug}',forum.category),web.get('/t/{id:\\d+}',forum.topic),
         web.get('/new',forum.new),web.post('/new',forum.post_new),web.post('/reply',forum.post_reply),
-        web.get('/register',forum.register),web.post('/register',forum.post_register),
+        web.post('/verify-email',forum.verify_email),web.get('/register',forum.register),web.post('/register',forum.post_register),
         web.get('/login',forum.login),web.post('/login',forum.post_login),web.post('/logout',forum.logout),
         web.get('/admin',forum.admin),web.post('/admin/member',forum.admin_member),web.post('/admin/report',forum.admin_report),
         web.post('/moderate',forum.moderate),web.post('/report',forum.report),web.get('/news.rss',forum.rss),
-        web.get('/healthz',health),
+        web.get('/healthz',health), web.get('/api/public/directory',directory),
         web.get('/style.css',stylesheet),
     ])
+    return app
+
+
+def mount_forum(game, data_root, *, bootstrap):
+    """Serve a disk-backed forum under /forum while retaining standalone routes."""
+    if not os.path.ismount(data_root):
+        raise RuntimeError('Forum storage must be on the mounted game disk.')
+    app = make_app(Path(data_root) / 'community' / 'community.sqlite3',
+                   bootstrap=bootstrap, registration_enabled=True)
+
+    @web.middleware
+    async def prefix_links(req, handler):
+        try:
+            response = await handler(req)
+        except web.HTTPRedirection as redirect:
+            location = redirect.headers.get('Location', '')
+            if location.startswith('/') and not location.startswith('//'):
+                redirect.headers['Location'] = '/forum' + location
+            for cookie in redirect.cookies.values():
+                cookie['path'] = '/forum'
+            raise
+        if isinstance(response, web.Response) and response.content_type == 'text/html':
+            response.text = response.text.replace('href="/', 'href="/forum/').replace('action="/', 'action="/forum/')
+        return response
+
+    app.middlewares.insert(0, prefix_links)
+    game.add_subapp('/forum', app)
     return app
 
 

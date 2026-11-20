@@ -1228,8 +1228,11 @@ class Service:
 
 def make_app():
     service=Service()
+    forum_app = None
     @web.middleware
     async def guard(req,handler):
+        if forum_app is not None and forum_app in req.match_info.apps:
+            return await handler(req)
         if req.method=='POST' or req.path=='/ws':
             origin=req.headers.get('Origin')
             if origin is None and req.method=='POST':
@@ -1312,6 +1315,11 @@ def make_app():
                     web.get('/manual-saves.zip',service.backup),web.get('/play',play),web.get('/ws',service.socket_route),
                     web.get('/api/{path:.*}',service.api),web.post('/api/{path:.*}',service.api),
                     web.get('/app-assets/{digest:[0-9a-f]{64}}/{filename}',application_asset),web.get('/{filename}',asset)])
+    if os.environ.get('EXPANSE_HOST_FORUM') == '1':
+        from community.app import mount_forum
+        forum_app = mount_forum(app, Path('/var/data/expanse'), bootstrap=(
+            os.environ['EXPANSE_COMMUNITY_ADMIN_USER'],
+            os.environ['EXPANSE_COMMUNITY_ADMIN_PASSWORD']))
     return app
 
 
