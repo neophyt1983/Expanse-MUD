@@ -99,14 +99,37 @@ def disk_mounted(path):
     return info.is_file() and any(row.split()[4] == str(path) for row in info.read_text().splitlines())
 
 
+DEVICE_HOST_FORM = """
+<details><summary>Join a device host</summary>
+<p>On the same network, use the HTTP address shown by Host Network Game. Internet hosts can share an HTTPS address.
+Use the installed Android player for an expanse:// invite.</p>
+<form id="device-host"><label>Host address <input name="address" placeholder="http://192.168.1.20:8000" required></label>
+<button>Open host</button></form><p id="device-host-error" role="status"></p></details>
+<script>
+document.getElementById('device-host').addEventListener('submit', function(event) {
+  event.preventDefault();
+  const status = document.getElementById('device-host-error');
+  try {
+    const url = new URL(this.elements.address.value.trim());
+    if (!['https:', 'http:'].includes(url.protocol) || !url.hostname || url.username ||
+        url.password || url.pathname !== '/' || url.search || url.hash) throw Error();
+    window.open(url.href, '_blank', 'noopener,noreferrer');
+    status.textContent = 'Host opened in a new tab.';
+  } catch {
+    status.textContent = 'Enter the complete http:// or https:// address supplied by the host.';
+  }
+});
+</script>"""
+
+
 def page(title, body, status=200):
     return web.Response(content_type='text/html',status=status,text=(
         '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" '
         'content="width=device-width, initial-scale=1"><title>'+escape(title)+' · Expanse</title>'
         '<style>'+CSS+'</style><main><nav class="brand-nav" aria-label="External links">'
         '<a href="https://expansemud.com/">Official website</a>'
-        '<a href="https://expansemud.discourse.group/">Community forum</a></nav>'
-        '<h1>'+escape(title)+'</h1>'+body+'</main></html>'))
+        '<a href="/wiki/index.html" target="_blank" rel="noopener noreferrer">Game wiki</a><a href="https://expanse-mud.onrender.com/forum/login" target="_blank" rel="noopener noreferrer">Forum sign-in</a><a href="https://expanse-mud.onrender.com/forum/register" target="_blank" rel="noopener noreferrer">Register for the forum</a></nav>'
+        '<h1>'+escape(title)+'</h1>'+body+(DEVICE_HOST_FORM if title=='Expanse' else '')+'</main></html>'))
 
 
 def sign_in(error='', status=200, public=False, registered=False, mail=False, allow_signup=True):
@@ -1241,7 +1264,7 @@ def make_app():
             if origin!=service.origin:
                 raise web.HTTPForbidden(text='Open Expanse at its configured address.')
         key=service.identity(req)
-        if req.path not in ('/','/healthz','/login','/mode.html', '/public/join','/public/return','/public/recover',
+        if req.match_info.route.name not in ('community-wiki','community-wiki-style') and req.path not in ('/','/healthz','/login','/mode.html', '/public/join','/public/return','/public/recover',
                             '/register','/forgot','/forgot/code','/forgot/email',
                             '/email/verify','/email/reset') and not key:
             if req.path=='/play':
@@ -1295,6 +1318,20 @@ def make_app():
         response = web.Response(status=304, headers=headers) if matched else web.Response(body=body, headers=headers)
         response['immutable_application_asset'] = True
         return response
+    async def wiki_page(req):
+        name = req.match_info['name']
+        page = ROOT/'community/dist/wiki'/name
+        if not page.is_file():
+            raise web.HTTPNotFound()
+        body = page.read_text(encoding='utf-8').replace('https://expansemud.discourse.group/', '/forum/')
+        body = body.replace('href="https://expansemud.com/wiki/"', 'href="/wiki/index.html"')
+        if name == 'index.html':
+            body = body.replace('</main>', '<p><a href="https://expansemud.com/wiki/index.html">Open the illustrated Wild Lands reference</a></p></main>')
+        return web.Response(text=body,content_type='text/html')
+    async def wiki_style(req):
+        return web.FileResponse(ROOT/'community/dist/assets/wiki.css')
+    app.router.add_get(r'/wiki/{name:[a-z0-9-]+\.html}',wiki_page,name='community-wiki')
+    app.router.add_get('/assets/wiki.css',wiki_style,name='community-wiki-style')
     app.add_routes([web.get('/healthz',health),web.get('/',service.landing),web.get('/mode.html',service.landing),
                     web.post('/login',service.login),web.post('/logout',service.logout),web.post('/enter',service.enter),
                     web.get('/mmo',service.mmo_status),web.get('/mmo/roles',service.mmo_roles_page),

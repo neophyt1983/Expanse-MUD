@@ -937,7 +937,7 @@ if(['crown','circlet','tiara','diadem'].includes(s)||g.kind==='crown'){
   if(speaker&&!s.options.designer&&speaker.x>=0&&speaker.x<width&&speaker.y>=0&&speaker.y<height){
    const {actor,x,y}=speaker,msg=actor.speech_bubble;
    const text=actor.name+(msg.tone?' '+msg.tone:'')+'\n'+msg.symbol+(msg.words?' '+msg.words:'');
-   if(s.bubble.textContent!==text)s.bubble.textContent=text;s.bubble.title=text;s.bubble.setAttribute('aria-label',text);
+   if(s.bubble.dataset.expression!==text){ExpanseEmotes.render(s.bubble,text);s.bubble.dataset.expression=text;}s.bubble.title=text;s.bubble.setAttribute('aria-label',text);
    s.bubble.hidden=false;
    const bw=s.bubble.offsetWidth,bh=s.bubble.offsetHeight;
    s.bubble.style.left=Math.max(2,Math.min(width-bw-2,x-bw/2))+'px';

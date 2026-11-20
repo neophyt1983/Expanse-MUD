@@ -163,6 +163,7 @@
 <link rel="stylesheet" href="/character-frame.css">
 <link rel="stylesheet" href="/trade-ui.css">
 <link rel="stylesheet" href="/damage-feedback.css">
+<link rel="stylesheet" href="/community-emotes.css"><script src="/community-emotes.js"></script>
 </head>
 <body>
 <div id="app">
@@ -171,6 +172,7 @@
     <nav>
       <button data-tab="game" class="active">Game</button>
       <button data-tab="editor" hidden disabled>Editor</button><a href="/" style="color:inherit;padding:8px">World &amp; saves</a>
+      <details class="game-resources"><summary>Community</summary><div><a href="/wiki/index.html" target="_blank" rel="noopener noreferrer">Game wiki</a><a href="https://expanse-mud.onrender.com/forum/login" target="_blank" rel="noopener noreferrer">Forum sign-in</a><a href="https://expanse-mud.onrender.com/forum/register" target="_blank" rel="noopener noreferrer">Register for the forum</a></div></details>
     </nav>
     <span id="expanse-current-account" hidden aria-label="Current Expanse account" style="align-self:center;margin-left:auto;padding:4px 12px;color:#acd6bf;font-size:12px;white-space:nowrap;max-width:32vw;overflow:hidden;text-overflow:ellipsis"></span>
   </header>
@@ -345,7 +347,7 @@ function append(kind, text) {
   const position = window.ExpanseTranscript?.beforeAppend(kind === 'user');
   const div = document.createElement('div');
   div.className = 'line ' + kind;
-  div.textContent = text;
+  ExpanseEmotes.render(div, text);
   log.appendChild(div);
   if (window.ExpanseTranscript) window.ExpanseTranscript.afterAppend(position);
   else log.scrollTop = log.scrollHeight;
