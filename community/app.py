@@ -171,19 +171,24 @@ class Store:
             raise ValueError('Admin username or password does not meet the minimum requirements.')
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
-            admin = db.execute("SELECT id,salt,verifier FROM users WHERE role='admin' AND username=?", (username,)).fetchone()
-            if admin and not hmac.compare_digest(admin['verifier'], password_digest(password, admin['salt'])):
-                salt = secrets.token_bytes(16)
-                db.execute('UPDATE users SET salt=?, verifier=? WHERE id=?',
-                           (salt, password_digest(password, salt), admin['id']))
-                db.execute('DELETE FROM sessions WHERE user_id=?', (admin['id'],))
-            if not admin and db.execute("SELECT 1 FROM users WHERE role='admin' LIMIT 1").fetchone():
-                raise ValueError('Configured forum administrator username differs from the existing administrator.')
-            if admin:
-                return
-            row = db.execute('SELECT id FROM users WHERE username=?', (username,)).fetchone()
-            if row:
+            admins = db.execute("SELECT id,username,salt,verifier FROM users WHERE role='admin' ORDER BY id").fetchall()
+            owner = db.execute('SELECT id,role FROM users WHERE username=?', (username,)).fetchone()
+            if owner and owner['role'] != 'admin':
                 raise ValueError('Admin username conflicts with an existing account.')
+            if admins:
+                if owner:
+                    admin = next(row for row in admins if row['id'] == owner['id'])
+                elif len(admins) == 1:
+                    admin = admins[0]
+                else:
+                    raise ValueError('Multiple forum administrators exist. Select an existing administrator.')
+                if admin['username'] == username and hmac.compare_digest(admin['verifier'], password_digest(password, admin['salt'])):
+                    return
+                salt = secrets.token_bytes(16)
+                db.execute('UPDATE users SET username=?,salt=?,verifier=? WHERE id=?',
+                           (username, salt, password_digest(password,salt), admin['id']))
+                db.execute('DELETE FROM sessions WHERE user_id=?', (admin['id'],))
+                return
             salt = secrets.token_bytes(16)
             db.execute('INSERT INTO users(username,salt,verifier,role,status,created_at) VALUES(?,?,?,?,?,?)',
                        (username,salt,password_digest(password,salt),'admin','active',utc()))
