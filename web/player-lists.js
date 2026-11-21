@@ -74,7 +74,24 @@
   for(const quest of packet.quests){const row=make('div');row.className='quest-guidance';row.append(make('strong',quest.name||'Selected quest'));const direction=quest.direction,statusText={dark:'Darkness conceals the route. Try a direction or use a working lantern.',travel:'Follow the next available exit; this is not a straight-line bearing.',here:'You are at the known destination.',blocked:'No traversable route is currently available.',unknown:'No route through personally visited places is known.',journal:'Open Quests for this objective.'}[quest.status]||quest.status;row.append(make('span',(arrows[direction]?arrows[direction]+' ':'')+(direction?'Next step: '+direction:statusText||'No known destination')));if(quest.objective)row.append(make('small',quest.objective));if(quest.target?.name)row.append(button(quest.target.name,()=>{const id=token();state.focus=id;if(!send('ui focus '+quest.target.id,id)){state.focus=null;guidance.append(make('p','Connection unavailable.'));}}));if(quest.waypoint)row.append(button('Clear destination',()=>{send('waypoint clear');navigation();}));if(direction&&statusText)row.append(make('small',statusText));guidance.append(row);}
  }
  let refreshPending=false;
- function navigation(){if(window.ExpanseSettings?.questCompassVisible()===false)return;if(state.navigation){refreshPending=true;return;}const id=token();if(send('ui navigation',id))state.navigation=id;}
+ const compassVisible=()=>window.ExpanseSettings?.questCompassVisible()!==false;
+ let wasCompassVisible=compassVisible(), navigationPaintValid=false;
+ function navigation(){
+  if(!compassVisible())return;
+  if(state.navigation){refreshPending=true;return;}
+  const id=token();
+  if(send('ui navigation',id)){state.navigation=id;navigationPaintValid=true;}
+ }
+ function finishNavigation(packet){
+  if(!state.navigation||packet.request_id!==state.navigation)return false;
+  const follow=refreshPending,paint=navigationPaintValid;
+  state.navigation=null;refreshPending=false;navigationPaintValid=false;
+  if(compassVisible()){
+   if(paint&&packet.type==='player_navigation')renderNavigation(packet);
+   if(follow)navigation();
+  }
+  return true;
+ }
  function receive(packet){
   if(packet?.type==='player_list'){if(!dialog.open||!state.list||packet.request_id!==state.list.id||packet.kind!==state.list.kind)return true;state.list=null;pager.hidden=!packet.pagination||packet.pagination.pages<=1;if(packet.pagination){const {page,pages}=packet.pagination;previous.disabled=page<=1;next.disabled=page>=pages;const go=n=>{query.value=query.value.replace(/(?:^|\s)page(?:\s+|:)\d+/gi,'').trim()+' page:'+n;request();};previous.onclick=()=>go(page-1);next.onclick=()=>go(page+1);}
  title.textContent=packet.title||kinds[state.kind];showStatus(packet.note||'');content.replaceChildren();for(const [i,row] of (packet.groups||[]).entries())content.append(node(row,String(i)));if(!content.children.length)content.append(make('p','Nothing known in this list yet.'));return true;}
@@ -85,19 +102,31 @@
    source.close();window.ExpanseWorldAtlas?.focusKnown(packet.pin,{label,dismiss(){dismiss(false);(document.getElementById('conversation-commands')||compassEntry)?.focus();},restore(){
     if(!source.open)source.showModal();if(focus?.isConnected)focus.focus({preventScroll:true});source.scrollTop=outer;viewport.scrollTop=top;
    }});return true;}
-  if(packet?.type==='player_navigation'){if(window.ExpanseSettings?.questCompassVisible()===false){state.navigation=null;return true;}if(packet.request_id&&packet.request_id!==state.navigation)return true;state.navigation=null;renderNavigation(packet);if(refreshPending){refreshPending=false;navigation();}return true;}
+  if(packet?.type==='player_navigation'){finishNavigation(packet);return true;}
   if(packet?.event==='character_entered'||['character_required','saved_exit'].includes(packet?.type)){disconnect();return false;}
   if(packet?.type==='map'||(packet?.type==='response'&&/^(Compass destination set|Globe destination cleared)/.test(packet.text||''))){navigation();}
   if(['response','error'].includes(packet?.type)&&packet.player_list_action===true&&typeof packet.request_id==='string'){
    const pending=[...state.pending.values()].find(action=>action.id===packet.request_id);
-   if(pending){state.pending.delete(pending.key);actionFeedback(pending,packet.text||(packet.type==='error'?'That action could not be completed.':'Action completed.'));syncActionButtons();if(packet.type==='response'){if(dialog.open&&state.kind===pending.kind)request();state.navigation=null;navigation();}}
+   if(pending){state.pending.delete(pending.key);actionFeedback(pending,packet.text||(packet.type==='error'?'That action could not be completed.':'Action completed.'));syncActionButtons();if(packet.type==='response'){if(dialog.open&&state.kind===pending.kind)request();navigation();}}
   }
-  if(packet?.type==='error'&&packet.request_id){if(packet.request_id===state.list?.id){state.list=null;showStatus(packet.text||'Could not load this list.');return true;}if(packet.request_id===state.focus){state.focus=null;showStatus(packet.text||'Could not locate that place.');return true;}if(packet.request_id===state.navigation){state.navigation=null;return true;}}
+  if(packet?.type==='error'&&packet.request_id){if(packet.request_id===state.list?.id){state.list=null;showStatus(packet.text||'Could not load this list.');return true;}if(packet.request_id===state.focus){state.focus=null;showStatus(packet.text||'Could not locate that place.');return true;}if(finishNavigation(packet))return true;}
   return false;
  }
- function disconnect(){refreshPending=false;clearMapCompass();window.ExpansePlayWindows?.disconnect();dismiss(false);if(compass.open)compass.close();window.ExpanseWindowControls?.clear(compass);state.navigation=null;state.sequence++;state.expanded.clear();guidance.replaceChildren(make('p','Load your character to see selected quests.'));window.ExpanseWorldAtlas?.setKnownPins([]);}
+ function disconnect(){refreshPending=false;navigationPaintValid=false;clearMapCompass();window.ExpansePlayWindows?.disconnect();dismiss(false);if(compass.open)compass.close();window.ExpanseWindowControls?.clear(compass);state.navigation=null;state.sequence++;state.expanded.clear();guidance.replaceChildren(make('p','Load your character to see selected quests.'));window.ExpanseWorldAtlas?.setKnownPins([]);}
  dialog.addEventListener('cancel',e=>{e.preventDefault();dismiss();});form.onsubmit=e=>{e.preventDefault();request();};kind.onchange=()=>{state.kind=kind.value;query.value='';title.textContent=kinds[state.kind];request();};refresh.onclick=request;
  document.querySelector('.quick-actions')?.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const key=Object.entries(kinds).find(([,label])=>label===b.textContent)?.[0];if(key){e.preventDefault();e.stopImmediatePropagation();open(key);}},true);
- window.addEventListener('expanse:preferences',event=>{clearMapCompass();state.navigation=null;if(event.detail?.questCompass)navigation();else{if(compass.open)compass.close();window.ExpanseWindowControls?.clear(compass);}});
+ window.addEventListener('expanse:preferences',()=>{
+  const visible=compassVisible();
+  if(visible===wasCompassVisible)return;
+  wasCompassVisible=visible;
+  clearMapCompass();
+  if(visible)navigation();
+  else{
+   // The old request still owns the wire slot until its tagged terminal
+   // result. Do not display that snapshot even if the compass is re-enabled.
+   refreshPending=false;navigationPaintValid=false;
+   if(compass.open)compass.close();window.ExpanseWindowControls?.clear(compass);
+  }
+ });
  window.ExpansePlayerLists={minimizeCompass:()=>{if(compass.open)compass.close();return true;},openCompass,open,close:dismiss,receive,disconnect,requestNavigation:navigation,minimize:()=>{if(state.pending.size)return false;state.list=null;dialog.close();return true;},restore:()=>{dialog.showModal();kind.focus();request();}};
 })();
