@@ -335,6 +335,28 @@ class GameServer(SocietyServer):
         if self.mode=='host' and self.clients and not self.closing:
             self._stage_players_and_world()
 
+    def save_shared_exit(self, websocket, player_id):
+        """System checkpoint for an authenticated MMO departure, not solo play.
+
+        The actor was bound by the server before session expiry. A revoked
+        login must not prevent its final checkpoint. Failed exits retain the
+        actor in memory and are retried by the shared lifecycle.
+        """
+        if not getattr(self,'mmo_save_on_exit',False) or player_id is None:
+            return False
+        saved=getattr(self,'_mmo_saved_exits',set())
+        if websocket in saved:return True
+        pending=getattr(self,'mmo_pending_saves',set())
+        self.mmo_pending_saves=pending
+        try:self._save_players_and_world(player_id)
+        except Exception:
+            pending.add(player_id)
+            raise
+        pending.clear()  # A shared checkpoint includes every participant.
+        self._mmo_saved_exits=saved
+        saved.add(websocket)
+        return True
+
     async def prepare_shutdown(self, *, require_empty=False, save=False):
         """Save synchronously on the game loop before allowing process shutdown."""
         # No await between the membership check and closing: both run on the
@@ -1043,6 +1065,16 @@ class GameServer(SocietyServer):
                 if not self.accounts.authenticate(token):
                     await socket.close(code=1008,reason='Session expired. Sign in again.')
                     self.account_connections.pop(socket,None)
+            for socket,token in list(getattr(self,'mmo_sessions',{}).items()):
+                try:self.mmo_authorizer.authorize(token,'play')
+                except PermissionError:
+                    await socket.close(code=1008,reason='Session expired. Sign in again.')
+                    self.mmo_sessions.pop(socket,None)
+                    continue
+                import time
+                last=getattr(self,'mmo_activity',{}).get(socket,time.monotonic())
+                if time.monotonic()-last>=getattr(self,'mmo_idle_timeout',900):
+                    await socket.close(code=1008,reason='Idle timeout. Your shared-world progress is being saved.')
             ticks += 1
             if ticks%5==0:await self.advance_guides()
             accelerated=self.advance_rest_tick()
@@ -1052,6 +1084,11 @@ class GameServer(SocietyServer):
                 finally:self.world.tick_authorized=False
             if ticks % 20 == 0:
                 self._autosave_host_tick()
+                if getattr(self,'mmo_pending_saves',None):
+                    try:
+                        self._save_players_and_world()
+                        self.mmo_pending_saves.clear()
+                    except Exception as exc:print('MMO exit save retry failed:',exc)
             await self.flush_notifications()
             if getattr(self,'watch_views',None):await self.update_watch_views()
             await self.update_maps()
@@ -1067,6 +1104,12 @@ class GameServer(SocietyServer):
         account_token=''
         local_host=False
         accounts=getattr(self,'accounts',None)
+        mmo=getattr(self,'mmo_authorizer',None)
+        mmo_session=getattr(self,'mmo_sessions',{}).get(websocket,'')
+        if mmo:
+            try:mmo.authorize(mmo_session,'play')
+            except PermissionError:
+                await websocket.close(code=1008,reason='Sign in before joining the shared world.');return
         # Browser websocket requests must originate from this application's
         # HTTP listener. Non-browser LAN clients still require character tokens.
         if not accounts:
@@ -1128,6 +1171,10 @@ class GameServer(SocietyServer):
         try:
             async for raw in websocket:
                 account_id=accounts.authenticate(account_token) if accounts else None
+                if mmo:
+                    try:account_id=mmo.authorize(mmo_session,'play')
+                    except PermissionError:
+                        await websocket.close(code=1008,reason='Session expired. Sign in again.');break
                 if accounts and not local_host and not account_id:
                     await websocket.close(code=1008,reason='Session expired. Sign in again.');break
                 if websocket in dm_console.ensure(self)['kicked'] or (websocket not in self.host_sockets and dm_console.blocked(self,pid=player_id,account=account_id)):
@@ -1153,6 +1200,19 @@ class GameServer(SocietyServer):
                         error['movement_id']=rejected_id
                     await websocket.send(json.dumps(error))
                     continue
+
+                if mmo:
+                    from server.shared_authority import authorize_packet
+                    try:authorize_packet(self,websocket,{**packet,'command':cmd},player_id)
+                    except PermissionError as exc:
+                        denied={'type':'dm_error' if cmd.split()[0].lower()=='dm' else 'error','text':str(exc)}
+                        if cmd.lower()=='save slots':
+                            denied.update(type='save_slots',error=str(exc))
+                        request_id=packet.get('request_id')
+                        if isinstance(request_id,str) and 1<=len(request_id)<=100:
+                            denied['request_id']=request_id
+                        await websocket.send(json.dumps(denied))
+                        continue
 
                 # Correlate list actions without granting privileges or bypassing
                 # ordinary command, location, objective or ownership checks.
@@ -1402,7 +1462,7 @@ class GameServer(SocietyServer):
                     new_pid = cmd.split(None, 1)[1].strip()
                     if accounts and not local_host and not accounts.owns(account_id,new_pid):
                         await websocket.send(json.dumps({'type':'error','text':'That character does not belong to your account.'}));continue
-                    if self.mode=='host' and not accounts and websocket not in self.host_sockets and not self.valid_token(new_pid,packet.get('auth_token','')):
+                    if self.mode=='host' and not accounts and not mmo and websocket not in self.host_sockets and not self.valid_token(new_pid,packet.get('auth_token','')):
                         await websocket.send(json.dumps({'type':'error','text':'Character ownership token required. Load this character from its original browser or ask the host for recovery.'}));continue
                     if websocket not in self.host_sockets and dm_console.blocked(self,pid=new_pid,account=account_id):
                         await websocket.send(json.dumps({'type':'error','text':'This character is blocked from this world.'}));continue
@@ -1545,6 +1605,9 @@ class GameServer(SocietyServer):
                             save_acknowledgements.pop(next(iter(save_acknowledgements)))
                     await websocket.send(json.dumps(acknowledgement))
                     if exiting:
+                        if getattr(self,'mmo_save_on_exit',False):
+                            if not hasattr(self,'_mmo_saved_exits'):self._mmo_saved_exits=set()
+                            self._mmo_saved_exits.add(websocket)
                         break
                     continue
                 if cmd.lower() == 'map':
@@ -1647,12 +1710,16 @@ class GameServer(SocietyServer):
                 from engine import resource_nodes
                 resource_nodes.clear_manual_turns(self.world,ent.id)
             save_failed=False
-            if ent is not None and not self.discarding and websocket not in getattr(self,'no_save_sockets',set()):
-                try:self._stage_players_and_world()
+            if ent is not None and not self.discarding and (getattr(self,'mmo_save_on_exit',False) or websocket not in getattr(self,'no_save_sockets',set())):
+                try:
+                    if not self.save_shared_exit(websocket,player_id):self._stage_players_and_world()
                 except Exception as exc:
                     save_failed=True
                     print('Disconnect save failed; unsaved character retained in memory:',exc)
             getattr(self,'account_connections',{}).pop(websocket,None)
+            getattr(self,'mmo_sessions',{}).pop(websocket,None)
+            getattr(self,'mmo_activity',{}).pop(websocket,None)
+            getattr(self,'_mmo_saved_exits',set()).discard(websocket)
             self.host_sockets.discard(websocket)
             self.clients.pop(websocket,None);self.last_maps.pop(websocket,None)
             from server import magic_delivery
