@@ -104,10 +104,14 @@ keeps creator edits live and performs one final teach, without a stale cache.
     return state(player)
 
 
-def ids(world, player, kind):
-    if player is None or not player.is_player: return set(getattr(world, KINDS[kind], {}))
-    valid=getattr(world,KINDS[kind],{})
-    return {key for key in sync(world,player)[kind] if key in valid}
+def ids(world, player, kind, *, observe=False):
+    """Return current valid IDs, optionally observing local disclosures in the same sync."""
+    if player is None or not player.is_player:
+        if observe and player is not None:
+            sync(world, player, observe=True)
+        return set(getattr(world, KINDS[kind], {}))
+    valid = getattr(world, KINDS[kind], {})
+    return {key for key in sync(world, player, observe=observe)[kind] if key in valid}
 
 
 def local_offers(world, player):
