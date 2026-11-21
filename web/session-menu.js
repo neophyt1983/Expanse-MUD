@@ -16,13 +16,18 @@
    if(!data.characters?.length)list.append(make('p','No saved characters in this world and mode. Create one below.'));
    for(const c of data.characters||[]){const row=make('div');row.style.marginBottom='8px';row.append(make('span',c.name+' · '+(c.mode_label||data.mode)+' · '+(c.unsaved?'Unsaved session':window.expanseSaveDate?window.expanseSaveDate(c.saved_at):c.saved_at||'Date unknown (older save)')+' · '+[c.race,c.char_class,c.location].filter(Boolean).join(' / ')+' '),button('Load',async()=>{if(!ws||ws.readyState!==WebSocket.OPEN){list.prepend(make('p','Still connecting. Please try Load again in a moment.'));return;}const response=await fetch('/api/character/load',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game_slug:data.world,player_id:c.id})});const loaded=await response.json();if(loaded.error){list.prepend(make('p',loaded.error));return;}config.running_game=data.world;localStorage.setItem(`expanse.player_id.${config.running_game||'default'}.${config.mode||'single'}`,c.id);sessionStorage.setItem('expanse.active',c.id);ws.send(JSON.stringify({command:'resume',player_id:c.id,auth_token:localStorage.getItem('expanse.delete_token.'+c.id)}));}));
     const token=localStorage.getItem('expanse.delete_token.'+c.id);
-    if(config.can_manage_server||config.internet_accounts||token)row.append(button('Delete Save',async()=>{
+    if(!config.shared_staging&&(config.can_manage_server||config.internet_accounts||token))row.append(button('Delete Save',async()=>{
       if(!confirm('Permanently delete '+c.name+' in '+data.world+' ('+data.mode+')? This removes the character and its personal progress. Shared-world events and other characters remain.'))return;
       try{const response=await fetch('/api/character/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({game_slug:data.world,player_id:c.id,control_token:config.control_token,delete_token:token})});const deleted=await response.json();if(deleted.error)throw Error(deleted.error);localStorage.removeItem('expanse.delete_token.'+c.id);for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key.startsWith('expanse.player_id.')&&localStorage.getItem(key)===c.id)localStorage.removeItem(key);}window.refreshCharacterSaves();}catch(e){list.prepend(make('p',e.message));}
     }));
     row.dataset.saveId=c.id;list.append(row);}
   }catch(e){list.replaceChildren(make('p','Could not read saves: '+e.message));}
  };
+ fetch('/api/config').then(r=>r.json()).then(settings=>{
+  if(settings.shared_staging&&settings.save_on_exit){
+   const policy=make('span','MMO saves on exit or idle timeout.');policy.id='mmo-save-policy';bar.append(policy);
+  }
+ }).catch(()=>{});
  document.querySelector('header nav button[data-tab="game"]')?.addEventListener('click',()=>{if(!window.expanseCharacterLoaded)showCreationModal();});
  // Data displayed by the original modal is filled from the server, never a phantom Adventurer.
  if(modal.classList.contains('show'))window.refreshCharacterSaves();

@@ -33,10 +33,15 @@ def ensure(server):
 
 
 def owner(server,ws):
+    if getattr(server,'mmo_authorizer',None):
+        from server.shared_authority import can_moderate
+        return can_moderate(server,ws)
     return ws in server.host_sockets
 
 
 def account_for_player(server,pid):
+    if getattr(server,'mmo_authorizer',None):
+        return server.mmo_authorizer.ownership.owner(pid)
     accounts=getattr(server,'accounts',None)
     if not accounts:return None
     with accounts.lock:
@@ -45,6 +50,9 @@ def account_for_player(server,pid):
 
 
 def protects_owner(server,pid,account=None):
+    policy=getattr(server,'mmo_authorizer',None)
+    if policy:
+        return bool(policy.owner and (account or account_for_player(server,pid))==policy.owner)
     return any(socket in server.host_sockets and (target==pid or (account and account_for_player(server,target)==account)) for socket,target in server.clients.items())
 
 

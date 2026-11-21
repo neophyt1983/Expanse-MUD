@@ -110,4 +110,12 @@ function receive(msg){
 }
 function disconnect(){authorized=false;launch.hidden=true;startLaunch.hidden=true;preview=null;pending.clear();clearInterval(timer);timer=null;if(dialog.open)dialog.close();selected='';player=null;detail.replaceChildren();roster.replaceChildren();activity.replaceChildren();history.replaceChildren();bans.replaceChildren();confirm.hidden=true;}
 window.ExpanseDM={receive,disconnect,open,close:dismiss};
+// This controls presentation only. The shared host rechecks the current role
+// on every request and never grants legacy local-host authority to this socket.
+fetch('/api/config').then(r=>r.json()).then(settings=>{
+ if(settings.shared_staging&&settings.mmo_role==='Admin'){
+  authorized=true;launch.hidden=false;startLaunch.hidden=false;
+  notice.textContent='Shared-world Admin controls. Actions require review; character ownership remains separate from moderation authority.';
+ }
+}).catch(()=>{});
 })();

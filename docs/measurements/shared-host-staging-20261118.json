@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-18",
+  "scope": "Local loopback staging; public MMO not enabled or deployed",
+  "base_main": "447efd6e540af87a62b59135a6cedc0407595a11",
+  "authorization_parent": "fd20598f19d5d54a1690590d25c67cdde6f8ce78",
+  "branch": "feature/shared-host-staging-20261118",
+  "save_policy": {
+    "mmo": "Automatic shared checkpoints on quit, disconnect, revoked session, idle timeout and graceful host shutdown; explicit Save also supported.",
+    "single_player": "Manual Save / Save & quit, unchanged.",
+    "idle_timeout_seconds": 900,
+    "failed_exit": "Preserve last durable checkpoint, retain unsaved actor in memory, mark health degraded and retry; a hard kill cannot guarantee saving."
+  },
+  "python_results": [
+    {
+      "python": "3.12.14",
+      "unittest_tests_run": 62,
+      "result": "pass",
+      "skipped_suites": [
+        {
+          "suite": "test_interface_completion.InterfaceCompletion",
+          "reason": "Compatible authored game directory was not supplied via EXPANSE_TEST_WORLD."
+        }
+      ],
+      "resource_warnings": 0
+    },
+    {
+      "python": "3.14.10",
+      "unittest_tests_run": 62,
+      "result": "pass",
+      "skipped_suites": [
+        {
+          "suite": "test_interface_completion.InterfaceCompletion",
+          "reason": "Compatible authored game directory was not supplied via EXPANSE_TEST_WORLD."
+        }
+      ],
+      "resource_warnings": 0
+    }
+  ],
+  "additional_checks": {
+    "private_account_isolation": "PASS on Python3.12 and3.14",
+    "browser_player_list_regressions": "9 PASS",
+    "browser_javascript_syntax": "PASS for 3 changed files",
+    "shared_host_targeted_tests": 27,
+    "network_transport_tests": 9,
+    "simultaneous_fixture_clients": 4
+  },
+  "fixture": {
+    "name": "Tiny two-room authored JSON transport fixture",
+    "file_sha256": {
+      "classes.json": "758500fb6916daedc278c75dd919eee591af33a6360c96bf074d3b0daa6f112a",
+      "items.json": "659814d9dfbd666a38be50a21e366186a08fcd20070da5f95bd53f26c408f235",
+      "metadata.json": "d500ee8319ab0def2cdce36945b5c08e5342dbb8640c88c36a1d50396d5c90a8",
+      "races.json": "606b534ecbcaa67e4e926a47f0dc726902ce5351b1b2c191f2258e9f63610185",
+      "rooms.json": "ef2123614c3232a2239bdf98d8014b333a6dba57ae4a42639bab97e1bc96aeb9",
+      "sexes.json": "08ca0cd44af7a688d2bce78689dbd7eb743e28256712dcb04b60633228b72693"
+    },
+    "full_authored_game": false
+  },
+  "remaining_release_gates": [
+    "Authenticated production gateway and single shared worker routing; public /enter MMO still returns503.",
+    "Guarded Creator/draft/export/import/live-world publication integration; Creator endpoints remain closed for all staging roles.",
+    "Shared-world trade, wider gameplay/full authored-world progression, sustained capacity and abrupt crash/recovery acceptance.",
+    "Complete production data backup/restore, compatible migration/rollback, actual Render validation.",
+    "Physical desktop/mobile/installed-client testing.",
+    "Persistent host-versioned asset caching and measured production billing savings remain unimplemented."
+  ],
+  "candidate_file_sha256": {
+    "server/mmo_access.py": "69885d367bb86c20ade5fc1345e6fcf1bf18d003e5bdbbe655263a550ec7a795",
+    "server/shared_authority.py": "0fe9e042e28b0ead22020ebb91712a61dd96ac2be0d2727a446ae7f927907359",
+    "server/shared_staging.py": "3950f351f9071ee23a4e10a785ff61d4921ce7124182e9738366d0a7b612e70c",
+    "server/game_server.py": "d4c6431917ff41e062f935cf728fe41afaac492e2eea5023a820cb62a986e4a0",
+    "server/society_server.py": "afc5b9eef7599c07eae50f0af674db335996375ea931312b6313356d18c3bf9b",
+    "server/dm_console.py": "9194109bf6a06639b9662ba6af9e69844badfe626cfb8da50f19a3d6ac004931",
+    "server/mmo_roles.py": "c98819b127b417317297b7cf072decc0ee1e80f6fa5cc882d03c9da883233d2a",
+    "server/mmo_ownership.py": "616a4ba97a3c0caa864598b8c7cc9be85467ff3d5ece76e8a5afac83d7d360c5",
+    "web/session-menu.js": "e1d0d79339f8c69c85f431154e817f9afef6b63318648794ca804566b55e85f9",
+    "web/save-browser.js": "763fc0cd37f32db0124376d40f01d900e0a4d217ab5c2fe59a8c180ae8f79314",
+    "web/dm-console.js": "721e612e2a53d37bc143f5d415299e8bedbb64a5e0b940d8ef031d8ca962d34a",
+    "tests/test_mmo_access.py": "f6a43f93f2e09080005e436c57dc5f7e79f875139ec65f30e104821d75627392",
+    "tests/test_shared_authority.py": "e9f6c0b77cf7be61fcdabccb1b3661218368e231ef21adab9650584735c8a7e6",
+    "tests/test_shared_host_persistence.py": "29272ac832296b5897f27035e90ad453c450970441d3aca995643fecf974cd97",
+    "tests/test_shared_host_transport.py": "0fe9e097891700298f83111711823d7070a7eb5f60cec1e1610dd65e5aec7f9e"
+  }
+}
