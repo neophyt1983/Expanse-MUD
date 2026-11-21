@@ -96,7 +96,26 @@
   // Measuring the gap after a resize mistakes a shortened viewport for someone
   // scrolling into history, especially when combat messages arrive that frame.
   let following = true, unread = 0, anchorQueued = false;
-  let readingTop = log.scrollTop, pointerActive = false, touchY = null;
+  let readingTop = log.scrollTop, readingAnchor = null, pointerActive = false, touchY = null;
+  // Conversation text is session UI, never a save. Keep the active quest
+  // callout out of this FIFO so a long encounter cannot remove its controls.
+  const MAX_ROWS = 500, MAX_TEXT = 512 * 1024, MAX_LINE = 32 * 1024;
+  const rows = [];
+  let retainedText = 0;
+  function rememberAnchor() {
+    if (!log.clientHeight || following) return;
+    const top = log.getBoundingClientRect().top + log.clientTop;
+    // Children are in document order; find the first row crossing the top of
+    // the scrollport without walking the whole transcript on every scroll.
+    let lo = 0, hi = log.children.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (log.children[mid].getBoundingClientRect().bottom <= top) lo = mid + 1;
+      else hi = mid;
+    }
+    const row = log.children[lo];
+    readingAnchor = row ? {row, offset: row.getBoundingClientRect().top - top} : null;
+  }
   const metrics = () => ({top: log.scrollTop, height: log.clientHeight, content: log.scrollHeight});
   let previous = metrics();
   function badge() {
@@ -107,8 +126,13 @@
   function anchor() {
     // Hidden/tabbed panels can report scrollTop=0. Keep their reading position.
     if (!log.clientHeight) return;
-    log.scrollTop = following ? log.scrollHeight : readingTop;
+    if (following) log.scrollTop = log.scrollHeight;
+    else if (readingAnchor?.row.parentNode === log) {
+      const top = log.getBoundingClientRect().top + log.clientTop;
+      log.scrollTop += readingAnchor.row.getBoundingClientRect().top - top - readingAnchor.offset;
+    } else log.scrollTop = readingTop;
     previous = metrics();
+    if (!following) { readingTop = previous.top; rememberAnchor(); }
   }
   function settle() {
     if (anchorQueued) return;
@@ -121,19 +145,58 @@
   }
   function jumpToLatest() {
     following = true;
+    readingAnchor = null;
     unread = 0;
     anchor();
     settle();
     badge();
   }
   function beforeAppend(force = false) {
-    return {follow: force || following, top: log.clientHeight ? log.scrollTop : readingTop};
+    if (!following) rememberAnchor();
+    return {follow: force || following, top: log.clientHeight ? log.scrollTop : readingTop, anchor: readingAnchor};
+  }
+  function append(kind, value) {
+    const position = beforeAppend(kind === 'user');
+    let text = String(value ?? '');
+    if (text.length > MAX_LINE) {
+      let cut = MAX_LINE - 100;
+      // Do not separate an emoji's surrogate pair at the truncation point.
+      if (/[\uD800-\uDBFF]/.test(text[cut - 1])) cut--;
+      text = text.slice(0, cut) + '\n[Long message shortened in Conversation.]';
+    }
+    const row = document.createElement('div');
+    row.className = 'line ' + kind;
+    window.ExpanseEmotes.render(row, text);
+    log.appendChild(row);
+    rows.push({row, length: text.length});
+    retainedText += text.length;
+    let pruned = false;
+    while (rows.length > MAX_ROWS || retainedText > MAX_TEXT) {
+      const removed = rows.shift();
+      retainedText -= removed.length;
+      removed.row.remove();
+      pruned = true;
+    }
+    if (pruned && position.anchor?.row.parentNode !== log) {
+      // The previously viewed line has expired. Resume at the oldest still
+      // available content instead of keeping the same index in newer text.
+      position.top = 0;
+      position.anchor = null;
+    }
+    afterAppend(position);
+  }
+  function clear() {
+    rows.length = 0;
+    retainedText = 0;
+    log.replaceChildren();
+    jumpToLatest();
   }
   function afterAppend(position) {
     watchTail();
     if (!position || position.follow) { jumpToLatest(); return; }
     following = false;
     readingTop = position.top;
+    readingAnchor = position.anchor?.row.parentNode === log ? position.anchor : null;
     anchor();
     settle();
     unread += 1;
@@ -143,6 +206,7 @@
     if (!log.clientHeight || log.scrollTop <= 0) return;
     following = false;
     readingTop = log.scrollTop;
+    rememberAnchor();
     previous = metrics();
   }
   log.addEventListener('scroll', () => {
@@ -157,12 +221,15 @@
     if (up && (!resized || pointerActive) && (!following || pointerActive)) {
       following = false;
       readingTop = current.top;
+      rememberAnchor();
     } else if (!following && down && current.content - current.height - current.top <= 2) {
       following = true;
+      readingAnchor = null;
       unread = 0;
       badge();
     } else if (!following && (up || down) && (!resized || pointerActive)) {
       readingTop = current.top;
+      rememberAnchor();
     }
     previous = current;
     if (resized || (following && current.content - current.height - current.top > 2)) settle();
@@ -183,6 +250,7 @@
       if (current.height && current.top < previous.top - 1) {
         following = false;
         readingTop = current.top;
+        rememberAnchor();
         previous = current;
       }
     }
@@ -238,5 +306,5 @@
   log.addEventListener('load', settle, true);
   document.fonts?.ready?.then(settle);
   document.fonts?.addEventListener?.('loadingdone', settle);
-  window.ExpanseTranscript = { beforeAppend, afterAppend, jumpToLatest, version: '1.9.8' };
+  window.ExpanseTranscript = { append, clear, beforeAppend, afterAppend, jumpToLatest, version: '2' };
 })();
