@@ -184,7 +184,7 @@ def guidance(world, player):
     return rows
 
 
-def pin(world, player, rid, _known=None):
+def pin(world, player, rid, _known=None, _visited=None):
     if rid not in (_known if _known is not None else knowledge.ids(world,player,'rooms')):raise ValueError('That location has not been learned.')
     from engine.coordinates import project
     room=world.rooms[rid];details=getattr(world,'room_details',{}).get(rid,{})
@@ -197,14 +197,17 @@ def pin(world, player, rid, _known=None):
         coordinates['world']=dict(x=survey['x'],y=survey['y'],z=survey['z'],units='m')
     if not local:coordinates['local']=None
     return dict(id=rid,name=room.name,x=xyz[0] if local else None,y=xyz[1] if local else None,
-                z=xyz[2] if local else None,coordinates=coordinates,**({'planet':{k:(survey or details['planet'])[k] for k in ('lat','lon')}} if survey or details.get('planet') else {}),tile_position=survey,visited=rid in player.explored_rooms or rid==player.location)
+                z=xyz[2] if local else None,coordinates=coordinates,**({'planet':{k:(survey or details['planet'])[k] for k in ('lat','lon')}} if survey or details.get('planet') else {}),tile_position=survey,visited=rid in (_visited if _visited is not None else player.explored_rooms) or rid==player.location)
 
 
 def packet(world, player):
     k=knowledge.sync(world,player)
-    unvisited=set(k['rooms'])-set(player.explored_rooms)-{player.location}
+    # Reuse request-local memberships for every pin. Rebuilding the learned
+    # set, then scanning the visit list for each pin made large journals quadratic.
+    known=set(k['rooms']);visited=set(player.explored_rooms)
+    unvisited=known-visited-{player.location}
     return dict(type='player_navigation',selected=selected(world,player),quests=guidance(world,player),
-                pins=[pin(world,player,rid,_known=set(k['rooms'])) for rid in sorted(unvisited) if rid in world.rooms],
+                pins=[pin(world,player,rid,_known=known,_visited=visited) for rid in sorted(unvisited) if rid in world.rooms],
                 note=('Darkness conceals routes. Known destinations are retained; try a direction or use a working lantern.' if local_visibility.blind(world,player) else 'Learned markers do not reveal unexplored terrain. Compass shows the next traversable exit, not a straight-line bearing.'))
 
 
