@@ -26,7 +26,8 @@
   section.tab.active { display: flex; }
   #tab-game { flex-direction: column; }
   #log { flex: 1; overflow-y: auto; padding: 14px 16px; white-space: pre-wrap;
-    word-wrap: break-word; }
+    word-wrap: break-word; overflow-anchor: none; }
+  #log:focus-visible { outline: 2px solid #7fd1a4; outline-offset: -3px; }
   .line { margin: 2px 0; }
   .line.user { color: #7fd1a4; }
   .line.welcome, .line.system { color: #6b7688; font-style: italic; }
@@ -183,7 +184,7 @@
         <div id="map-legend" style="white-space:pre-wrap"></div><div id="map-exits"></div>
         <div id="map-move"></div>
       </section>
-      <div id="log"></div>
+      <div id="log" tabindex="0" role="region" aria-label="Conversation history"></div>
       <form id="input-form">
       <span id="prompt" aria-hidden="true">&gt;</span>
       <input id="input" aria-label="Command" placeholder="Type a command…" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="send">
@@ -260,7 +261,7 @@
   </main>
 </div>
 <script src="/damage-feedback.js"></script>
-<script src="/mobile-layout.js?v=1.9.8"></script>
+<script src="/mobile-layout.js?v=transcript-2"></script>
 <script>
 let config = {
   editor_enabled: false,
@@ -344,13 +345,14 @@ function retryConnection(){
 }
 function append(kind, text) {
   const log = document.getElementById('log');
-  const position = window.ExpanseTranscript?.beforeAppend(kind === 'user');
+  const transcript = window.ExpanseTranscript;
+  if (transcript) { transcript.append(kind, text); return; }
   const div = document.createElement('div');
   div.className = 'line ' + kind;
   ExpanseEmotes.render(div, text);
   log.appendChild(div);
-  if (window.ExpanseTranscript) window.ExpanseTranscript.afterAppend(position);
-  else log.scrollTop = log.scrollHeight;
+  while (log.childElementCount > 500) log.firstElementChild.remove();
+  log.scrollTop = log.scrollHeight;
 }
 function connect() {
   if(window.expanseLeaving)return;
@@ -1969,7 +1971,7 @@ updateToolbar();
 <script src="/planet-globe.js"></script>
 <script src="/world-atlas.js?v=1.9.8"></script>
 <link rel="stylesheet" href="/player-lists.css">
-<script src="/player-lists.js?v=interface-completion-20261117"></script>
+<script src="/player-lists.js?v=compass-queue-1"></script>
 <script src="/resident-watch.js"></script>
 <script src="/source-quests.js?v=1.9.14"></script>
 <script>
@@ -1982,7 +1984,7 @@ document.getElementById('open-world-atlas').onclick=()=>ExpanseWorldAtlas.openPl
 document.getElementById('open-host-atlas').onclick=()=>ExpanseWorldAtlas.openCreator({slug:ed.gameSlug,room:document.getElementById('map-center').value||ed.entryId||''});
 </script>
 <link rel="stylesheet" href="/player-controls.css">
-<script src="/player-controls.js?v=1.9.15"></script>
+<script src="/player-controls.js?v=transcript-2"></script>
 <link rel="stylesheet" href="/player-calendar.css">
 <script src="/player-calendar.js"></script>
 <link rel="stylesheet" href="/pixel-studio.css">

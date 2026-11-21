@@ -632,10 +632,9 @@ class GameServer(SocietyServer):
         from engine.mapping import render, room_records
         player = self.mark_explored(player_id)
         from engine import knowledge
-        knowledge.sync(self.world, player, observe=True)
+        known_rooms = knowledge.ids(self.world, player, 'rooms', observe=True)
         from engine import chronicles
         chronicles.meet(self.world, player)
-        known_rooms = knowledge.ids(self.world, player, 'rooms')
         active = []
         for pid in dict.fromkeys(self.clients.values()):
             ent = self.world.entities.get(pid)
