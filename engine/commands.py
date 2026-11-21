@@ -469,10 +469,18 @@ def _greeting_for(world: World, npc: Entity, npc_def: dict,
     return npc_def.get("dialogue") or ""
 
 
+def _local_dialogue_npcs(ctx):
+    room_id = ctx.player.location
+    if ctx.room.id != room_id:
+        return
+    for entity in ctx.world.entities_in_room(room_id):
+        if entity.alive and not entity.is_player and entity.location == room_id:
+            yield entity
+
+
 def _npc_role_target(ctx,target):
     matches=[]
-    for e in ctx.world.entities_in_room(ctx.room.id):
-        if e.is_player or not e.alive:continue
+    for e in _local_dialogue_npcs(ctx):
         d=ctx.world.npcs.get(e.source_def,{})
         aliases=[e.source_def or '',d.get('title',''),d.get('name',''),*d.get('legacy_names',[])]
         if target.casefold() in [x.casefold() for x in aliases if isinstance(x,str)]:matches.append(e)
@@ -487,15 +495,13 @@ def _find_talkable_npc(ctx: CommandContext,
     if not target:
         return None, "Talk to who?"
     candidates = []
-    for eid in ctx.room.entities:
-        ent = ctx.world.entities.get(eid)
-        if not ent or ent.is_player or not ent.alive:
-            continue
-        if ent.id == ctx.player.id:
-            continue
-        if ent.id.lower() == target.lower():
+    for ent in _local_dialogue_npcs(ctx):
+        if ent.id.casefold() == target.casefold():
             return ent, None
         candidates.append({"entity": ent, "key": ent.name})
+    if target.casefold().startswith("npc:"):
+        # Interface target IDs are exact, not fuzzy names. Do not echo a stale ID.
+        return None, "That person is no longer here to talk to."
     matches = _fuzzy_match(target, candidates)
     if not matches:
         return _npc_role_target(ctx,target)
@@ -509,15 +515,13 @@ def _find_talkable_npc_strict(ctx: CommandContext,
     if not target:
         return None, "Talk to who?"
     candidates = []
-    for eid in ctx.room.entities:
-        ent = ctx.world.entities.get(eid)
-        if not ent or ent.is_player or not ent.alive:
-            continue
-        if ent.id == ctx.player.id:
-            continue
-        if ent.id.lower() == target.lower():
+    for ent in _local_dialogue_npcs(ctx):
+        if ent.id.casefold() == target.casefold():
             return ent, None
         candidates.append({"entity": ent, "key": ent.name})
+    if target.casefold().startswith("npc:"):
+        # Interface target IDs are exact, not fuzzy names. Do not echo a stale ID.
+        return None, "That person is no longer here to talk to."
 
     q = _normalize_query(target)
     if not q:

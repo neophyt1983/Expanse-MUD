@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 
 import asyncio
+import base64
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from html import escape
@@ -68,6 +69,22 @@ _emote_labels = dict(_emotes['entries'])
 _symbols = _emotes['symbols']
 _emote_token = re.compile(r':([a-zA-Z_]+):|(?<!\u200d)([' + re.escape(''.join(_symbols))
                           + r'])[\ufe0e\ufe0f]?[\U0001f3fb-\U0001f3ff]?(?![\u200d\ufe0e\ufe0f\U0001f3fb-\U0001f3ff])')
+
+
+_picker_script = (ROOT / 'static' / 'emote-picker.js').read_text(encoding='utf-8')
+_picker_hash = base64.b64encode(hashlib.sha256(_picker_script.encode('utf-8')).digest()).decode('ascii')
+
+
+def emote_picker() -> str:
+    options = []
+    for name, label in _emote_labels.items():
+        name, label = escape(name, quote=True), escape(label, quote=True)
+        options.append(f'<li><button type="button" data-emote=":{name}:" hidden>'
+                       f'<span class="expanse-emote e-{name}" aria-hidden="true"></span> {label}</button>'
+                       f'<code data-emote-fallback>:{name}:</code></li>')
+    return ('<details class="forum-emote-picker" data-forum-emotes>'
+            '<summary>Expanse emojis</summary><p data-emote-help>Type a code below into your message.</p>'
+            '<p data-emote-status role="status"></p><ul>' + ''.join(options) + '</ul></details>')
 
 
 def text_html(text: str) -> str:
@@ -271,17 +288,20 @@ class Forum:
          <nav aria-label="Site"><a href="/">Forum</a><a href="https://expansemud.com/wiki/">Wiki</a>
          <a href="https://expansemud.com/">Game</a>'''+session_links+'''</nav></header>''')
 
-    def page(self, title, content, user=None, *, status=200):
+    def page(self, title, content, user=None, *, status=200, composer=False):
+        composer = bool(composer and user)
+        script = '<script>' + _picker_script + '</script>' if composer else ''
+        script_policy = f"'sha256-{_picker_hash}'" if composer else "'none'"
         doc = '''<!doctype html><html lang="en"><head><meta charset="utf-8">
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <meta name="color-scheme" content="dark"><title>'''+escape(title)+''' · Expanse Community</title>
         <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/emotes.css"></head><body><div class="shell">'''+self.nav(user)+'''
         <main id="main">'''+('<p class="note">Read-only preview. Browse the guides below. Player registration and posting are closed.</p>' if not self.registration_enabled and not user else '')+content+'''</main><footer>Official Expanse community · Independent, creator-directed and AI-assisted.
-        <a href="https://expansemud.com/">expansemud.com</a></footer></div></body></html>'''
+        <a href="https://expansemud.com/">expansemud.com</a></footer></div>''' + script + '''</body></html>'''
         return web.Response(text=doc, content_type='text/html', status=status,
                             headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
                                      'Referrer-Policy':'same-origin','X-Frame-Options':'DENY',
-                                     'Content-Security-Policy':"default-src 'self'; style-src 'self'; img-src 'self' data:; script-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"})
+                                     'Content-Security-Policy':f"default-src 'self'; style-src 'self'; img-src 'self' data:; script-src {script_policy}; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"})
 
     def message(self, req, title, paragraph, status=200):
         return self.page(title, '<div class="panel"><h1>'+escape(title)+'</h1><p>'+escape(paragraph)+'</p><a href="/">Return to categories</a></div>',
@@ -353,7 +373,7 @@ class Forum:
             parts.append('<section class="panel"><h2>Write a reply</h2><form method="post" action="/reply">'
                          '<input type="hidden" name="topic_id" value="'+str(tid)+'"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
                          '<label for="body">Your reply</label><textarea id="body" name="body" maxlength="4000" required></textarea>'
-                         '<button type="submit">Post reply</button></form></section>')
+                          + emote_picker() + '<button type="submit">Post reply</button></form></section>')
         if user and user['role']=='admin':
             parts.append('<div class="panel"><h2>Moderator actions</h2><form method="post" action="/moderate">'
                          '<input type="hidden" name="topic_id" value="'+str(tid)+'"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
@@ -364,7 +384,7 @@ class Forum:
                          '<input type="hidden" name="topic_id" value="'+str(tid)+'"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
                          '<label for="reason">Reason for staff review</label><textarea id="reason" name="reason" maxlength="1000" required></textarea>'
                          '<button type="submit">Send report</button></form></details>')
-        return self.page(t['title'],''.join(parts),user)
+        return self.page(t['title'],''.join(parts),user,composer=bool(user and not t['locked']))
 
     async def new(self,req):
         user=self.require_member(req);cat=req.query.get('category','discussion')
@@ -375,9 +395,9 @@ class Forum:
         return self.page('New topic','''<div class="panel compose"><h1>Start a conversation</h1><form method="post" action="/new">
           <input type="hidden" name="csrf" value="'''+escape(user['csrf'])+'''"><label for="category">Category</label><select id="category" name="category">'''+options+'''</select>
           <label for="title">Title</label><input id="title" name="title" minlength="4" maxlength="120" required>
-          <label for="body">Message</label><textarea id="body" name="body" maxlength="8000" required></textarea>
+          <label for="body">Message</label><textarea id="body" name="body" maxlength="8000" required></textarea>'''+emote_picker()+'''
           <p class="note">Be constructive and protect other people's privacy. Do not post passwords, recovery codes or personal data.</p>
-          <button type="submit">Publish topic</button></form></div>''',user)
+          <button type="submit">Publish topic</button></form></div>''',user,composer=True)
 
     async def post_new(self,req):
         user=self.require_member(req);form=await self.post_data(req);self.csrf(req,user)

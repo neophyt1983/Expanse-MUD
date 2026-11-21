@@ -174,6 +174,9 @@ class World:
             from engine import resting
             resting.cancel(self,ent,'you left your resting place')
         if new_room_id!=ent.location:
+            if getattr(ent, '_public_expression', None) is not None:
+                from engine import speech_bubbles
+                speech_bubbles.end(self, ent)
             for key in ('_fight_display','_visible_action'):
                 if hasattr(ent,key):delattr(ent,key)
         if entity_id in old.entities:

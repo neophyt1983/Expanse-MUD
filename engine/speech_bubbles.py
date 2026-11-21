@@ -19,6 +19,19 @@ def mark(a, b, emotion, reply, lines=None):
     a._town_words = b._town_words = (exchange, lines)
 
 
+def end(world, participant):
+    """A room change ends the live exchange, even if someone quickly returns."""
+    exchange = getattr(participant, '_public_expression', None)
+    if exchange is None:
+        return
+    for ident in exchange[2:4]:
+        actor = world.entities.get(ident)
+        if actor is not None and getattr(actor, '_public_expression', None) is exchange:
+            del actor._public_expression
+            if getattr(actor, '_town_words', (None, None))[0] is exchange:
+                del actor._town_words
+
+
 def valid_phrase(value):
     return isinstance(value, str) and len(value) <= 30 and 1 <= len(value.split()) <= 3 and value.isprintable()
 
