@@ -23,14 +23,18 @@
  const npcChoice=make('select'),emotion=make('select'),gift=make('select'),trust=make('p'),questList=make('div');
  const resident=make('section');resident.id='npc-population-profile';resident.hidden=true;resident.setAttribute('aria-live','polite');
  npcChoice.title='Nearby NPC';emotion.title='Social emotion';gift.title='Gift from inventory';
- const validNpc=()=>socialMap?.social?.npcs?.some(n=>n.id===npcChoice.value);
- function npcAction(command){if(!validNpc()){showNpc();return;}send(command);}
+ const localNpc=(map,id)=>map?.location?.npcs?.find(n=>n.id===id);
+ const selectedNpc=()=>localNpc(socialMap,npcChoice.value)&&socialMap?.social?.npcs?.find(n=>n.id===npcChoice.value);
+ function npcAction(command,id=npcChoice.value,epoch=conversationEpoch){
+  if(epoch!==conversationEpoch||id!==npcChoice.value||!selectedNpc()){showNpc();return;}
+  send(command);
+ }
  const emotionArt=document.createElement('span');
  const drawEmotion=()=>ExpanseEmotes.render(emotionArt,socialMap?.social?.emotions?.[emotion.value]||'');
  emotion.addEventListener('change',drawEmotion);
  const expressButton=button('Express emotion',()=>npcAction(`social emote ${emotion.value} to ${npcChoice.value}`));
  const giftButton=button('Offer NPC gift',()=>{if(!gift.value){showNpc();return;}npcAction(`social gift ${gift.value} to ${npcChoice.value}`);});
- const dialogueButton=button('Quest dialogue / services',()=>npcAction('dialogue '+npcChoice.value));
+ const dialogueButton=button('Quest dialogue / services',()=>dialogue(npcChoice.value));
  const wakeButton=button('Wake NPC',()=>npcAction('wake '+npcChoice.value));wakeButton.title='Deliberately wake this person. They may resent the interruption.';
  const questions=make('fieldset');questions.append(make('legend','Conversation topics and directions'));
  const subject=make('input'),addressee=make('input');subject.placeholder='Name or place';subject.maxLength=120;
@@ -61,11 +65,33 @@
  function showTaming(){const row=socialMap?.taming?.find(r=>r.id===tameChoices.value);tameButton.disabled=!row||!!row.blocked;tameInfo.textContent=row?row.name+' needs '+row.food+'. '+(row.blocked||'Ready to tame.'): 'No tameable creature here. Companion field notes explain how to begin.';}
  tameChoices.onchange=showTaming;
  const panelStack=make('div');panelStack.id='society-panels';document.getElementById('session-actions').after(panelStack);panelStack.append(host,panel,npcPanel,petPanel);
- let socialMap=null,missingNpc=false;
- function npcOptions(rows){const old=npcChoice.value;npcChoice.replaceChildren(new Option(rows.length?'Choose a nearby NPC':'No living social NPC nearby',''));for(const row of rows)npcChoice.append(new Option(row.name,row.id));if(rows.some(n=>n.id===old))npcChoice.value=old;else if(old)missingNpc=true;npcChoice.disabled=!rows.length;}
+ let socialMap=null,endedName='',conversationEpoch=0;
+ trust.setAttribute('role','status');
+ function npcOptions(rows,keep=''){
+  npcChoice.replaceChildren(new Option(rows.length?'Choose a nearby NPC':'No living social NPC nearby',''));
+  for(const row of rows)npcChoice.append(new Option(row.name,row.id));
+  npcChoice.value=rows.some(n=>n.id===keep)?keep:'';
+  npcChoice.disabled=!rows.length;
+ }
+ function dialogue(id){
+  const person=localNpc(socialMap,id);
+  if(!person){append('error','That person is no longer here to talk to.');return;}
+  const command=(socialMap.social?'dialogue ':'talk ')+person.id;
+  if(ws&&ws.readyState===1){send(command);append('user','> '+(socialMap.social?'Quest dialogue with ':'Talk to ')+person.name);}
+  else send(command);
+ }
+ function resetNpcConversation(){
+  const previous=selectedNpc();
+  if(previous)endedName=previous.name;
+  conversationEpoch++;
+  socialMap=null;
+  npcOptions([]);
+  showNpc();
+ }
+ window.ExpanseNpcConversation={dialogue,reset:resetNpcConversation};
 
  function options(select,rows){const old=select.value;select.replaceChildren();for(const row of rows)select.append(new Option(row.name,row.id));if(rows.some(r=>r.id===old))select.value=old;}
- function showNpc(){const n=socialMap?.social?.npcs?.find(n=>n.id===npcChoice.value);showResident(n?.population);questions.disabled=!n||n.awake===false;options(emotion,Object.entries(socialMap?.social?.emotions||{}).filter(([id])=>id!=='in_love'||n?.adult!==false).map(([id,emoji])=>({id,name:id.replaceAll('_',' ')})));drawEmotion();options(sellChoice,(n?.commerce?.buying||[]).map(i=>({...i,name:i.name+' — '+i.price+' gold'+(i.reason?' · '+i.reason:'')+(i.affordable?'':' (cannot afford)')})));options(takeChoice,(n?.commerce?.offering||[]).map(i=>({...i,name:i.name+' — value '+i.value})));const canTrade=!!n&&(socialMap?.location?.npcs||[]).some(x=>x.id===n.id&&x.trade_available===true);for(const control of [sellChoice,sellButton,takeChoice,barterButton])control.hidden=!canTrade;sellButton.disabled=!canTrade||!sellChoice.value;barterButton.disabled=!canTrade||!sellChoice.value||!takeChoice.value;wakeButton.disabled=!n||n.awake!==false;expressButton.disabled=!n||n.awake===false||!emotion.value;giftButton.disabled=!n||n.awake===false||!gift.value;dialogueButton.disabled=!n||n.awake===false;gift.disabled=!gift.options.length;trust.textContent=n?(n.awake===false?'Sleeping. Choose Wake NPC to disturb them; they may resent it. ':'Awake. ')+'Personal trust: '+n.trust+'. Interests: '+(n.likes||'No gift interests specified')+'. '+(n.needs||'')+' Gifts do not change faction reputation.'+(!gift.value?' You have no unequipped items to offer.':''):(missingNpc?'The selected NPC is no longer available here. Choose another nearby NPC.':(socialMap?.social?.npcs?.length?'Choose a nearby NPC, then choose a gift.':'No living NPC here can receive social gifts. Find a person and choose Talk.'));questList.replaceChildren();for(const q of n?.quests||[]){const row=make('p',q.name+' — '+q.status+'. '+q.description+' '+Object.entries(q.goals).map(([k,v])=>k.replaceAll('_',' ')+': '+q.progress[k]+'/'+v).join('; ')+(q.blocked?' — '+q.blocked:''));const b=button(q.status==='active'?'Complete quest':'Accept quest',()=>send(`social ${q.status==='active'?'complete':'accept'} ${q.id} with ${n.id}`));b.disabled=!!q.blocked||q.status==='complete';row.append(b);questList.append(row);}}
+ function showNpc(){const n=selectedNpc(),epoch=conversationEpoch;showResident(n?.population);questions.disabled=!n||n.awake===false;options(emotion,Object.entries(socialMap?.social?.emotions||{}).filter(([id])=>id!=='in_love'||n?.adult!==false).map(([id,emoji])=>({id,name:id.replaceAll('_',' ')})));drawEmotion();options(sellChoice,(n?.commerce?.buying||[]).map(i=>({...i,name:i.name+' — '+i.price+' gold'+(i.reason?' · '+i.reason:'')+(i.affordable?'':' (cannot afford)')})));options(takeChoice,(n?.commerce?.offering||[]).map(i=>({...i,name:i.name+' — value '+i.value})));const canTrade=!!n&&(socialMap?.location?.npcs||[]).some(x=>x.id===n.id&&x.trade_available===true);for(const control of [sellChoice,sellButton,takeChoice,barterButton])control.hidden=!canTrade;sellButton.disabled=!canTrade||!sellChoice.value;barterButton.disabled=!canTrade||!sellChoice.value||!takeChoice.value;wakeButton.disabled=!n||n.awake!==false;expressButton.disabled=!n||n.awake===false||!emotion.value;giftButton.disabled=!n||n.awake===false||!gift.value;dialogueButton.disabled=!n||n.awake===false;gift.disabled=!gift.options.length;trust.textContent=n?(n.name+' — ')+(n.awake===false?'Sleeping. Choose Wake NPC to disturb them; they may resent it. ':'Awake. ')+'Personal trust: '+n.trust+'. Interests: '+(n.likes||'No gift interests specified')+'. '+(n.needs||'')+' Gifts do not change faction reputation.'+(!gift.value?' You have no unequipped items to offer.':''):(endedName?'Conversation ended. '+endedName+' is no longer available here.':(socialMap?.social?.npcs?.length?'Choose a nearby NPC, then choose a gift.':'No living NPC here can receive social gifts. Find a person and choose Talk.'));questList.replaceChildren();for(const q of n?.quests||[]){const row=make('p',q.name+' — '+q.status+'. '+q.description+' '+Object.entries(q.goals).map(([k,v])=>k.replaceAll('_',' ')+': '+q.progress[k]+'/'+v).join('; ')+(q.blocked?' — '+q.blocked:''));const b=button(q.status==='active'?'Complete quest':'Accept quest',()=>npcAction(`social ${q.status==='active'?'complete':'accept'} ${q.id} with ${n.id}`,n.id,epoch));b.disabled=!!q.blocked||q.status==='complete';row.append(b);questList.append(row);}}
  function showResident(profile){
   resident.replaceChildren();resident.hidden=!profile;if(!profile)return;
   resident.append(make('h4','Resident profile'));
@@ -93,13 +119,18 @@
  partner.onchange=relationshipChoices;
  function showPet(){const c=socialMap?.companions?.find(c=>c.id===pet.value);const inv=socialMap?.character?.inventory||[];const unique=inv.filter((x,i)=>inv.findIndex(y=>y.id===x.id)===i);options(treat,unique.filter(i=>c?.treats.includes(i.id)));options(toy,[...unique.filter(i=>c?.toys.includes(i.id)),...(c?.held_toys||[]).filter(i=>!unique.some(x=>x.id===i.id))]);petInfo.textContent=c?`${c.name}: ${c.order}, ${c.mode}; location: ${c.location}; happiness ${c.happiness}/100. Dismissal preserves ownership. Recall brings your living companion back.`:'Tame a suitable creature to gain a companion.';}
  window.openNpcSocial=id=>{
-  if(!(socialMap?.social?.npcs||[]).some(n=>n.id===id)){append('error','That NPC is no longer nearby or does not use social conversation.');return;}
-  send('social begin '+id);npcChoice.value=id;missingNpc=false;showNpc();if(window.ExpansePlayWindows)window.ExpansePlayWindows.open(npcPanel);else{npcPanel.open=true;npcPanel.scrollIntoView({block:'nearest'});}(wakeButton.disabled?emotion:wakeButton).focus();
+  if(!localNpc(socialMap,id)||!(socialMap?.social?.npcs||[]).some(n=>n.id===id)){append('error','That NPC is no longer nearby or does not use social conversation.');return;}
+  send('social begin '+id);npcChoice.value=id;endedName='';conversationEpoch++;showNpc();if(window.ExpansePlayWindows)window.ExpansePlayWindows.open(npcPanel);else{npcPanel.open=true;npcPanel.scrollIntoView({block:'nearest'});}(wakeButton.disabled?emotion:wakeButton).focus();
  };
- npcChoice.onchange=()=>{missingNpc=false;showNpc();if(validNpc())send('social begin '+npcChoice.value);};gift.onchange=showNpc;emotion.onchange=showNpc;pet.onchange=showPet;
+ npcChoice.onchange=()=>{endedName='';conversationEpoch++;showNpc();if(selectedNpc())send('social begin '+npcChoice.value);};gift.onchange=showNpc;emotion.onchange=showNpc;pet.onchange=showPet;
  const previous=window.renderRoomPanel;window.renderRoomPanel=m=>{
-  previous(m);socialMap=m;npcSocial.hidden=!m.social;pets.hidden=!m.social;
-  npcOptions(m.social?.npcs||[]);options(emotion,Object.entries(m.social?.emotions||{}).map(([id,emoji])=>({id,name:emoji+' '+id.replaceAll('_',' ')})));options(gift,(m.character.inventory||[]).filter((x,i,a)=>!x.equipped&&a.findIndex(y=>y.id===x.id)===i));showNpc();
+  previous(m);
+  const selectedPerson=selectedNpc(),rows=(m.social?.npcs||[]).filter(n=>localNpc(m,n.id));
+  const sameRoom=socialMap?.location?.id===m.location.id&&socialMap?.character?.id===m.character.id;
+  const keep=selectedPerson&&sameRoom&&rows.some(n=>n.id===selectedPerson.id);
+  if(selectedPerson&&!keep){endedName=selectedPerson.name;conversationEpoch++;}
+  socialMap=m;npcSocial.hidden=!m.social;pets.hidden=!m.social;
+  npcOptions(rows,keep?selectedPerson.id:'');options(emotion,Object.entries(m.social?.emotions||{}).map(([id,emoji])=>({id,name:emoji+' '+id.replaceAll('_',' ')})));options(gift,(m.character.inventory||[]).filter((x,i,a)=>!x.equipped&&a.findIndex(y=>y.id===x.id)===i));showNpc();
   options(tameChoices,m.taming||[]);showTaming();
   options(pet,m.companions||[]);options(foe,[...(m.location.npcs||[]),...(m.location.players||[])].filter(x=>x.id!==m.character.id));showPet();
   recipient.replaceChildren();for(const p of m.location.players||[])if(p.id!==m.character.id)recipient.append(new Option(p.name,p.id));

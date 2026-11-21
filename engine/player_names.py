@@ -14,7 +14,15 @@ def item(world, query, ids):
     return pick([{'id':i,'name':world.items[i].get('name','Unnamed item')} for i in dict.fromkeys(ids) if i in world.items],query,'item')['id']
 
 def nearby(world, player, query):
-    rows=[{'id':e.id,'name':e.name} for e in world.entities_in_room(player.location) if not e.is_player and e.alive]
+    room_id = player.location
+    rows=[{'id':e.id,'name':e.name} for e in world.entities_in_room(room_id)
+          if not e.is_player and e.alive and e.location == room_id]
+    if query.strip().casefold().startswith('npc:'):
+        key = query.strip().casefold()
+        matches = [row for row in rows if row['id'].casefold() == key]
+        if len(matches) != 1:
+            raise ValueError('That person is no longer here to talk to.')
+        return world.entities[matches[0]['id']]
     return world.entities[pick(rows,query,'nearby person')['id']]
 
 def known_items(world, player):

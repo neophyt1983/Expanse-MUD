@@ -390,6 +390,7 @@ function connect() {
     window.ExpansePlayerControls?.disconnect();
     window.ExpanseDM?.disconnect();
     window.ExpanseTrade?.disconnect();window.ExpanseCalendar?.disconnect();
+    window.ExpanseNpcConversation?.reset();
     window.ExpanseWindowControls?.disconnect();
     window.ExpansePlayerLists?.disconnect();window.ExpanseEquipment?.disconnect();window.ExpanseRestControls?.disconnect();
     window.ExpanseWorldAtlas?.disconnect();window.ExpanseMap?.reset();
@@ -410,6 +411,7 @@ function connect() {
     if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit'||(msg.type==='system'&&/^Resumed as /.test(msg.text||'')))window.ExpanseAssets?.disconnect();
     if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit')window.ExpanseMapEffects?.reset();
     if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit'||(msg.type==='system'&&/^Resumed as /.test(msg.text||'')))window.ExpanseSoundscape?.disconnect();
+    if(msg.event==='character_entered'||msg.type==='character_required'||msg.type==='saved_exit'||(msg.type==='system'&&/^Resumed as /.test(msg.text||'')))window.ExpanseNpcConversation?.reset();
     window.ExpanseSourceQuests?.receive(msg);
     if(msg.type!=='map'&&window.ExpanseInterfaceTour?.receive(msg))return;
     if(window.ExpansePlaytest?.receive(msg))return;
