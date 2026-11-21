@@ -12,7 +12,7 @@
  function submit(cmd){
   if(/^(news|newspaper)(?:\s+editions)?$/i.test(cmd)&&window.ExpanseGazette){window.ExpanseGazette.open(/\s+editions$/i.test(cmd));return true;}
   if(/^(journal|quests)$/i.test(cmd)&&window.ExpansePlayerLists){window.ExpansePlayerLists.open('quests');return true;}
-  if(!/^(clear|cls)$/i.test(cmd))return false;$('log').replaceChildren();window.ExpanseTranscript?.jumpToLatest();index=history.length;draft='';return true;
+  if(!/^(clear|cls)$/i.test(cmd))return false;if(window.ExpanseTranscript)window.ExpanseTranscript.clear();else $('log').replaceChildren();index=history.length;draft='';return true;
  }
  const controls=make('div');controls.id='player-controls';
  const focus=make('button','Use movement keys'),settings=make('button','Keyboard layout and movement bindings');focus.type=settings.type='button';focus.className=settings.className='ed-btn';focus.id='movement-key-focus';settings.id='player-keybindings';
@@ -32,7 +32,7 @@
  function holdAllowed(){
   if(document.hidden||document.querySelector('dialog[open]:not(#quest-compass)')||!ws||ws.readyState!==1)return false;
   const focus=document.activeElement;
-  if(focus?.isContentEditable||focus?.closest?.('input,textarea,select,[role="textbox"]'))return false;
+  if(focus?.isContentEditable||focus?.closest?.('#log,input,textarea,select,[role="textbox"]'))return false;
   return !!$('tab-game')?.classList.contains('active') && !$('app')?.inert;
  }
  function startHold(direction,key){
@@ -192,6 +192,7 @@
   if(e.defaultPrevented||e.repeat||e.isComposing||e.ctrlKey||e.altKey||e.metaKey||e.shiftKey)return;
   if(!$('tab-game')?.classList.contains('active')||$('app')?.inert||document.querySelector('dialog[open]:not(#quest-compass)')||$('character-creation')?.classList.contains('show'))return;
   if(e.target.isContentEditable||e.target.closest?.('input,textarea,select,[contenteditable=""],[contenteditable="true"],[role="textbox"]'))return;
+  if(e.target.closest?.('#log'))return;
   const action=Object.keys(bindings).find(a=>bindings[a]&&bindings[a]===e.code);if(!action)return;
   e.preventDefault();
   if(!ws||ws.readyState!==WebSocket.OPEN){append('error','Not connected.');return;}
