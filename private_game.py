@@ -11,7 +11,7 @@ from pathlib import Path
 from aiohttp import web, WSMsgType
 from engine import loader, persistence
 from engine.build_info import BUILD
-from engine.character_style import choices, class_accents
+from engine import classless, starting_cities
 from server import game_server, save_slots, playtest_telemetry, world_catalogue
 from server.accounts import display_name
 
@@ -100,11 +100,8 @@ class Game:
             info = world_catalogue.display_info({'slug':self.slug}, self.server.world.metadata)
             result = {'games':[{'slug':self.slug,'name':info['display_name']}]}
         elif action == 'character/options':
-            w = self.server.world
-            result = dict(races=[dict(choices(r, {}), id=r['id'], name=r.get('name',r['id'])) for r in w.races.values()],
-                          classes=[dict(id=r['id'],name=r.get('name',r['id']),accents=class_accents(r)) for r in w.classes.values()],
-                          sexes=[dict(id=r['id'],name=r.get('name',r['id'])) for r in w.sexes.values()],
-                          factions=[dict(id=r['id'],name=r.get('name',r['id'])) for r in w.groups.values() if r.get('visibility')=='playable'])
+            w=self.server.world
+            result = {**classless.options(w),**starting_cities.option_fields(w,supported=True)}
         elif action == 'character/saves':
             rows = await self.server.saved_characters(self.slug)
             result = dict(characters=save_slots.visible_characters(self.directory, rows), world=self.slug, mode='single')
@@ -126,7 +123,7 @@ class Game:
             if len(combined) > 61:
                 raise ValueError('First and last names together must be at most 61 characters.')
             display_name(combined)
-            result = await self.server.create_character(dict(body, first_name=first,last_name=last,game_slug=self.slug))
+            result = await self.server.create_character(dict(body, first_name=first,last_name=last,game_slug=self.slug),supports_city_choice=True)
         elif action == 'character/load':
             if not any(r['id']==body.get('player_id') for r in await self.server.saved_characters(self.slug)):
                 raise ValueError('No matching character in this game.')

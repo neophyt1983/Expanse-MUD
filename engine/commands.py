@@ -463,6 +463,9 @@ def _def_for(world: World, entity: Entity) -> Optional[dict]:
 def _greeting_for(world: World, npc: Entity, npc_def: dict,
                    player: Entity) -> str:
     """Return greeting for the player's faction, else dialogue."""
+    from engine import earned_start
+    if earned_start.marked(player) and npc.source_def in earned_start.WELCOME:
+        return earned_start.INTRO
     greetings = npc_def.get("greetings") or {}
     if player.group_id and player.group_id in greetings:
         return greetings[player.group_id] or ""
@@ -784,12 +787,17 @@ def _cmd_dialogue(ctx: CommandContext, args: str) -> str:
     npc_def = _def_for(ctx.world, npc) or {}
     from engine import ability_rules
     ability_rules.disclose(ctx.world,ctx.player,npc_def)
+    from engine.classless import mentor_line
+    advice=mentor_line(ctx.world,ctx.player,npc)
     from engine import knowledge
     knowledge.from_npc(ctx.world,ctx.player,npc)
     def sourced_reply(text):
         from engine.quest_discovery import offer_text
         text=knowledge.from_text(ctx.world,ctx.player,text,source=('npc',npc.source_def))
-        return text+offer_text(ctx.world,ctx.player,npc_def.get('knowledge',{}).get('quests',[]))
+        offers=offer_text(ctx.world,ctx.player,npc_def.get('knowledge',{}).get('quests',[]))
+        return text+offers
+    if advice and (not topic or topic.casefold() == 'field stitch'):
+        return sourced_reply(npc.name+': '+advice)
     if ctx.world.metadata.get("market_shifts") and npc_def.get("market_id"):
         from engine import market_shifts
         return sourced_reply(market_shifts.menu(ctx.world,ctx.player,npc))
@@ -1191,6 +1199,10 @@ def _cmd_look(ctx: CommandContext, args: str) -> str:
         if loose:lines.append("On the ground: " + ", ".join(loose))
         if books:lines.append(f"Bookshelves: {len(books)} volumes. Type books to browse.")
         if posted:lines.append("Posted reading: " + ", ".join(dict.fromkeys(posted)))
+    if not dark:
+        from engine import earned_start
+        if earned_start.marked(ctx.player) and room.id in (earned_start.INN, earned_start.KITCHEN):
+            lines.append("Kitchen work: use startwork status for real vacancies and pay.")
     return "\n".join(lines)
 
 def _cmd_go(ctx: CommandContext, args: str) -> str:
@@ -1498,6 +1510,12 @@ def _cmd_read(ctx, args):
             from engine.reading_room import publication_text
             return publication_text(ctx.world,remembered)+remembered.get('read_text','')
     item=item_catalog.choose(copies,query,missing='That item is not here or in your inventory.')
+    from engine import earned_start
+    if earned_start.marked(ctx.player) and item['id'] in earned_start.WELCOME_ITEMS:
+        from engine.quest_discovery import disclose,offer_text
+        topics=item.get('knowledge',{})
+        offered=disclose(ctx.world,ctx.player,topics,'item',item['id'])
+        return earned_start.INTRO+offer_text(ctx.world,ctx.player,offered)
     if item.get('newspaper'):
         from engine.gazette import browse
         return browse(ctx.world,ctx.player,item.get('press_edition',''))
@@ -1597,6 +1615,9 @@ def _cmd_faction(ctx: CommandContext, args: str) -> str:
 
 def build_registry() -> CommandRegistry:
     reg = CommandRegistry()
+    from engine import civic_visits
+    reg.register(Command('knock', 'Visit a court household', 'knock <door> [name]',
+                         civic_visits.knock, available=lambda ctx: bool(civic_visits.COURT.fullmatch(str(ctx.player.location)))))
     reg.register(Command("look", "Describe your surroundings", "look",
                          _cmd_look, aliases=["l"], example="look"))
     reg.register(Command("go", "Move through an exit", "go <direction>",
@@ -1655,7 +1676,10 @@ def build_registry() -> CommandRegistry:
     from engine import wildlands,ward_life
     for word,fn,hint in [('expedition',wildlands.command,'Follow a trail or examine an expedition site'),('sanity',wildlands.command,'Check your resolve and memories'),('ward',ward_life.command,'Visit the ward register or help house')]:
         reg.register(Command(word,hint,word,fn,available=lambda ctx,word=word:bool(getattr(ctx.world,"rules",{}).get("ward")) if word=="ward" else wildlands.enabled(ctx.world)))
-    from engine import escorts
+    from engine import earned_start, escorts
+    reg.register(Command('startwork','Review or complete a genuinely funded kitchen order',
+        'startwork [status | accept | decline | cook | deliver | cancel | lodging | check-in]',
+        earned_start.command, example='startwork status', available=lambda ctx: earned_start.marked(ctx.player)))
     for mode in ('follow','lead'):
         reg.register(Command(mode,'Travel with a quest companion',mode+' <name|stop>',
             lambda ctx,args,mode=mode:escorts.command(ctx,args,mode),example=mode+' Rowan'))
@@ -1664,8 +1688,13 @@ def build_registry() -> CommandRegistry:
     reg.register(Command("news","Read the local newspaper or choose an edition","news [editions | place] [yesterday] [/all]",lambda ctx,args:gazette.browse(ctx.world,ctx.player,args),example="news editions"))
     reg.register(Command("read", "Read an accessible item", "read <item>", _cmd_read, example="read village notice"))
     reg.register(Command("map", "Open the terrain map and show your location", "map", _cmd_map, example="map"))
+    from engine import interface_tours
     for name, (brief, example) in living.COMMANDS.items():
-        reg.register(Command(name, brief, example, lambda ctx, args, name=name: living.command(ctx,args,name), example=example, available=lambda ctx: living.enabled(ctx.world)))
+        def available(ctx,name=name):
+            return living.enabled(ctx.world) and (
+                name!='interface' or not earned_start.marked(ctx.player)
+                or bool(interface_tours._learned(ctx.world,ctx.player)))
+        reg.register(Command(name, brief, example, lambda ctx, args, name=name: living.command(ctx,args,name), example=example, available=available))
     from engine import society, trade_view
     society.register(reg)
     trade_view.register(reg)

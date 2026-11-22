@@ -95,6 +95,8 @@ def advance(world,minutes=1):
     geology_impacts.advance(world,minutes)
     from engine import needs_market
     needs_market.advance(world,minutes)
+    from engine import earned_lodging
+    earned_lodging.tick(world,minutes)
     from engine import settlements
     settlements.advance(world)
     from engine import npc_life
@@ -517,7 +519,7 @@ def command(ctx,args,name):
         a=choose(list(w.abilities.values()),args)
         if a['id'] in p.abilities:return 'You already know that ability.'
         from engine import ability_rules
-        ability_rules.lesson_check(w,p,a)
+        ability_rules.lesson_check(w,p,a,via_school=True)
         fee=a.get('training_cost',20)
         if p.gold<fee:return f'Training costs {fee} gold.'
         p.gold-=fee;p.abilities.append(a['id']);return 'Learned '+a['name']+'.'
@@ -626,6 +628,9 @@ def restore(world,saved):
         return
     from engine.core import Entity
     world.living_state=saved.get('state',{})
+    if world.living_state.get('civic_visits_v1'):
+        from engine import civic_visits
+        civic_visits.restore_definitions(world,world.living_state['civic_visits_v1'])
     from engine import wildlands
     wildlands.restore(world,world.living_state)
     from engine import country_edges
@@ -700,13 +705,18 @@ def quest_blocked(world,player,quest,*,alternatives=True,readonly=False):
     from engine import quest_progress as qp, quest_chains
     def completed(qid):return qp.status(world,player,qid)=='complete'
     q=quest;p=player;pr=p.progress if readonly else progress(p);s=getattr(world,'living_state',{}) if readonly else state(world)
+    from engine import earned_start
+    if earned_start.retired(p,q['id']):return 'This former training request is not part of your in-world start.'
     chain_block=quest_chains.blocked(world,player,quest,migrate_player=not readonly)
     if chain_block:return chain_block
     if alternatives:
         from engine import quest_alternatives
         alternative_block=quest_alternatives.blocked(world,player,quest)
         if alternative_block:return alternative_block
-    if any(not completed(i) for i in q.get('prerequisites',[])):return 'Complete the prerequisite quests first.'
+    prerequisites=q.get('prerequisites',[])
+    if q['id']==earned_start.CHAIN:
+        prerequisites=earned_start.omit_stage(p,q['id'],prerequisites)
+    if any(not completed(i) for i in prerequisites):return 'Complete the prerequisite quests first.'
     if any(completed(i) for i in q.get('exclusive_with',[])):return 'Another outcome has already been chosen.'
     if any(s.get('flags',{}).get(k)!=v for k,v in q.get('requires_world_flags',{}).items()):return 'World conditions do not permit this quest yet.'
     if q.get('class') and q['class']!=p.char_class:return 'This quest belongs to another class.'
@@ -794,7 +804,9 @@ def quest_command(ctx,args,name):
                 if q.get('prerequisites'):rows.append('Requires: '+', '.join(w.quests[i]['name'] for i in q['prerequisites'] if i in pr['quests'] and i in w.quests))
                 if q.get('consequence'):rows.append('Consequence: '+q['consequence']+' ('+q.get('scope','character')+')')
                 reward_items=[w.items.get(i,{}).get('name',i) for i in q.get('reward_items',[])]
-                rewards=([str(q['reward_gold'])+' gold'] if q.get('reward_gold') else [])+reward_items+[w.groups.get(g,{}).get('name',g)+' standing '+str(n) for g,n in q.get('reputation',{}).items()]
+                from engine import earned_start
+                gold_reward=earned_start.gold_reward(p,q)
+                rewards=([str(gold_reward)+' gold'] if gold_reward else [])+reward_items+[w.groups.get(g,{}).get('name',g)+' standing '+str(n) for g,n in q.get('reputation',{}).items()]
                 from engine import progression
                 if progression.config(w)['enabled']:rewards.append(str(q.get('reward_xp',progression.config(w)['quest_xp']))+' XP on first completion'+('; repeat XP requires fresh objectives or supplied goods' if q.get('repeatable') else ''))
                 if not replacement:rows.append('Rewards: '+(', '.join(rewards) or 'completion recorded'))
@@ -824,7 +836,8 @@ def quest_command(ctx,args,name):
         return 'Quest accepted. '+q.get('description','')+('\n\n'+interface_tours.describe(interface_tours.projection(w,p)) if tour_started else '')
     reason=quest_completion_blocked(w,p,q)
     if reason:return reason
-    consume(p,q.get('required_items',{}),w);p.gold+=q.get('reward_gold',0);p.inventory.extend(q.get('reward_items',[]))
+    from engine import earned_start
+    consume(p,q.get('required_items',{}),w);p.gold+=earned_start.gold_reward(p,q);p.inventory.extend(q.get('reward_items',[]))
     if q.get('escort'):
         from engine import escorts
         escorts.return_to_start(w,p,q,reset=False)

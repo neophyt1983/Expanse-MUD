@@ -128,6 +128,7 @@
     font-size: 11px; color: #6b7688;
     text-transform: uppercase; letter-spacing: 1px;
   }
+  #character-creation #cc-class-row[hidden], #character-creation #cc-city-row[hidden] { display: none; }
   .cc-row input, .cc-row select, .cc-panel textarea {
     background: #0d0f14; color: #d8dce4;
     border: 1px solid #1e2430; border-radius: 3px;
@@ -1703,22 +1704,40 @@ document.getElementById('ed-apply')?.addEventListener('click', async () => {
     setStatus(res.text, 'ok');
   }
 });
+let creationOptionsFor=null,creationOptionsRevision=0;
 async function loadCharacterOptions() {
+  creationOptionsFor=null;
+  const revision=++creationOptionsRevision;
   document.querySelector('#character-creation h1').textContent='Create a character in '+(document.getElementById('cc-game').selectedOptions[0]?.textContent||config.running_game);
   const gameSlug = document.getElementById('cc-game').value;
   const status = document.getElementById('cc-status');
   try {
     const res = await fetch('/api/character/options?game=' + encodeURIComponent(gameSlug));
     const data = await res.json();
+    if(revision!==creationOptionsRevision||document.getElementById('cc-game').value!==gameSlug)return;
     if (data.error) { status.textContent = data.error; return; }
-    if(document.getElementById('cc-game').value!==gameSlug)return;
     fillSelect('cc-race', data.races || []);
     fillSelect('cc-class', data.classes || []);
+    const classInput=document.getElementById('cc-class');
+    classInput.disabled=data.classless_start===true;
+    document.getElementById('cc-class-row').hidden=classInput.disabled;
+    document.getElementById('cc-skills-intro').hidden=!classInput.disabled;
     fillSelect('cc-sex', data.sexes || []);
     fillSelect('cc-faction', data.factions || [], false);
+    const city=document.getElementById('cc-city');
+    const offered=data.choose_starting_city===true;
+    const cities=data.starting_cities||[];
+    city.replaceChildren(new Option('Choose a city',''),...cities.map(c=>new Option(c.name,c.id)));
+    city.disabled=!offered;city.required=offered;city.value='';
+    document.getElementById('cc-city-row').hidden=!offered;
+    const note=document.getElementById('cc-city-note');
+    const describe=()=>{const row=cities.find(c=>c.id===city.value);note.textContent=row?'You arrive at '+row.arrival+'. This is not reserved lodging.':'Your starting city does not change your race or faction.';};
+    city.onchange=describe;describe();
     window.ExpanseStyles?.creation(data);
+    creationOptionsFor=gameSlug;
     if(window.refreshCharacterSaves)window.refreshCharacterSaves();
     const gamesRes = await fetch('/api/games').then(r => r.json());
+    if(revision!==creationOptionsRevision)return;
     const g = (gamesRes.games || []).find(x => x.slug === gameSlug);
     const wrap = document.getElementById('cc-image-wrap');
     const img = document.getElementById('cc-image');
@@ -1731,7 +1750,7 @@ async function loadCharacterOptions() {
     }
     status.textContent = '';
   } catch (e) {
-    status.textContent = 'Failed to load options: ' + e.message;
+    if(revision===creationOptionsRevision)status.textContent = 'Failed to load options: ' + e.message;
   }
 }
 
@@ -1803,19 +1822,22 @@ function fillSelect(id, entries, allowNone) {
 
 async function submitCreation() {
   const status = document.getElementById('cc-status');
+  if(creationOptionsFor!==document.getElementById('cc-game').value){status.textContent='Wait for character options to load, then try again.';return;}
   status.textContent = 'Creating…';
   const payload = {
     game_slug: document.getElementById('cc-game').value,
     first_name: document.getElementById('cc-first').value.trim(),
     last_name: document.getElementById('cc-last').value.trim(),
     race: document.getElementById('cc-race').value,
-    class: document.getElementById('cc-class').value,
+    ...(!document.getElementById('cc-class').disabled?{class:document.getElementById('cc-class').value}:{}),
     sex: document.getElementById('cc-sex').value,
     faction: document.getElementById('cc-faction').value,
+    ...(!document.getElementById('cc-city').disabled?{starting_city:document.getElementById('cc-city').value}:{}),
     description: document.getElementById('cc-desc').value.trim(),
     appearance: window.ExpanseStyles?.selection()||{},
   };
   if (!payload.first_name) { status.textContent = 'First name is required.'; return; }
+  if (payload.starting_city==='') { status.textContent='Choose a starting city.';document.getElementById('cc-city').focus();return; }
   const createButton=document.getElementById('cc-create');
   if(createButton.disabled)return;
   createButton.disabled=true;
@@ -1908,11 +1930,13 @@ updateToolbar();
     </div>
     <div class="cc-row">
       <label>Race<select id="cc-race"></select></label>
-      <label>Class<select id="cc-class"></select></label>
+      <label id="cc-class-row">Class<select id="cc-class"></select></label>
+      <p id="cc-skills-intro" hidden>Build your skills through what you do and who teaches you. There is no starting class.</p>
       <label>Sex<select id="cc-sex"></select></label>
     </div>
     <div class="cc-row">
       <label>Faction<select id="cc-faction"></select></label>
+      <label id="cc-city-row" hidden>Starting city<select id="cc-city" disabled aria-describedby="cc-city-note"></select><span id="cc-city-note"></span></label>
     </div>
     <label style="display:block;font-size:11px;color:#6b7688;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">Description</label>
     <textarea id="cc-desc" rows="3" placeholder="A short portrait of who you are."></textarea>

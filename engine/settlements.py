@@ -190,11 +190,17 @@ def command(ctx,args):
         from engine import property_interiors
         return property_interiors.enter(ctx,u)
     permitted(w,p,u)
+    from engine import earned_lodging
+    if verb in ('lease','unlist','sell') and earned_lodging.reserved(w,u):
+        raise ValueError('This lodging has a confirmed reservation; its terms cannot change yet.')
     if verb=='buy':buy(w,p,u);return 'Purchased '+unit_name(w,u)+'.'
     if verb=='rent':rent(w,p,u);return 'Rented '+unit_name(w,u)+' for '+str(u['rent'])+' gold per 25-hour day.'
     if verb=='home':set_home(w,p,u);return 'Home set to '+w.rooms[u['room']].name+'.'
     if verb=='leave':
         if u['tenant']!=p.id:raise ValueError('You are not the tenant.')
+        if earned_lodging.prepaid(w,u):
+            earned_lodging.finish(w,p,u,'Sponsored accommodation ended; no fee or automatic refund.')
+            return 'Sponsored accommodation ended. No fee or automatic refund.'
         if u['storage']:raise ValueError('Remove stored belongings before leaving.')
         clear_home(w,p.id,u);u.update(tenant='',due=0,arrears=0);return 'Rental ended.'
     if verb in ('supply','withdraw'):
@@ -282,7 +288,8 @@ def adapt_land(w,gid,pop):
             if geology_impacts.room_unusable(w,rid):continue
             c=living.details(w,rid)['property_plot'];old=s['parcels'][rid]['kind'];us=[u for u in units(w,gid) if u['room']==rid]
             from engine import property_interiors
-            protected=rid in resident_homes or property_interiors.parcel_in_use(w,rid) or any(u['owner'] or u['tenant'] or u['storage'] for u in us)
+            from engine import earned_lodging
+            protected=rid in resident_homes or property_interiors.parcel_in_use(w,rid) or any(u['owner'] or u['tenant'] or u['storage'] or earned_lodging.reserved(w,u) for u in us)
             if old=='reserve' and not protected and not w.entities_in_room(rid) and not w.rooms[rid].items and kind in c.get('allowed',KINDS):options.append(rid)
             elif kind=='house' and old in ('house','rental') and len(us)<c.get('max_units',4):options.insert(0,rid)
             elif current.get('house',0)>wanted['house']+cfg.get('surplus_buffer',8) and old in ('house','rental') and not protected and not w.rooms[rid].items and not w.entities_in_room(rid):options.append(rid)
@@ -305,7 +312,10 @@ def advance(w):
     if not enabled(w):return
     s=init(w);now=living.state(w)['minute']
     ports_arrive(w)
+    from engine import earned_lodging
+    sponsored = earned_lodging.KEY in getattr(w,'living_state',{})
     for u in list(s['units'].values()):
+        if sponsored and earned_lodging.prepaid(w,u):continue
         # Preserve title, leases, belongings and existing arrears during recovery.
         # Postpone billing instead of accumulating disaster-related debt.
         if u['tenant'] and geology_impacts.room_unusable(w,u['room']):

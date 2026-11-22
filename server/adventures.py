@@ -155,7 +155,8 @@ def create(games_root,save_root,body):
         (pending/'metadata.json').write_text(json.dumps(metadata,indent=2)+'\n')
         from engine import founding_residents
         resident_seed=int(ident,16)
-        founding_residents.apply(pending,founding_residents.make(pending,resident_seed))
+        if not metadata.get('municipal_genesis'):
+            founding_residents.apply(pending,founding_residents.make(pending,resident_seed))
         from editor.cli import Editor
         report=Editor(pending).validate()
         if not report.startswith('OK'):raise ValueError('Authored world needs correction before a fresh adventure: '+report)
