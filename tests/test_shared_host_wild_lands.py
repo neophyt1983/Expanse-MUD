@@ -107,7 +107,9 @@ class WildLandsTransportTests(unittest.IsolatedAsyncioTestCase):
         alpha, beta = await self.login('Alpha'), await self.login('Beta')
         a = await self.create(alpha, 'Alphatest')
         b = await self.create(beta, 'Betatest')
-        sa, sb = await self.connect(alpha, a), await self.connect(beta, b)
+        # Alpha's socket can queue a map as soon as it joins. Admit the peer first.
+        sb = await self.connect(beta, b)
+        sa = await self.connect(alpha, a)
         w = self.service.server.world
         self.assertIn('Wild Lands', w.metadata['name'])
         self.assertGreater(len(w.rooms), 32000)

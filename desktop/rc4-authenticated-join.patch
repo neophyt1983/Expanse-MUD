@@ -1,0 +1,119 @@
+--- a/server/desktop.py
++++ b/server/desktop.py
+@@ -33,6 +33,14 @@
+         super().__init__(profile,window)
+         self.window=window
+     def acceptNavigationRequest(self,url,kind,main):
++        joined = self.window.backend._join_origin
++        if main and joined:
++            from server.host_join import origin
++            if url.toString() == self.window.home_url:
++                self.window.backend._join_origin = None
++            elif origin(url.toString()) != origin(joined):
++                self.window.statusBar().showMessage('This host tried to open a different address. Return to Start to join another host.')
++                return False
+         if main and url.path().endswith('/mode.html') and (url.host() not in ('127.0.0.1','localhost') or url.port(self.window.backend.HTTP_PORT)!=self.window.backend.HTTP_PORT):
+             QTimer.singleShot(0,self.window.remote_returned)
+             return False
+--- /dev/null
++++ b/server/host_join.py
+@@ -0,0 +1,48 @@
++"""Identify the Expanse service at the address the player chose to join."""
++import json
++from urllib.error import HTTPError
++from urllib.parse import urlsplit
++from urllib.request import HTTPRedirectHandler, build_opener
++
++
++def origin(url):
++    parsed = urlsplit(url)
++    if parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username is not None or parsed.password is not None:
++        return None
++    return parsed.scheme, parsed.hostname.lower(), parsed.port or (443 if parsed.scheme == 'https' else 80)
++
++
++class SameOriginRedirects(HTTPRedirectHandler):
++    def redirect_request(self, req, fp, code, msg, headers, newurl):
++        if origin(req.full_url) != origin(newurl):
++            raise ValueError('The host redirected to a different address. Enter the intended host address to join.')
++        return super().redirect_request(req, fp, code, msg, headers, newurl)
++
++
++def check_host(url):
++    opener = build_opener(SameOriginRedirects())
++    try:
++        with opener.open(url + '/healthz', timeout=3) as response:
++            body = response.read(4097)
++            account_host = body.strip() == b'ok' and bool(response.headers.get('X-Expanse-Server-Build'))
++            if not account_host and response.headers.get_content_type() == 'application/json' and len(body) <= 4096:
++                health = json.loads(body)
++                account_host = isinstance(health, dict) and health.get('status') == 'local-staging-only' and health.get('public_mmo') is False
++    except HTTPError as error:
++        error.close()
++        account_host = False
++    if account_host:
++        with opener.open(url + '/', timeout=3) as response:
++            page = response.read(256 * 1024).lower()
++            if response.headers.get_content_type() != 'text/html' or b'expanse' not in page or b'action="/login"' not in page:
++                raise ValueError('This host did not present an Expanse sign-in page.')
++        return
++
++    with opener.open(url + '/api/config', timeout=3) as response:
++        config = json.loads(response.read(1024 * 1024))
++    if config.get('mode') != 'host':
++        raise ValueError('That Expanse application is not hosting. Ask its owner to choose Host Network Game.')
++    with opener.open(url + '/index.html', timeout=3) as response:
++        markup = response.read(2 * 1024 * 1024)
++    if b'id="player-visual-map"' not in markup or b'/visual-map.js' not in markup:
++        raise ValueError('This host uses the retired ASCII map. Update the host to the tile-map release and rejoin.')
+--- a/server/launcher.py
++++ b/server/launcher.py
+@@ -25,6 +25,7 @@
+ from engine import exchange as engine_exchange
+ from engine.build_info import BUILD
+ import errno
++from server.host_join import check_host
+ from server.game_server import GameServer
+ from server.accounts import COOKIE, token_from_cookie, CharacterNameUnavailable
+ from server.desktop_accounts import Accounts
+@@ -48,6 +49,7 @@
+ _game_server = None
+ _game_loop = None
+ _mode = None
++_join_origin = None
+ _httpd = None
+ _http_thread = None
+ _lan_httpd = None
+@@ -109,9 +111,10 @@
+     RUNNING_GAME = slug
+ 
+ 
+-def _set_mode(mode):
+-    global _mode
++def _set_mode(mode, joined_origin=None):
++    global _mode, _join_origin
+     _mode = mode
++    _join_origin = joined_origin
+ 
+ 
+ def _world_path(slug):
+@@ -1535,17 +1538,10 @@
+                 400)
+             return
+         try:
+-            with urllib.request.urlopen(url+'/api/config',timeout=3) as response:remote=json.load(response)
+-            if remote.get('mode')!='host':raise ValueError('That Expanse application is not hosting. Ask its owner to choose Host Network Game.')
+-            # Validate the page that Join will actually display, including older
+-            # tile-capable hosts and hosts with a partially installed frontend.
+-            with urllib.request.urlopen(url+'/index.html',timeout=3) as page:
+-                markup=page.read(2*1024*1024)
+-            if b'id="player-visual-map"' not in markup or b'/visual-map.js' not in markup:
+-                raise ValueError('This host uses the retired ASCII map. Update the host to the tile-map release and rejoin.')
++            check_host(url)
+         except Exception as exc:
+             self._json({'error':'Could not join: '+str(exc)},400);return
+-        _set_mode("join")
++        _set_mode("join", url)
+         self._json({"ok": True, "redirect": url})
+         return
+ 

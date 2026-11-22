@@ -383,6 +383,7 @@ class GameServer(SocietyServer):
         supplied=hashlib.sha256((delete_token if isinstance(delete_token,str) else '').encode()).hexdigest()
         if not owner and not secrets.compare_digest(details.get('delete_token_hash',''),supplied):raise ValueError('Only the save owner or local host can delete this character.')
         if details.get('world_slug','default')!=expected:raise ValueError("This save belongs to another world.")
+        from engine import opening_contracts
         camps=living.state(self.world)['camps']
         old_camp=camps.pop(player_id,None)
         try:
@@ -393,12 +394,15 @@ class GameServer(SocietyServer):
                 try:
                     from engine import save_transaction
                     save_transaction.recover(durable,self._state_path())
+                    prior=durable.execute("SELECT progress FROM players WHERE id=? AND game_mode=?",(player_id,self.mode)).fetchone()
                     durable.execute("DELETE FROM players WHERE id=? AND game_mode=?",(player_id,self.mode))
                     path=self._state_path()
                     if path.exists():
                         saved=json.loads(path.read_text())
                         self._validate_saved_world(saved)
-                        saved.get('living',{}).get('state',{}).get('camps',{}).pop(player_id,None)
+                        saved_state=saved.get('living',{}).get('state',{})
+                        saved_state.get('camps',{}).pop(player_id,None)
+                        if prior:opening_contracts.relinquish(saved_state,player_id,json.loads(prior[0] or '{}'))
                         save_transaction.commit(durable,path,saved)
                     else:durable.commit()
                 finally:durable.close()
@@ -408,6 +412,8 @@ class GameServer(SocietyServer):
             self.db.rollback()
             if old_camp is not None:camps[player_id]=old_camp
             raise
+        ent=self.world.entities.get(player_id)
+        opening_contracts.relinquish(living.state(self.world),player_id,ent.progress if ent else details)
         ent=self.world.entities.pop(player_id,None)
         if ent and ent.location in self.world.rooms and player_id in self.world.rooms[ent.location].entities:
             self.world.rooms[ent.location].entities.remove(player_id)
@@ -963,8 +969,16 @@ class GameServer(SocietyServer):
 
     async def update_maps(self):
         from server import magic_delivery
-        for ws,pid in list(self.clients.items()):
-            if pid not in self.world.entities: continue
+        loop = asyncio.get_running_loop()
+        yield_at = loop.time() + 0.02
+        for ws, pid in list(self.clients.items()):
+            # Unchanged maps skip the socket write. Give incoming gameplay
+            # requests a turn while building views for a busy world.
+            if loop.time() >= yield_at:
+                await asyncio.sleep(0)
+                yield_at = loop.time() + 0.02
+            if self.clients.get(ws) != pid or pid not in self.world.entities:
+                continue
             view = dict(type='map', **self.map_for(pid))
             magic_delivery.note_map(self,ws,pid,view)
             packet = json.dumps(view)

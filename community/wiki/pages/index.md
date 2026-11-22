@@ -4,7 +4,13 @@ A community reference for Expanse, a fantasy civilization simulation RPG in acti
 
 The wiki explains the worlds, gameplay systems, community, and creator tools using documented releases. Because the game is evolving, verify details against your installed game version.
 
+## Founding Cities 1.10.0
+
+[Visit a household and read a city register](founding-cities.html) in the Founding Cities world.
+
 ## Start here
+
+[Play in a PC terminal](terminal-clients.html) explains installation, offline saves and online connections on Windows 11 and Linux.
 
 - [Getting started](getting-started.html) — Install Expanse, begin a single-player adventure and manage saves.
 - [People and the living world](living-world.html) — NPC interactions, jobs, animals and singing.
@@ -15,10 +21,14 @@ The wiki explains the worlds, gameplay systems, community, and creator tools usi
 
 ## Official information
 
-- **Official News & Server Status:** The new staff announcements channel is under development. For now use the [existing forum](https://expansemud.discourse.group/) and the emergency status page below.
-- [Emergency status page](https://expansemud.com/status/) — A static fallback hosted outside the game service.
-- [Official website](https://expansemud.com/) — Current downloads, gameplay information and support links.
+[Release history](release-history.html) covers dated changes to the official game, forum and private test builds.
+
+- **Official News & Server Status:** Read the [official announcements](https://expanse-mud.onrender.com/forum/c/news) or check the emergency status page below.
+- [Emergency status page](https://expansemmo.com/status/) — A static fallback hosted outside the game service.
+- [Official website](https://expansemmo.com/) — Current downloads, gameplay information and support links.
 
 ## Suggest an improvement
 
 Propose wiki corrections in the community forum's Suggestions & Feedback category. Wiki files are maintained in GitHub, with revisions and review before publication.
+
+[Open the illustrated Wild Lands reference](https://expansemmo.com/wiki/index.html) for the atlas and artwork.

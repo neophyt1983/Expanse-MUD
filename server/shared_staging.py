@@ -21,8 +21,7 @@ from urllib.parse import urlsplit
 
 from aiohttp import web
 
-from engine import loader, persistence
-from engine.character_style import choices, class_accents
+from engine import classless, loader, persistence, starting_cities
 from private_game import PlayerSocket
 from render_server import Accounts
 from server import game_server
@@ -30,6 +29,7 @@ from server.accounts import display_name, name_key
 from server.mmo_access import MMOAuthorizer
 from server.mmo_ownership import MMOOwnership
 from server.mmo_roles import MMORoles, ROLES
+from server.stage_creator_draft import DRAFT_PATH, StageDraft, verify_archive
 
 COOKIE = 'expanse_shared_staging'
 ROOT = Path(__file__).resolve().parent.parent
@@ -99,7 +99,7 @@ class SharedPlayerSocket(PlayerSocket):
 
 
 class SharedStaging:
-    def __init__(self, source, directory, origin, auth=None, idle_timeout=900):
+    def __init__(self, source, directory, origin, auth=None, idle_timeout=900, creator_draft_sha256=None):
         if os.environ.get('EXPANSE_SHARED_STAGING') != '1':
             raise ValueError('Set EXPANSE_SHARED_STAGING=1 to opt into local testing.')
         parsed = urlsplit(origin)
@@ -110,6 +110,8 @@ class SharedStaging:
         self.origin = origin
         if not isinstance(idle_timeout,(int,float)) or isinstance(idle_timeout,bool) or idle_timeout<=0:
             raise ValueError('The idle timeout must be positive seconds.')
+        if creator_draft_sha256 is not None:
+            verify_archive(Path(source), creator_draft_sha256)
         source, self.directory = staging_directory(source, directory)
         # A second process must not operate the same mutable shared world.
         self.lock = sqlite3.connect(self.directory / 'runtime-lock.sqlite3', timeout=0)
@@ -125,6 +127,10 @@ class SharedStaging:
             self.policy = MMOAuthorizer(self.auth.lookup, self.roles, self.ownership,
                                         owner=self.auth.owner)
             self.world = copy_world(source, self.directory)
+            self.creator_draft = None
+            if creator_draft_sha256 is not None:
+                self.creator_draft = StageDraft(source, self.directory, creator_draft_sha256,
+                                               self.world, self.account)
             loader.GAMES_DIR = self.world.parent
             loader.WORLD_UPDATE_TEMPLATES = ()
             loader.set_game_dir(self.world)
@@ -200,8 +206,9 @@ class SharedStaging:
             self.roles.assign(self.account(request, 'assign_role'), form.get('name'),
                               form.get('role'), [row[0] for row in self.auth.records.values()])
             raise web.HTTPSeeOther('/roles')
-        content = '<p>These assignments apply only to this staging directory. '
-        content += 'Creator HTTP tools remain closed in this milestone.</p>'
+        content = '<p>These assignments apply only to this staging directory.</p>'
+        if self.creator_draft:
+            content += '<p>Admin and Full_Edit accounts can save their own starting-room text drafts.</p>'
         for key, (name, _, _) in self.auth.records.items():
             if key == self.auth.owner:
                 continue
@@ -236,11 +243,10 @@ class SharedStaging:
                 'name': server.world.metadata.get('name', 'Shared staging world')}]})
         if path == 'character/options' and request.method == 'GET':
             world = server.world
-            return web.json_response(dict(
-                races=[dict(choices(row, {}), id=row['id'], name=row.get('name', row['id'])) for row in world.races.values()],
-                classes=[dict(id=row['id'], name=row.get('name', row['id']), accents=class_accents(row)) for row in world.classes.values()],
-                sexes=[dict(id=row['id'], name=row.get('name', row['id'])) for row in world.sexes.values()],
-                factions=[dict(id=row['id'], name=row.get('name', row['id'])) for row in world.groups.values() if row.get('visibility') == 'playable']))
+            return web.json_response({
+                **classless.options(world),
+                **starting_cities.option_fields(world, supported=True),
+            })
         if path == 'character/saves' and request.method == 'GET':
             self.account(request, 'list_characters')
             from engine.persistence import list_saves
@@ -257,14 +263,15 @@ class SharedStaging:
                 raise ValueError('First and last names must be text.')
             first, last = display_name(first), display_name(last) if last.strip() else ''
             combined = display_name(' '.join(filter(None, (first, last))))
-            for field in ('race', 'class', 'sex', 'faction', 'description'):
+            for field in ('race', 'class', 'sex', 'faction', 'starting_city', 'description'):
                 value = body.get(field, '')
                 if not isinstance(value, str) or len(value) > (2000 if field == 'description' else 100):
                     raise ValueError('Invalid ' + field + '.')
             for _, name in server.db.execute('SELECT id,name FROM players WHERE game_mode=?', ('host',)):
                 if name_key(name) == name_key(combined):
                     raise ValueError('That character name is already in use in this shared world.')
-            result = await server.create_character({**body, 'first_name': first, 'last_name': last})
+            result = await server.create_character(
+                {**body, 'first_name': first, 'last_name': last}, supports_city_choice=True)
             try:
                 self.policy.claim_created(self.session(request), result['player_id'])
             except BaseException:
@@ -331,8 +338,9 @@ class SharedStaging:
             await asyncio.gather(*list(self.play_tasks),return_exceptions=True)
 
 
-def make_app(source, directory, origin='http://127.0.0.1:8870', *, auth=None,idle_timeout=900):
-    service = SharedStaging(source, directory, origin, auth,idle_timeout)
+def make_app(source, directory, origin='http://127.0.0.1:8870', *, auth=None,idle_timeout=900,
+             creator_draft_sha256=None):
+    service = SharedStaging(source, directory, origin, auth, idle_timeout, creator_draft_sha256)
 
     @web.middleware
     async def guard(request, handler):
@@ -373,6 +381,10 @@ def make_app(source, directory, origin='http://127.0.0.1:8870', *, auth=None,idl
             raise web.HTTPNotFound()
         return web.FileResponse(path)
 
+    if service.creator_draft:
+        app.add_routes([web.get(DRAFT_PATH, service.creator_draft.handle, allow_head=False),
+                        web.post(DRAFT_PATH, service.creator_draft.handle)])
+
     app.add_routes([web.get('/', service.landing), web.get('/mode.html', service.landing),
         web.get('/healthz', health), web.post('/login', service.login), web.post('/logout', service.logout),
         web.get('/roles', service.role_page), web.post('/roles', service.role_page),
@@ -387,13 +399,17 @@ def main():
     parser.add_argument('--world', required=True, help='Authored world directory or .expanse game file')
     parser.add_argument('--directory', required=True, help='NEW empty, dedicated staging data directory')
     parser.add_argument('--port', type=int, default=8870)
+    parser.add_argument('--creator-draft-sha256',
+                        help='Enable per-account staging drafts for this reviewed .expanse SHA-256. '
+                             'Also requires EXPANSE_PRIVATE_MMO_DRAFT=1.')
     parser.add_argument('--idle-timeout',type=int,default=900,help='Idle disconnect/save timeout in seconds (default: 900)')
     args = parser.parse_args()
     if not 1024 <= args.port <= 65535:
         parser.error('Choose a local port from 1024 to 65535.')
     os.umask(0o077)
     origin = f'http://127.0.0.1:{args.port}'
-    app = make_app(args.world, args.directory, origin,idle_timeout=args.idle_timeout)
+    app = make_app(args.world, args.directory, origin, idle_timeout=args.idle_timeout,
+                   creator_draft_sha256=args.creator_draft_sha256)
     print('LOCAL TEST ONLY. Public MMO remains closed. Open ' + origin)
     web.run_app(app, host='127.0.0.1', port=args.port, access_log=None)
 

@@ -166,6 +166,7 @@ def from_npc(world, player, npc):
 def validate(data):
     from engine.quest_next_stop import validate as validate_next_stop
     issues=validate_next_stop(data)
+    valid_ids = {}
     for kind in ('npc','item','quest','resource'):
         for row in data.get(kind, []):
             if 'knowledge' not in row: continue
@@ -174,8 +175,9 @@ def validate(data):
             for field, values in table.items():
                 target={'items':'item','rooms':'room','recipes':'recipe','quests':'quest'}.get(field)
                 if not target: issues.append(where+' has unknown field '+field); continue
-                valid={r['id'] for r in data.get(target, [])}
-                if not isinstance(values,list) or any(not isinstance(v,str) or v not in valid for v in values):
+                if target not in valid_ids:
+                    valid_ids[target] = {r['id'] for r in data.get(target, [])}
+                if not isinstance(values,list) or any(not isinstance(v,str) or v not in valid_ids[target] for v in values):
                     issues.append(where+'.'+field+' must contain existing '+target+' IDs')
     return issues
 

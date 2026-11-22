@@ -24,6 +24,13 @@ from xml.sax.saxutils import escape as xml_escape
 
 from aiohttp import ClientSession, ClientTimeout, ClientError, web
 
+if __package__:
+    from . import mutes
+    from .player_text_policy import post_rule_error
+else:
+    import mutes
+    from player_text_policy import post_rule_error
+
 ROOT = Path(__file__).resolve().parent
 STYLESHEET = ROOT / 'static' / 'style.css'
 POST_MAX = 8000
@@ -186,6 +193,7 @@ class Store:
               CREATE INDEX IF NOT EXISTS idx_topics_cat_recent ON topics(category_id, pinned DESC, updated_at DESC);
               CREATE INDEX IF NOT EXISTS idx_replies_topic ON replies(topic_id, created_at);
             ''')
+            db.executescript(mutes.SCHEMA)
             for idx, (ident, title, description, official) in enumerate(SECTIONS):
                 db.execute('INSERT OR IGNORE INTO categories(slug,title,description,official,position) VALUES(?,?,?,?,?)',
                            (ident,title,description,official,idx))
@@ -206,7 +214,7 @@ class Store:
             raise ValueError('Admin username or password does not meet the minimum requirements.')
         with self.db() as db:
             db.execute('BEGIN IMMEDIATE')
-            admins = db.execute("SELECT id,username,salt,verifier FROM users WHERE role='admin' ORDER BY id").fetchall()
+            admins = db.execute("SELECT id,username,salt,verifier,status FROM users WHERE role='admin' ORDER BY id").fetchall()
             owner = db.execute('SELECT id,role FROM users WHERE username=?', (username,)).fetchone()
             if owner and owner['role'] != 'admin':
                 raise ValueError('Admin username conflicts with an existing account.')
@@ -217,6 +225,11 @@ class Store:
                     admin = admins[0]
                 else:
                     raise ValueError('Multiple forum administrators exist. Select an existing administrator.')
+                # Bind only the original sole active administrator, not a
+                # bootstrap rename. Remember ambiguity rather than silently
+                # binding it on a later restart after the rename.
+                eligible=(len(admins)==1 and admin['username']==username and admin['status']=='active')
+                db.execute('INSERT OR IGNORE INTO forum_owner VALUES(1,?)',(admin['id'] if eligible else None,))
                 if admin['username'] == username and hmac.compare_digest(admin['verifier'], password_digest(password, admin['salt'])):
                     return
                 salt = secrets.token_bytes(16)
@@ -225,8 +238,9 @@ class Store:
                 db.execute('DELETE FROM sessions WHERE user_id=?', (admin['id'],))
                 return
             salt = secrets.token_bytes(16)
-            db.execute('INSERT INTO users(username,salt,verifier,role,status,created_at) VALUES(?,?,?,?,?,?)',
+            cur=db.execute('INSERT INTO users(username,salt,verifier,role,status,created_at) VALUES(?,?,?,?,?,?)',
                        (username,salt,password_digest(password,salt),'admin','active',utc()))
+            db.execute('INSERT OR IGNORE INTO forum_owner VALUES(1,?)',(cur.lastrowid,))
 
     def member_for_token(self, raw: str | None):
         if not raw:
@@ -275,18 +289,35 @@ class Forum:
         req['expanse_form_csrf'] = str(form.get('csrf',''))
         return form
 
+    @staticmethod
+    def post_text_problem(user, category, fields):
+        # A valid existing staff session plus server-owned official category is
+        # necessary for a reference link. No user-supplied claim grants a bypass.
+        allow_urls = user['role'] == 'admin' and category['official'] and category['slug'] == 'news'
+        for label, value in fields:
+            if problem := post_rule_error(value, allow_urls=allow_urls):
+                return label + ': ' + problem
+        return None
+
+    def edit_post_message(self, user, title, problem, retry):
+        # Re-enter with a neutral explanation. Do not reflect rejected text,
+        # including in draft HTML, URLs, or logs.
+        return self.page(title, '<section class="panel"><h1>'+escape(title)+'</h1><p role="alert">'
+                         +escape(problem)+'</p><a href="'+escape(retry, quote=True)
+                         +'">Return to writing</a></section>', user, status=400)
+
     def nav(self, user):
         session_links = ('<a href="/admin">Moderate</a> ' if user and user['role']=='admin' else '')
         if user:
-            session_links += ('<span class="signed-in">' + escape(user['username']) + '</span>'
+            session_links += ('<a href="/mutes">My muted accounts</a> <a href="/posting-status">Posting status</a> <span class="signed-in">' + escape(user['username']) + '</span>'
                 + '<form method="post" action="/logout"><input type="hidden" name="csrf" value="'
                 + escape(user['csrf']) + '"><button type="submit" class="plain">Sign out</button></form>')
         else:
             session_links += '<a href="/login">Sign in</a>' + (' <a href="/register">Register</a>' if self.registration_enabled else '')
         return ('''<header class="mast"><div><a class="wordmark" href="/">EXPANSE <span>COMMUNITY</span></a>
          <div class="subtitle">A living world. A place to talk about it.</div></div>
-         <nav aria-label="Site"><a href="/">Forum</a><a href="https://expansemud.com/wiki/">Wiki</a>
-         <a href="https://expansemud.com/">Game</a>'''+session_links+'''</nav></header>''')
+         <nav aria-label="Site"><a href="/">Forum</a><a href="https://expansemmo.com/wiki/">Wiki</a>
+         <a href="https://expansemmo.com/">Game</a>'''+session_links+'''</nav></header>''')
 
     def page(self, title, content, user=None, *, status=200, composer=False):
         composer = bool(composer and user)
@@ -297,7 +328,7 @@ class Forum:
         <meta name="color-scheme" content="dark"><title>'''+escape(title)+''' · Expanse Community</title>
         <link rel="stylesheet" href="/style.css"><link rel="stylesheet" href="/emotes.css"></head><body><div class="shell">'''+self.nav(user)+'''
         <main id="main">'''+('<p class="note">Read-only preview. Browse the guides below. Player registration and posting are closed.</p>' if not self.registration_enabled and not user else '')+content+'''</main><footer>Official Expanse community · Independent, creator-directed and AI-assisted.
-        <a href="https://expansemud.com/">expansemud.com</a></footer></div>''' + script + '''</body></html>'''
+        <a href="https://expansemmo.com/">expansemmo.com</a></footer></div>''' + script + '''</body></html>'''
         return web.Response(text=doc, content_type='text/html', status=status,
                             headers={'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
                                      'Referrer-Policy':'same-origin','X-Frame-Options':'DENY',
@@ -317,7 +348,8 @@ class Forum:
             for cat in categories:
                 topics=db.execute('''SELECT t.id,t.title,t.updated_at,t.pinned, u.username FROM topics t
                                      JOIN users u ON u.id=t.author_id WHERE t.category_id=?
-                                     ORDER BY t.pinned DESC,t.updated_at DESC LIMIT 3''',(cat['id'],)).fetchall()
+                                     AND NOT EXISTS(SELECT 1 FROM personal_mutes m WHERE m.viewer_id=? AND m.subject_id=t.author_id)
+                                     ORDER BY t.pinned DESC,t.updated_at DESC LIMIT 3''',(cat['id'],user['id'] if user else None)).fetchall()
                 parts.append('<section class="category panel"><div><h2><a href="/c/'+escape(cat['slug'])+'">'+escape(cat['title'])+'</a></h2>'
                              +'<p>'+escape(cat['description'])+'</p></div>')
                 if topics:
@@ -337,9 +369,11 @@ class Forum:
         with self.store.db() as db:
             cat=db.execute('SELECT * FROM categories WHERE slug=?',(key,)).fetchone()
             if not cat: raise web.HTTPNotFound()
-            topics=db.execute('''SELECT t.*,u.username,(SELECT COUNT(*) FROM replies r WHERE r.topic_id=t.id) AS replies
+            topics=db.execute('''SELECT t.*,u.username,(SELECT COUNT(*) FROM replies r WHERE r.topic_id=t.id AND NOT EXISTS(
+                                  SELECT 1 FROM personal_mutes m WHERE m.viewer_id=? AND m.subject_id=r.author_id)) AS replies
                                  FROM topics t JOIN users u ON u.id=t.author_id WHERE t.category_id=?
-                                 ORDER BY pinned DESC,updated_at DESC LIMIT ? OFFSET ?''',(cat['id'],PAGESIZE,offset)).fetchall()
+                                 AND NOT EXISTS(SELECT 1 FROM personal_mutes m WHERE m.viewer_id=? AND m.subject_id=t.author_id)
+                                 ORDER BY pinned DESC,updated_at DESC LIMIT ? OFFSET ?''',(user['id'] if user else None,cat['id'],user['id'] if user else None,PAGESIZE,offset)).fetchall()
         parts=['<div class="section-heading"><div><p class="eyebrow">FORUM</p><h1>'+escape(cat['title'])+'</h1><p>'+escape(cat['description'])+'</p></div>']
         if user and (not cat['official'] or user['role']=='admin'):
             parts.append('<a class="button" href="/new?category='+quote(key)+'">New topic</a>')
@@ -361,16 +395,24 @@ class Forum:
                             FROM topics t JOIN users u ON u.id=t.author_id
                             JOIN categories c ON c.id=t.category_id WHERE t.id=?''',(tid,)).fetchone()
             if not t:raise web.HTTPNotFound()
-            replies=db.execute('SELECT r.*,u.username FROM replies r JOIN users u ON u.id=r.author_id WHERE topic_id=? ORDER BY created_at,id LIMIT 250',(tid,)).fetchall()
+            viewer=user['id'] if user else None
+            hidden=db.execute('SELECT 1 FROM personal_mutes WHERE viewer_id=? AND subject_id=?',(viewer,t['author_id'])).fetchone()
+            if hidden:
+                return self.page('Muted topic','<p class="note">You muted the author of this topic. Manage your muted accounts to show it again.</p><a href="/mutes">My muted accounts</a>',user)
+            blocked=mutes.muted(db,user)
+            replies=db.execute('''SELECT r.*,u.username FROM replies r JOIN users u ON u.id=r.author_id
+                                  WHERE r.topic_id=? AND NOT EXISTS (SELECT 1 FROM personal_mutes m
+                                  WHERE m.viewer_id=? AND m.subject_id=r.author_id)
+                                  ORDER BY r.created_at,r.id LIMIT 250''',(tid,viewer)).fetchall()
         parts=['<p class="eyebrow"><a href="/c/'+escape(t['category_slug'])+'">'+escape(t['category_title'])+'</a></p>'
                '<article class="panel post"><h1>'+escape(t['title'])+'</h1><p class="byline">'
-               +escape(t['username'])+' · '+label_time(t['created_at'])+'</p>'+text_html(t['body'])+'</article>']
+               +escape(t['username'])+' · '+label_time(t['created_at'])+'</p>'+text_html(t['body'])+(mutes.controls(user,t['author_id'],tid,user['csrf']) if user else '')+'</article>']
         if t['locked']:parts.append('<p class="note">This topic is closed to replies.</p>')
         for reply in replies:
             parts.append('<article class="panel reply"><p class="byline">'+escape(reply['username'])+' · '+label_time(reply['created_at'])+'</p>'
-                         +text_html(reply['body'])+'</article>')
-        if user and not t['locked']:
-            parts.append('<section class="panel"><h2>Write a reply</h2><form method="post" action="/reply">'
+                         +text_html(reply['body'])+(mutes.controls(user,reply['author_id'],tid,user['csrf']) if user else '')+'</article>')
+        if user and not t['locked'] and not blocked:
+            parts.append('<section class="panel" id="reply"><h2>Write a reply</h2><form method="post" action="/reply">'
                          '<input type="hidden" name="topic_id" value="'+str(tid)+'"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
                          '<label for="body">Your reply</label><textarea id="body" name="body" maxlength="4000" required></textarea>'
                           + emote_picker() + '<button type="submit">Post reply</button></form></section>')
@@ -384,11 +426,13 @@ class Forum:
                          '<input type="hidden" name="topic_id" value="'+str(tid)+'"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
                          '<label for="reason">Reason for staff review</label><textarea id="reason" name="reason" maxlength="1000" required></textarea>'
                          '<button type="submit">Send report</button></form></details>')
-        return self.page(t['title'],''.join(parts),user,composer=bool(user and not t['locked']))
+        return self.page(t['title'],''.join(parts),user,composer=bool(user and not t['locked'] and not blocked))
 
     async def new(self,req):
         user=self.require_member(req);cat=req.query.get('category','discussion')
         with self.store.db() as db:
+            if mutes.muted(db,user):
+                raise web.HTTPSeeOther('/posting-status')
             cats=db.execute('SELECT slug,title,official FROM categories ORDER BY position').fetchall()
         options=''.join('<option value="'+escape(c['slug'])+'" '+('selected' if cat==c['slug'] else '')+'>'+escape(c['title'])+'</option>'
                         for c in cats if not c['official'] or user['role']=='admin')
@@ -396,7 +440,7 @@ class Forum:
           <input type="hidden" name="csrf" value="'''+escape(user['csrf'])+'''"><label for="category">Category</label><select id="category" name="category">'''+options+'''</select>
           <label for="title">Title</label><input id="title" name="title" minlength="4" maxlength="120" required>
           <label for="body">Message</label><textarea id="body" name="body" maxlength="8000" required></textarea>'''+emote_picker()+'''
-          <p class="note">Be constructive and protect other people's privacy. Do not post passwords, recovery codes or personal data.</p>
+          <p class="note">Keep player posts in plain language, without website links or database commands. Do not post passwords, recovery codes or personal data.</p>
           <button type="submit">Publish topic</button></form></div>''',user,composer=True)
 
     async def post_new(self,req):
@@ -404,9 +448,12 @@ class Forum:
         try:title=valid_text(str(form.get('title','')),120,'Title');body=valid_text(str(form.get('body','')),POST_MAX,'Message')
         except ValueError as exc:return self.message(req,'Invalid topic',str(exc),400)
         with self.store.db() as db:
+            mutes.assert_can_publish(db,user)
             cat=db.execute('SELECT * FROM categories WHERE slug=?',(form.get('category',''),)).fetchone()
             if not cat:raise web.HTTPBadRequest(text='Choose a category.')
             if cat['official'] and user['role']!='admin':raise web.HTTPForbidden(text='Only staff can announce official news.')
+            if problem := self.post_text_problem(user, cat, (('Title', title), ('Message', body))):
+                return self.edit_post_message(user, 'Topic not posted', problem, '/new?category='+quote(cat['slug']))
             if user['role']!='admin' and db.execute('SELECT count(*) FROM topics WHERE author_id=? AND created_at>?',(user['id'],utc()-60)).fetchone()[0]:
                 raise web.HTTPTooManyRequests(text='Please allow a minute between topics.')
             cur=db.execute('INSERT INTO topics(category_id,author_id,title,body,created_at,updated_at) VALUES(?,?,?,?,?,?)',
@@ -419,9 +466,13 @@ class Forum:
         try:tid=int(form.get('topic_id','0'));body=valid_text(str(form.get('body','')),REPLY_MAX,'Reply')
         except (ValueError,TypeError):raise web.HTTPBadRequest(text='Invalid reply.')
         with self.store.db() as db:
-            topic=db.execute('SELECT locked FROM topics WHERE id=?',(tid,)).fetchone()
+            mutes.assert_can_publish(db,user)
+            topic=db.execute('''SELECT t.locked,c.slug,c.official FROM topics t
+                             JOIN categories c ON c.id=t.category_id WHERE t.id=?''',(tid,)).fetchone()
             if not topic:raise web.HTTPNotFound()
             if topic['locked']:raise web.HTTPForbidden(text='Topic locked.')
+            if problem := self.post_text_problem(user, topic, (('Reply', body),)):
+                return self.edit_post_message(user, 'Reply not posted', problem, '/t/'+str(tid)+'#reply')
             if user['role']!='admin' and db.execute('SELECT count(*) FROM replies WHERE author_id=? AND created_at>?',(user['id'],utc()-15)).fetchone()[0]:
                 raise web.HTTPTooManyRequests(text='Please wait between replies.')
             db.execute('INSERT INTO replies(topic_id,author_id,body,created_at) VALUES(?,?,?,?)',
@@ -549,11 +600,98 @@ class Forum:
         resp=web.HTTPSeeOther('/')
         resp.del_cookie('expanse_forum',path='/');raise resp
 
+    async def personal_mutes(self, req):
+        user=self.require_member(req)
+        try: after=max(0,min(9223372036854775807,int(req.query.get('after','0'))))
+        except ValueError: after=0
+        with self.store.db() as db:
+            rows=db.execute('''SELECT m.subject_id,u.username FROM personal_mutes m JOIN users u ON u.id=m.subject_id
+                               WHERE m.viewer_id=? AND m.subject_id>? ORDER BY m.subject_id LIMIT 51''',
+                            (user['id'],after)).fetchall()
+        parts=['<h1>My muted accounts</h1><p>Only your signed-in view is affected.</p>']
+        if not rows: parts.append('<p>No muted accounts on this page.</p>')
+        for row in rows[:50]:
+            parts.append('<form method="post" action="/mutes"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
+                         '<input type="hidden" name="user_id" value="'+str(row['subject_id'])+'"><span>'+escape(row['username'])+'</span> '
+                         '<button name="action" value="unmute">Unmute for me</button></form>')
+        if len(rows)==51:parts.append('<a href="?after='+str(rows[49]['subject_id'])+'">More muted accounts</a>')
+        return self.page('My muted accounts',''.join(parts),user)
+
+    async def post_personal_mute(self,req):
+        user=self.require_member(req);form=await self.post_data(req);self.csrf(req,user)
+        target=mutes.subject(form);action=form.get('action')
+        if target==user['id'] or action not in ('mute','unmute'):raise web.HTTPBadRequest()
+        with self.store.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if action=='unmute':
+                db.execute('DELETE FROM personal_mutes WHERE viewer_id=? AND subject_id=?',(user['id'],target))
+            else:
+                try:topic=int(form.get('topic_id',0))
+                except (ValueError,TypeError):raise web.HTTPBadRequest()
+                if not 0<topic<=9223372036854775807:raise web.HTTPBadRequest()
+                # Author must have visible public content on this page;
+                # arbitrary pending IDs are not an account discovery route.
+                found=db.execute("""SELECT 1 FROM topics t WHERE t.id=?
+                        AND NOT EXISTS (SELECT 1 FROM personal_mutes m WHERE m.viewer_id=? AND m.subject_id=t.author_id)
+                        AND (t.author_id=? OR EXISTS(SELECT 1 FROM replies r WHERE r.topic_id=t.id AND r.author_id=?))""",
+                        (topic,user['id'],target,target)).fetchone()
+                if not found:raise web.HTTPNotFound()
+                db.execute('INSERT OR IGNORE INTO personal_mutes VALUES(?,?)',(user['id'],target))
+        raise web.HTTPSeeOther('/mutes')
+
+    async def posting_status(self,req):
+        user=self.require_member(req)
+        with self.store.db() as db:
+            blocked=mutes.muted(db,user)
+            sent=bool(db.execute('SELECT 1 FROM posting_mute_appeals WHERE subject_id=?',(user['id'],)).fetchone())
+        if not blocked:
+            return self.message(req,'Posting status','No posting pause applies to your forum account.')
+        text='<h1>Posting is paused</h1><p>You can still read, sign in, manage personal mutes, or report a topic.</p>'
+        if sent:
+            text+='<p>Your appeal is awaiting review.</p>'
+        else:
+            text+=('<form method="post" action="/posting-status"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
+                   '<label for="appeal">Private appeal to the forum owner</label><textarea name="reason" id="appeal" maxlength="1000" required></textarea>'
+                   '<button type="submit">Send appeal</button></form>')
+        return self.page('Posting status',text,user)
+
+    async def appeal_posting_mute(self,req):
+        user=self.require_member(req);form=await self.post_data(req);self.csrf(req,user)
+        try: reason=valid_text(str(form.get('reason','')),1000,'Appeal')
+        except ValueError:raise web.HTTPBadRequest()
+        with self.store.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if not mutes.muted(db,user):raise web.HTTPForbidden()
+            db.execute('INSERT OR IGNORE INTO posting_mute_appeals VALUES(?,?,?)',(user['id'],reason,utc()))
+        raise web.HTTPSeeOther('/posting-status')
+
+    async def owner_posting_mute(self,req):
+        user=self.require_member(req);form=await self.post_data(req);self.csrf(req,user)
+        with self.store.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if not mutes.owner(db,user):raise web.HTTPForbidden()
+            ident=mutes.subject(form);action=form.get('action')
+            if action not in ('pause','restore'):raise web.HTTPBadRequest()
+            if not db.execute("SELECT 1 FROM users WHERE id=? AND role='member' AND username!='Expanse Guides'",(ident,)).fetchone():raise web.HTTPNotFound()
+            if action=='pause':
+                cur=db.execute('INSERT OR IGNORE INTO posting_mutes VALUES(?,?)',(ident,utc()))
+            else:
+                cur=db.execute('DELETE FROM posting_mutes WHERE subject_id=?',(ident,))
+            if cur.rowcount:
+                db.execute('INSERT INTO posting_mute_audit(actor_id,action,changed,created_at) VALUES(?,?,1,?)',(user['id'],action,utc()))
+        raise web.HTTPSeeOther('/admin')
+
     async def admin(self,req):
         user=self.require_member(req)
         if user['role']!='admin':raise web.HTTPForbidden()
         with self.store.db() as db:
-            accounts=db.execute("SELECT * FROM users WHERE role='member' AND username!='Expanse Guides' ORDER BY status,created_at DESC LIMIT 100").fetchall()
+            owner=mutes.owner(db,user)
+            accounts=db.execute("""SELECT u.id,u.username,u.status,m.subject_id AS posting_paused
+                FROM users u LEFT JOIN posting_mutes m ON m.subject_id=u.id AND ?
+                WHERE u.role='member' AND u.username!='Expanse Guides'
+                ORDER BY m.subject_id IS NULL, u.status,u.created_at DESC LIMIT 100""",(owner,)).fetchall()
+            appeals=(db.execute("""SELECT a.*,u.username FROM posting_mute_appeals a JOIN users u ON u.id=a.subject_id
+                                ORDER BY a.created_at LIMIT 100""").fetchall() if owner else ())
             reports=db.execute('''SELECT r.*,u.username,t.title FROM reports r JOIN users u ON u.id=r.reporter_id
                                   JOIN topics t ON t.id=r.topic_id WHERE handled=0 ORDER BY r.created_at DESC LIMIT 100''').fetchall()
         parts=['<h1>Community moderation</h1><div class="panel"><h2>Forum members</h2>']
@@ -568,6 +706,15 @@ class Forum:
             parts.append('<form method="post" action="/admin/member" class="admin-row"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
                          '<input type="hidden" name="user_id" value="'+str(row['id'])+'"><span>'+escape(row['username'])+' ('+escape(row['status'])+')</span> '
                          + ' '.join(buttons) + '</form>')
+            if owner:
+                parts.append('<form method="post" action="/admin/posting-mute"><input type="hidden" name="csrf" value="'+escape(user['csrf'])+'">'
+                    '<input type="hidden" name="user_id" value="'+str(row['id'])+'">'
+                    + ('<button name="action" value="restore">Restore posting</button>' if row['posting_paused']
+                       else '<button name="action" value="pause">Pause posting only</button>') + '</form>')
+        if owner:
+            parts.append('</div><div class="panel"><h2>Private posting appeals</h2>')
+            for appeal in appeals:
+                parts.append('<p><strong>'+escape(appeal['username'])+'</strong>: '+escape(appeal['body'])+'</p>')
         parts.append('</div><div class="panel"><h2>Unresolved reports</h2>')
         if not reports: parts.append('<p>No unresolved reports.</p>')
         for row in reports:
@@ -624,11 +771,11 @@ class Forum:
         with self.store.db() as db:
             topics=db.execute('''SELECT t.id,t.title,t.body,t.created_at FROM topics t JOIN categories c ON c.id=t.category_id
                                  WHERE c.official=1 ORDER BY t.created_at DESC LIMIT 20''').fetchall()
-        items=''.join('<item><title>'+xml_escape(t['title'])+'</title><link>https://community.expansemud.com/t/'+str(t['id'])+'</link>'
-                      '<guid>https://community.expansemud.com/t/'+str(t['id'])+'</guid>'
+        items=''.join('<item><title>'+xml_escape(t['title'])+'</title><link>https://expanse-mud.onrender.com/forum/t/'+str(t['id'])+'</link>'
+                      '<guid>https://expanse-mud.onrender.com/forum/t/'+str(t['id'])+'</guid>'
                       '<description>'+xml_escape(t['body'][:1000])+'</description></item>' for t in topics)
         xml=('<?xml version="1.0" encoding="utf-8"?><rss version="2.0"><channel><title>ExpanseMUD Official News</title>'
-             '<link>https://community.expansemud.com/</link><description>Official development and server status announcements</description>'+items+'</channel></rss>')
+             '<link>https://expanse-mud.onrender.com/forum/</link><description>Official development and server status announcements</description>'+items+'</channel></rss>')
         return web.Response(text=xml,content_type='application/rss+xml',headers={'Cache-Control':'public, max-age=120'})
 
 
@@ -686,6 +833,9 @@ def make_app(db_path: Path | None = None, *, secure: bool = True, bootstrap: tup
         web.get('/new',forum.new),web.post('/new',forum.post_new),web.post('/reply',forum.post_reply),
         web.post('/verify-email',forum.verify_email),web.get('/register',forum.register),web.post('/register',forum.post_register),
         web.get('/login',forum.login),web.post('/login',forum.post_login),web.post('/logout',forum.logout),
+        web.get('/mutes',forum.personal_mutes),web.post('/mutes',forum.post_personal_mute),
+        web.get('/posting-status',forum.posting_status),web.post('/posting-status',forum.appeal_posting_mute),
+        web.post('/admin/posting-mute',forum.owner_posting_mute),
         web.get('/admin',forum.admin),web.post('/admin/member',forum.admin_member),web.post('/admin/report',forum.admin_report),
         web.post('/moderate',forum.moderate),web.post('/report',forum.report),web.get('/news.rss',forum.rss),
         web.get('/healthz',health), web.get('/api/public/directory',directory),

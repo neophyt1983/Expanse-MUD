@@ -70,6 +70,11 @@ def roll(world, victim, *, rng=None):
     for entry in tier.get('bonus', []):
         if _succeeds(entry['chance'], rng):
             result['items'].extend([entry['item']] * _quantity(entry, rng))
+    # Preserve item, bonus and random-stream behavior while removing only
+    # the unbacked coin output. Combat still transfers any real held purse.
+    from engine.wildlife_coin_provenance import guarded
+    if result['gold'] and guarded(world, definition, victim):
+        result['gold'] = 0
     return result
 
 

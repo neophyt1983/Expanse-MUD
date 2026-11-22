@@ -16,4 +16,4 @@ Spells may attack, protect, heal, repair, illuminate, summon temporary companion
 
 ## More detail
 
-Visit the current official [Expanse website](https://expansemud.com/#magic) for the published spell catalogue and related release notes.
+Visit the current official [Expanse website](https://expansemmo.com/#magic) for the published spell catalogue and related release notes.

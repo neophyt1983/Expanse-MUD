@@ -67,7 +67,8 @@ def _sell_quote(w, p, n, iid, context=None):
 def available(w,p,n,commerce=None):
     """Whether Trade has a meaningful local purpose; never a social-mode flag."""
     if not p.alive or not n.alive or n.is_player or n.location!=p.location or _service(w,p,n):return False
-    cfg=market_shifts.definitions(w).get(w.npcs.get(n.source_def,{}).get('market_id')) if w.metadata.get('market_shifts') else None
+    market_id = w.npcs.get(n.source_def, {}).get('market_id')
+    cfg = market_shifts.definitions(w).get(market_id) if market_id else None
     if cfg:
         if not any(x.id==n.id for x in market_shifts.staff(w,cfg,p)):return False
         if any(q>0 and iid in w.items for iid,q in market_shifts.depot(w,cfg)['stock'].items()):return True

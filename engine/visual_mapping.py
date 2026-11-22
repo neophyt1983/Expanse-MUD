@@ -4,6 +4,7 @@ Coordinates are those of the ASCII layout, never a second movement model.
 Discovered entrances have exterior facades outdoors, never invented rooms.
 """
 import re
+from functools import lru_cache
 
 from engine.mapping import VECTORS
 VISUAL_SHAPES = frozenset(['ankle_boots', 'ankle_shoes', 'apron_tunic', 'arming_jacket', 'arming_sword', 'battle_skirt', 'bead_strand', 'beret', 'blouse', 'bodice', 'bolero', 'bonnet', 'bracers', 'breastplate', 'breeches', 'brigandine', 'brooch', 'buckler', 'cap', 'ceremonial_robe', 'chausses', 'cheek_helm', 'chemise', 'circle_cloak', 'coif', 'coif_cap', 'collared_cape', 'cowl', 'crested_helm', 'cuffed_boots', 'cuffed_gloves', 'cuirass', 'cuisses', 'culottes', 'dagger', 'dance_shoes', 'divided_skirt', 'doublet', 'drawstring_top', 'dress_gloves', 'duelist_gloves', 'ear_wrap', 'falchion', 'fauld_coat', 'festival_tunic', 'fingerless_gloves', 'flanged_mace', 'flat_hat', 'floppy_hat', 'forearm_wraps', 'full_helm', 'gaiters', 'gambeson', 'gauntlets', 'gloves', 'gorget_helm', 'greaves', 'half_cape', 'half_greaves', 'hand_axe', 'handwarmers', 'hauberk', 'headwrap', 'heater_shield', 'heraldic_surcoat', 'high_boots', 'high_collar_shirt', 'high_soft_boots', 'hood', 'hooded_cloak', 'hose', 'jerkin', 'kerchief', 'kite_shield', 'knee_guards', 'knot_charm', 'knuckle_guards', 'lace_cuffs', 'lamellar_coat', 'layered_gown', 'leggings', 'lobster_gauntlets', 'locket', 'long_coat', 'long_gloves', 'long_tabard', 'long_underrobe', 'longshirt', 'mantle', 'marching_boots', 'medallion', 'mitts', 'moccasins', 'nasal_helm', 'necklace', 'open_helm', 'oval_shield', 'over_robe', 'overboots', 'overgown', 'padded_robe', 'palm_wraps', 'pavise', 'pendant', 'pillbox', 'plated_mantle', 'pleated_skirt', 'pointed_boots', 'pointed_hat', 'poncho', 'prayer_wheel', 'quarterstaff', 'quilted_tunic', 'rapier', 'rectangular_cloak', 'riding_boots', 'riding_legs', 'rosette', 'round_hat', 'round_shield', 'sabatons', 'sailor_hat', 'sandals', 'scale_coat', 'scalloped_shield', 'scarf_mantle', 'seal', 'segmented_cuirass', 'shirt', 'short_jacket', 'shorts', 'shoulder_shawl', 'shoulder_stole', 'sleeve_guards', 'sleeveless_tabard', 'sleeveless_top', 'slippers', 'snood', 'soft_boots', 'soft_cap', 'spear', 'spiked_buckler', 'splint_legs', 'split_boots', 'split_cloak', 'split_tunic', 'strap_sandals', 'surcoat', 'tabard', 'tabbed_cape', 'talisman', 'tall_hat', 'targe', 'tassets', 'torc', 'tower_shield', 'travel_cape', 'travel_duster', 'travel_spats', 'tricorn', 'trousers', 'turban', 'undertunic', 'vambraces', 'veil', 'vest', 'visored_helm', 'waistcoat', 'walking_shoes', 'war_coat', 'war_hammer', 'war_pick', 'wide_hat', 'wide_trousers', 'work_mitts', 'wrap_shirt', 'wrap_shoes', 'wrap_skirt', 'wrap_top', 'wrapped_sash', 'wrist_wraps', 'wristguards'])
@@ -518,6 +519,39 @@ def _player_appearance(ent, race, char_class, paperdoll):
     return result
 
 
+@lru_cache(maxsize=1024)
+def _prose_appearance(text, equipment):
+    """Decode repeated authored prose without caching any actor or viewer state."""
+    fields = {}
+    accessories = []
+    text = re.sub(r'\bhelm\b', 'helmet', str(text or '').lower())
+    # Ignore negated descriptive clauses instead of drawing absent gear.
+    text = ' '.join(part for part in re.split(r'[.;,!]', text) if not re.search(r'\b(no|not|without|lacks|never|sells|selling|repairs|repairing|makes|making|crafts|crafting)\b', part))
+    for pattern, value in [(r'\barmo(?:u)?r(?:ed)?\b|\bplate mail\b|\bchainmail\b', 'armor'), (r'\brobes?\b', 'robe'), (r'\btunic\b', 'tunic'), (r'\bcoat\b', 'coat'), (r'\bdress\b', 'dress')]:
+        if re.search(pattern, text):
+            fields['clothing'] = value
+            break
+    match = re.search(COLOR_WORDS + r'[- ]+(?:\w+[- ]+){0,1}(?:robes?|tunic|coat|dress|armo(?:u)?r)\b', text)
+    if match:
+        fields['clothing_color'] = _color(match.group(1))
+    match = re.search(COLOR_WORDS + r'[- ]+(?:hair|haired|braids|locks)\b', text)
+    if not match:
+        match = re.search(r'\bhair (?:is |of )?' + COLOR_WORDS + r'\b', text)
+    if match:
+        fields['hair_color'] = _color(match.group(1))
+    match = re.search(COLOR_WORDS + r'[- ]+(?:fur|scales|feathers|wolf|dog|cat|horse|bird|dragon)\b', text)
+    if match:
+        fields['body_color'] = _color(match.group(1))
+    for accessory in ACCESSORIES:
+        # Equipment names are explicit possession; prose needs a wearing or
+        # carrying statement, or a concrete material/color adjective.
+        pattern = r'\b(?:wears?|wearing|carries|carrying|holds?|holding|wields?|wielding|with) (?:a |an |the |his |her |their )?(?:\w+ ){0,2}' + accessory + r'\b'
+        material = r'\b(?:iron|steel|wooden|leather|' + COLOR_WORDS[1:-1] + r') ' + accessory + r'\b'
+        if (equipment and re.search(r'\b' + accessory + r'\b', text)) or re.search(pattern, text) or re.search(material, text):
+            accessories.append(accessory)
+    return tuple(fields.items()), tuple(accessories)
+
+
 def appearance_for(world, ent, definition, race, char_class, species, creature):
     """Small conservative sprite vocabulary, never a generated biography.
 
@@ -559,33 +593,13 @@ def appearance_for(world, ent, definition, race, char_class, species, creature):
     put('silhouette', shape, 'taxonomy')
 
     def parse(text, source):
-        text = re.sub(r'\bhelm\b', 'helmet', str(text or '').lower())
-        # Ignore negated descriptive clauses instead of drawing absent gear.
-        text = ' '.join(part for part in re.split(r'[.;,!]', text) if not re.search(r'\b(no|not|without|lacks|never|sells|selling|repairs|repairing|makes|making|crafts|crafting)\b', part))
-        for pattern, value in [(r'\barmo(?:u)?r(?:ed)?\b|\bplate mail\b|\bchainmail\b', 'armor'), (r'\brobes?\b', 'robe'), (r'\btunic\b', 'tunic'), (r'\bcoat\b', 'coat'), (r'\bdress\b', 'dress')]:
-            if re.search(pattern, text):
-                put('clothing', value, source)
-                break
-        match = re.search(COLOR_WORDS + r'[- ]+(?:\w+[- ]+){0,1}(?:robes?|tunic|coat|dress|armo(?:u)?r)\b', text)
-        if match:
-            put('clothing_color', _color(match.group(1)), source)
-        match = re.search(COLOR_WORDS + r'[- ]+(?:hair|haired|braids|locks)\b', text)
-        if not match:
-            match = re.search(r'\bhair (?:is |of )?' + COLOR_WORDS + r'\b', text)
-        if match:
-            put('hair_color', _color(match.group(1)), source)
-        match = re.search(COLOR_WORDS + r'[- ]+(?:fur|scales|feathers|wolf|dog|cat|horse|bird|dragon)\b', text)
-        if match:
-            put('body_color', _color(match.group(1)), source)
-        for accessory in ACCESSORIES:
-            # Equipment names are explicit possession; prose needs a wearing or
-            # carrying statement, or a concrete material/color adjective.
-            pattern = r'\b(?:wears?|wearing|carries|carrying|holds?|holding|wields?|wielding|with) (?:a |an |the |his |her |their )?(?:\w+ ){0,2}' + accessory + r'\b'
-            material = r'\b(?:iron|steel|wooden|leather|' + COLOR_WORDS[1:-1] + r') ' + accessory + r'\b'
-            if (source == 'equipment' and re.search(r'\b' + accessory + r'\b', text)) or re.search(pattern, text) or re.search(material, text):
-                if accessory not in accessories:
-                    accessories.add(accessory)
-                    sources['accessories.' + accessory] = source
+        fields, found = _prose_appearance(str(text or ''), source == 'equipment')
+        for field, value in fields:
+            put(field, value, source)
+        for accessory in found:
+            if accessory not in accessories:
+                accessories.add(accessory)
+                sources['accessories.' + accessory] = source
 
     for slot, iid in sorted(ent.equipped.items()):
         item = world.items.get(iid, {})

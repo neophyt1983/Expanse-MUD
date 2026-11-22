@@ -34,7 +34,10 @@ def record_death(w, e, cause='injury', attacker=None):
     if not companion_union.preserve_death(w,e) and owner:owner.progress['companions']=[c for c in owner.progress.get('companions',[]) if c['id']!=e.id]
     s['deaths'][e.id]=dict(id=e.id,name=e.name,location=e.location,
         minute=living.state(w)['minute'],cause=cause,attacker=attacker.id if attacker else None)
-    if e.is_player and player_death_mode(w)=='permanent': e.progress['permanently_dead']=True
+    if e.is_player and player_death_mode(w)=='permanent':
+        from engine import opening_contracts
+        e.progress['permanently_dead']=True
+        opening_contracts.relinquish(living.state(w),e.id,e.progress)
     from engine import relationships as rel
     rs=rel.state(w)
     rs['pregnancies'].pop(e.id,None)

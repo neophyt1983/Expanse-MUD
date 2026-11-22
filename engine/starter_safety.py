@@ -256,6 +256,10 @@ def protected(w, player):
         return False
     if player.location not in rooms(w, player):
         return False
+    return _peaceful(w, player)
+
+
+def _peaceful(w, player):
     notes = player.progress[KEY]
     if notes.get('provoked_until', -1) > _now(w):
         return False
@@ -325,7 +329,7 @@ def on_move(w, player, before, after):
     footprint = rooms(w, player)
     previous, current = before in footprint, after in footprint
     seen = getattr(player, '_starter_refuge_notice', None)
-    if current and protected(w, player) and (not previous or seen is None):
+    if current and (not previous or seen is None) and player.is_player and player.alive and _peaceful(w, player):
         _notice(w, player, 'Starting area: you are protected from unprovoked NPC attacks here while peaceful. Choosing to fight suspends that protection.')
     elif previous and not current:
         _notice(w, player, 'You have left your protected starting area. Normal encounters and combat now apply.')

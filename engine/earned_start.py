@@ -28,23 +28,49 @@ INTRO = ('The Gilded Tankard posts short kitchen work when the chef has a real '
          'order and ingredients and can reserve pay. Use startwork status. ' + FALLBACK)
 
 
+def introduction(p):
+    from engine import opening_contracts
+    if p.progress.get(opening_contracts.MARK):
+        return ('Ask about cooking at the local inn kitchen or delivery work at the city food market. '
+                'Use startwork status at either counter to see the employer, wages and available lodging. ')
+    return INTRO
+
+
 def marked(p):
     return bool(p is not None and p.is_player and p.progress.get(MARK) == VERSION)
 
 
+_CITY_INTROS = ('roadkeepers', 'good_guys', 'bad_guys', 'cinder_throne',
+                'glass_court', 'river_assembly', 'pineward_clans', 'star_compact')
+
+
+def opening_id(p, ident):
+    """Map only the eight authored tutorial lines to the same starter rules."""
+    from engine import opening_contracts
+    if not ident or not p or not p.progress.get(opening_contracts.MARK):
+        return ident
+    if 'first_steps_' not in ident:
+        return ident
+    for group in _CITY_INTROS:
+        prefix='first_steps_'+group+'_'
+        if ident.startswith(prefix) or ident.startswith('quest_chain_note_'+prefix):
+            return ident.replace(prefix,'first_steps_good_guys_',1)
+    return ident
+
+
 def retired(p, qid):
-    return marked(p) and qid in (GUIDE, SKIP)
+    return marked(p) and opening_id(p,qid) in (GUIDE, SKIP)
 
 
 def gold_reward(p, quest):
     # The remaining story and progression are retained, but its old welcome
     # grant does not mint coins into the redesigned start.
-    return 0 if marked(p) and quest['id'] in CONTINUATIONS else quest.get('reward_gold',0)
+    return 0 if marked(p) and opening_id(p,quest['id']) in CONTINUATIONS else quest.get('reward_gold',0)
 
 
 def omit_stage(p, chain_id, stages):
-    if marked(p) and chain_id == CHAIN:
-        return [qid for qid in stages if qid != GUIDE]
+    if marked(p) and opening_id(p,chain_id) == CHAIN:
+        return [qid for qid in stages if opening_id(p,qid) != GUIDE]
     return stages
 
 
@@ -56,6 +82,11 @@ def _installed(w):
 
 
 def enroll_creation(w, p):
+    from engine import opening_contracts
+    if w is not None and opening_contracts.enabled(w):
+        p.progress[MARK] = VERSION
+        p.progress[opening_contracts.MARK] = True
+        return True
     if p.group_id != 'good_guys' or not _installed(w):
         return False
     p.progress[MARK] = VERSION
@@ -155,6 +186,9 @@ def command(ctx, args):
     w,p=ctx.world,ctx.player
     if not marked(p) or not p.alive:
         raise ValueError('This kitchen start is not available for this character.')
+    from engine import opening_contracts
+    if p.progress.get(opening_contracts.MARK):
+        return opening_contracts.command(ctx, args)
     ctx.time_accounted = True
     jobs = _read(w)
     verb = args.casefold().strip()

@@ -161,6 +161,11 @@ def build_world(game_dir=None) -> World:
     world.sexes = {s["id"]: s for s in read_records("sexes.json", target_dir)}
     
     world.metadata = world_additions.metadata(load_metadata(target_dir),patch)
+    from engine import household_provisions
+    provision_errors = household_provisions.validate(world.metadata.get('household_provisions'),
+                                                    world.room_details, world.items, world.recipes)
+    if provision_errors:
+        raise ValueError('Household provision content: ' + '; '.join(provision_errors))
     from engine import travel_pacing
     travel_errors=travel_pacing.validate(world.metadata)
     if travel_errors:raise ValueError('Travel content: '+'; '.join(travel_errors))
@@ -350,6 +355,8 @@ def validate_world(world: World):
     return errors, warnings
 
 def spawn_npcs(world: World):
+    from engine.wildlife_coin_provenance import initial_purse
+
     def _spawn_location(npc_def: dict) -> Optional[str]:
         spawn = npc_def.get("spawn_room")
         if spawn and spawn in world.rooms: return spawn
@@ -383,7 +390,7 @@ def spawn_npcs(world: World):
             name=npc_def["name"],
             hp=npc_def["hp"], max_hp=npc_def["hp"],
             attack=npc_def["attack"], defense=npc_def["defense"],
-            gold=npc_def.get("gold", 0),
+            gold=initial_purse(world, npc_def),
             is_player=False,
             source_def=npc_def["id"],
             group_id=npc_def.get("group") or None,

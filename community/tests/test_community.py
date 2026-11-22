@@ -140,15 +140,16 @@ class WikiTests(unittest.TestCase):
         self.assertIsNone(safe_link('//evil.example/'))
         self.assertEqual('https://expansemud.com/','https://expansemud.com/' if safe_link('https://expansemud.com/') else None)
 
-    def test_static_wiki_and_status_links_do_not_preempt_forum_launch(self):
+    def test_static_wiki_and_status_use_working_forum_and_wiki_links(self):
         from wiki.build import build
         build()
         dist=Path(__file__).resolve().parents[1]/'dist'
         for page in [*(dist/'wiki').glob('*.html'),dist/'status'/'index.html']:
             content=page.read_text()
             self.assertNotIn('community.expansemud.com/',content, str(page))
-            self.assertIn('https://expansemud.com/wiki/',content)
-        self.assertIn('existing message board',(dist/'status'/'index.html').read_text())
+            self.assertIn('href="../wiki/index.html"',content)
+            self.assertIn('href="https://expanse-mud.onrender.com/forum/"',content)
+        self.assertIn('https://expanse-mud.onrender.com/forum/c/news',(dist/'status'/'index.html').read_text())
 
     def test_user_text_escapes(self):
         self.assertIn('&lt;b&gt;',text_html('<b>hello</b>'))

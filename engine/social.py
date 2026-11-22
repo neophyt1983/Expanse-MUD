@@ -158,11 +158,14 @@ def gift(w,a,b,iid):
     if needs_market.applies(w,b):needs_market.use(w,b,iid)
     return notify(w,b,a,'excited',note=' — accepts '+item['name']+'.')
 
-def quests(w,a,b):
+def _relationship_quests(w):
+    return [q for q in w.quests.values() if q.get('relationship_quest', {}).get('enabled')]
+
+
+def quests(w,a,b,definitions=None):
     result=[]
-    for q in w.quests.values():
-        cfg=q.get('relationship_quest',{})
-        if not cfg.get('enabled'):continue
+    for q in _relationship_quests(w) if definitions is None else definitions:
+        cfg=q['relationship_quest']
         ident=q['id']+'|'+b.id
         progress=a.progress.get('bond_quests',{}).get(ident,{})
         reason=''
@@ -262,8 +265,9 @@ def view(w,a):
     nearby=[e for e in w.entities_in_room(a.location) if not e.is_player and e.alive and rel.profile(w,e)['sentient']]
     from engine import needs_market,barter,livelihoods,life_stages
     rows=[]
+    definitions = _relationship_quests(w) if nearby else ()
     for b in nearby:
-        row=dict(id=b.id,name=b.name,adult=life_stages.for_entity(w,b)['adult'],awake=livelihoods.awake(w,b),commerce=barter.view(w,a,b),needs=needs_market.describe(w,b)+' '+livelihoods.summary(w,b),trust=rel.bond(w,a,b)['trust'],likes=', '.join([w.items.get(i,{}).get('name',i) for i in prefs(w,b)['wanted_items']]+prefs(w,b)['wanted_types']),quests=quests(w,a,b))
+        row=dict(id=b.id,name=b.name,adult=life_stages.for_entity(w,b)['adult'],awake=livelihoods.awake(w,b),commerce=barter.view(w,a,b),needs=needs_market.describe(w,b)+' '+livelihoods.summary(w,b),trust=rel.bond(w,a,b)['trust'],likes=', '.join([w.items.get(i,{}).get('name',i) for i in prefs(w,b)['wanted_items']]+prefs(w,b)['wanted_types']),quests=quests(w,a,b,definitions))
         profile = _resident_profile(w,b)
         if profile is not None: row['population'] = profile
         rows.append(row)

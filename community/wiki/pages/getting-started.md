@@ -4,7 +4,7 @@ Expanse offers a personal single-player adventure and Creator tools. The shared 
 
 ## Install on your computer
 
-Visit [expansemud.com](https://expansemud.com/) for the current Windows 11 and Linux/Bazzite installers. Download the installer appropriate to your system, follow the included instructions, and let the installer update an existing Expanse installation in place.
+Visit [Expanse website](https://expansemmo.com/) for the current Windows 11 and Linux/Bazzite installers. Download the installer appropriate to your system, follow the included instructions, and let the installer update an existing Expanse installation in place.
 
 Do not delete existing game folders, custom worlds, saves or account data when updating. Windows and Linux packages are intended as in-place updates, not new applications.
 
@@ -22,4 +22,4 @@ The hosted online service currently provides account-isolated Single Player worl
 
 ## Need assistance?
 
-Until the new community forum launches, visit the [existing community forum](https://expansemud.discourse.group/) for help. Include your game version and platform when you report a problem, but never post login credentials or recovery codes.
+Visit the [player forum](https://expanse-mud.onrender.com/forum/) for help. Include your game version and platform when you report a problem, but never post login credentials or recovery codes.

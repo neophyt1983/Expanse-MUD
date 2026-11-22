@@ -12,4 +12,4 @@ The Expanse community exists to discuss the game and its development in a lively
 
 ## Moderation
 
-Staff may lock discussions, suspend accounts and review reports. The forum prototype uses moderator-approved registrations during its initial testing phase. More complete appeal, account recovery, privacy and retention controls must be reviewed before open public deployment.
+Staff may lock discussions, suspend accounts and review reports. Use [forum registration](https://expanse-mud.onrender.com/forum/register) to request an account or [sign in](https://expanse-mud.onrender.com/forum/login) with your forum credentials.

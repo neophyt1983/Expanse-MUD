@@ -25,6 +25,7 @@ def advance(w):
     now=living.state(w)['minute'];stats=living.state(w).setdefault('wildlife',{'last':-100000,'forage':{},'meals':0,'hunts':0})
     if now-stats['last']<30:return
     stats['last']=now
+    forage_lock_index = None
     animals={e.id:species(w,e) for e in w.entities.values() if e.alive and not e.is_player and not e.progress.get('zoo_exhibit')}
     for e in list(w.entities.values()):
         s=animals.get(e.id,{})
@@ -79,9 +80,12 @@ def advance(w):
                     continue
             # Look only one exit away for authored forage or prey: bounded local search.
             if s.get('forage_roaming',True):
-                from engine import frontiers
+                from engine import frontiers, locks
+                if forage_lock_index is None:
+                    # Only the door definitions are shared. Passability still depends on each animal.
+                    forage_lock_index = locks.index(w, cache=False)
                 for di,dest in w.rooms[e.location].exits.items():
-                    if dest not in w.rooms or frontiers.blocked(w,e.location,di,e):continue
+                    if dest not in w.rooms or frontiers.blocked(w,e.location,di,e,lock_index=forage_lock_index):continue
                     rd=living.details(w,dest)
                     if 'husbandry' in rd.get('facilities',[]) or rd.get('truce'):continue
                     prey_here=any(v.alive and not v.is_player and not v.progress.get('companion_owner') and animals.get(v.id,{}).get('id') in s.get('prey_species',[]) for v in w.entities_in_room(dest))

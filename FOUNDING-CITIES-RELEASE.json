@@ -1,0 +1,19 @@
+{
+  "product": "ExpanseMMO",
+  "release": "1.10.0",
+  "name": "Founding Cities",
+  "date": "2026-11-22",
+  "engine_commit": "e5e2183",
+  "server_build": "2026-11-22-founding-cities-1.10.0",
+  "world": {
+    "slug": "wild_lands_genesis_1100",
+    "revision": "1.10.0",
+    "sha256": "85a89a2f94017bcf988803fbc29d18a79b0b441abf35a0281ca42004a492ec72",
+    "archive": "Wild-Lands-Founding-Cities-1.10.0.expanse",
+    "distribution": "The gateway assembles the two bundled-worlds pieces on startup and verifies the original archive before offering it to signed-in players."
+  },
+  "editions": ["Windows 11 x64 desktop", "Linux x86-64 desktop", "Windows 11 x64 console", "Linux x86-64 console", "Android", "official browser game"],
+  "official_play": "isolated personal worlds",
+  "public_shared_mmo": false,
+  "previous_adventures": "Keep each previous world and its existing saves. Founding Cities 1.10.0 uses a separate world identity."
+}

@@ -24,7 +24,7 @@ from urllib.parse import quote, urlsplit
 import zipfile
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from server import world_catalogue
+from server import bundled_world, world_catalogue
 from server.accounts import display_name, name_key
 from server.save_slots import DB as SLOTS_DB
 from server.public_access import PublicGuests, GuestLimit
@@ -88,7 +88,7 @@ button:hover,a.button:hover{background:#c4e9cc}a{color:#a9dfbd}
 """
 LIMIT = 128 * 1024 * 1024
 # Server release identity is separate from the shared desktop engine build.
-RENDER_SERVER_BUILD = '2026-11-18-asset-cache-v1'
+RENDER_SERVER_BUILD = '2026-11-22-founding-cities-1.10.0'
 
 
 def disk_mounted(path):
@@ -127,7 +127,7 @@ def page(title, body, status=200):
         '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" '
         'content="width=device-width, initial-scale=1"><title>'+escape(title)+' · Expanse</title>'
         '<style>'+CSS+'</style><main><nav class="brand-nav" aria-label="External links">'
-        '<a href="https://expansemud.com/">Official website</a>'
+        '<a href="https://expansemmo.com/">Official website</a>'
         '<a href="/wiki/index.html" target="_blank" rel="noopener noreferrer">Game wiki</a><a href="https://expanse-mud.onrender.com/forum/login" target="_blank" rel="noopener noreferrer">Forum sign-in</a><a href="https://expanse-mud.onrender.com/forum/register" target="_blank" rel="noopener noreferrer">Register for the forum</a></nav>'
         '<h1>'+escape(title)+'</h1>'+body+(DEVICE_HOST_FORM if title=='Expanse' else '')+'</main></html>'))
 
@@ -333,6 +333,7 @@ class Service:
         self.email_request_attempts = deque()
         self.worlds = self.data/'worlds'
         self.worlds.mkdir(exist_ok=True)
+        self.bundled_world = bundled_world.prepare(self.worlds, bundled_world.cache_path())
         self.update_world = os.environ.get('EXPANSE_UPDATE_WORLD_SHA256','').strip()
         if self.update_world and not re.fullmatch(r'[0-9a-f]{64}',self.update_world):
             raise ValueError('EXPANSE_UPDATE_WORLD_SHA256 must be the full SHA-256 of an imported game file.')
@@ -349,6 +350,8 @@ class Service:
         self.app_assets = AppAssets(ROOT/'web')
 
     def bundle(self, ident):
+        if ident == bundled_world.DIGEST:
+            return self.bundled_world
         if not isinstance(ident,str) or not re.fullmatch(r'[0-9a-f]{64}',ident) or not (self.worlds/ident/'info.json').is_file():
             raise web.HTTPNotFound(text='Choose an imported world.')
         return self.worlds/ident
@@ -373,7 +376,9 @@ class Service:
                 return {}
 
         rows = []
-        for path in self.worlds.glob('*/info.json'):
+        paths = [p for p in self.worlds.glob('*/info.json') if p.parent.name != bundled_world.DIGEST]
+        paths.append(self.bundled_world / 'info.json')
+        for path in paths:
             bundle = path.parent
             if bundle.is_symlink() or not re.fullmatch(r'[0-9a-f]{64}', bundle.name):
                 continue
@@ -390,7 +395,7 @@ class Service:
     def update_templates(self, ident, slug):
         if not self.update_world or self.update_world == ident:
             return ()
-        bundle = self.worlds/self.update_world
+        bundle = self.bundled_world if self.update_world == bundled_world.DIGEST else self.worlds/self.update_world
         if not (bundle/'info.json').is_file():
             raise ValueError('Import the game file selected by EXPANSE_UPDATE_WORLD_SHA256 before playing with this update enabled.')
         info = json.loads((bundle/'info.json').read_bytes())
@@ -1022,17 +1027,9 @@ class Service:
                         f.write(chunk)
                         digest.update(chunk)
                 ident=digest.hexdigest()
-                if (self.worlds/ident).is_dir():
+                if ident == bundled_world.DIGEST or (self.worlds/ident).is_dir():
                     return web.HTTPSeeOther('/')
-                def validate():
-                    from engine.exchange import import_game
-                    ok,note=import_game(archive,stage/'games')
-                    if not ok:
-                        raise ValueError(note)
-                    slug=next(p.name for p in (stage/'games').iterdir() if not p.name.startswith('.'))
-                    meta=json.loads((stage/'games'/slug/'metadata.json').read_bytes())
-                    (stage/'info.json').write_text(json.dumps({'slug':slug,'name':meta.get('name') or slug}))
-                await asyncio.to_thread(validate)
+                await asyncio.to_thread(bundled_world.validate_import, archive, stage)
                 stage.rename(self.worlds/ident)
         finally:
             self.importing=False
@@ -1326,7 +1323,7 @@ def make_app():
         body = page.read_text(encoding='utf-8').replace('https://expansemud.discourse.group/', '/forum/')
         body = body.replace('href="https://expansemud.com/wiki/"', 'href="/wiki/index.html"')
         if name == 'index.html':
-            body = body.replace('</main>', '<p><a href="https://expansemud.com/wiki/index.html">Open the illustrated Wild Lands reference</a></p></main>')
+            body = body.replace('</main>', '<p><a href="https://expansemmo.com/wiki/index.html">Open the illustrated Wild Lands reference</a></p></main>')
         return web.Response(text=body,content_type='text/html')
     async def wiki_style(req):
         return web.FileResponse(ROOT/'community/dist/assets/wiki.css')

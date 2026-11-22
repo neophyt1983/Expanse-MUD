@@ -18,7 +18,7 @@ REGISTRY=(
 
 
 def enabled(w):
-    return (Path(str(w.game_dir)).name=='wild_lands' or w.metadata.get('civic_opening_release') == '1.10.0-rc1') and w.metadata.get(FLAG)==VERSION
+    return (Path(str(w.game_dir)).name=='wild_lands' or w.metadata.get('civic_opening_release') in ('1.10.0-rc1', '1.10.0')) and w.metadata.get(FLAG)==VERSION
 
 
 def available(w):

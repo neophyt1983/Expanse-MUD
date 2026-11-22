@@ -74,23 +74,23 @@ article{border:1px solid var(--line);background:var(--card);padding:35px;border-
 
 
 def public_forum_url():
-    """Do not link to the unlaunched new forum until explicitly enabled at publication."""
+    """Use the mounted player forum by default and preserve the configured custom forum domain."""
     url = os.environ.get('EXPANSE_COMMUNITY_PUBLIC_URL', '').strip()
     if url:
         if url != 'https://community.expansemud.com/':
             raise ValueError('Only the approved ExpanseMUD community URL may be enabled.')
         return url
-    return 'https://expansemud.discourse.group/'
+    return 'https://expanse-mud.onrender.com/forum/'
 
 
 def page(content, title, sidebar, *, status=False):
     forum_url = escape(public_forum_url(), quote=True)
     # Absolute wiki links work from both /wiki/ and /status/.
-    wiki_url = 'https://expansemud.com/wiki/'
+    wiki_url = '../wiki/index.html'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{escape(title)} · Expanse Wiki</title><meta name="description" content="Official ExpanseMUD game wiki, documentation and community reference">
-    <link rel="stylesheet" href="../assets/wiki.css"></head><body><header><a class="brand" href="https://expansemud.com/">EXPANSE · WIKI</a>
-    <nav aria-label="Site"><a href="{wiki_url}">Wiki</a><a href="{forum_url}">Forum</a><a href="https://expansemud.com/status/">Status</a><a href="https://expansemud.com/">Game</a></nav></header>
+    <link rel="stylesheet" href="../assets/wiki.css"></head><body><header><a class="brand" href="https://expansemmo.com/">EXPANSE · WIKI</a>
+    <nav aria-label="Site"><a href="{wiki_url}">Wiki</a><a href="{forum_url}">Forum</a><a href="https://expansemmo.com/status/">Status</a><a href="https://expansemmo.com/">Game</a></nav></header>
     <div class="layout"><aside><strong>Wiki navigation</strong>{sidebar}</aside><article>{content}</article></div>
     <footer>Expanse is independently created and transparently AI-assisted. Details may change between game versions.</footer></body></html>'''
 
@@ -104,7 +104,7 @@ def build():
         title=next((line[2:].strip() for line in raw.splitlines() if line.startswith('# ')),src.stem)
         items.append((src,src.stem+'.html',title,raw))
     sidebar=''.join(f'<a href="{escape(fname)}">{escape(title)}</a>' for _,fname,title,_ in items)
-    status_sidebar=''.join(f'<a href="https://expansemud.com/wiki/{escape(fname)}">{escape(title)}</a>' for _,fname,title,_ in items)
+    status_sidebar=''.join(f'<a href="https://expansemmo.com/wiki/{escape(fname)}">{escape(title)}</a>' for _,fname,title,_ in items)
     for src,fname,title,raw in items:
         html=render_markdown(raw)
         if src.stem=='index':
@@ -114,7 +114,7 @@ def build():
     status_dir=ROOT/'dist'/'status';status_dir.mkdir(parents=True,exist_ok=True)
     status_content='''<h1>ExpanseMUD — Service updates</h1><p>This is an independent static notice page. It does not automatically measure server uptime.
     The last confirmed operational status must be posted manually by the owner. An absence of new notices does not prove the game server is online.</p>
-    <h2>News and maintenance</h2><p>The new official community news channel is in development. Until it launches, you can read discussions on the <a href="https://expansemud.discourse.group/">existing message board</a>.
+    <h2>News and maintenance</h2><p>Read staff posts in <a href="https://expanse-mud.onrender.com/forum/c/news">Official News &amp; Server Status</a>.
     For a game, forum, or Render outage, check this independent page for manually published, confirmed notices.</p>
     <h2>Last confirmed incident</h2><p>No incident information has been published to this static page yet.</p>'''
     (status_dir/'index.html').write_text(page(status_content,'Server status',status_sidebar,status=True))

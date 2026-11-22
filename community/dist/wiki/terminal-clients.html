@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Play Expanse in a PC terminal · Expanse Wiki</title><meta name="description" content="Official ExpanseMUD game wiki, documentation and community reference">
+    <link rel="stylesheet" href="../assets/wiki.css"></head><body><header><a class="brand" href="https://expansemmo.com/">EXPANSE · WIKI</a>
+    <nav aria-label="Site"><a href="../wiki/index.html">Wiki</a><a href="https://expanse-mud.onrender.com/forum/">Forum</a><a href="https://expansemmo.com/status/">Status</a><a href="https://expansemmo.com/">Game</a></nav></header>
+    <div class="layout"><aside><strong>Wiki navigation</strong><a href="community-guidelines.html">Community guidelines</a><a href="creator-tools.html">Creator tools</a><a href="founding-cities.html">Visit a Founding Cities household</a><a href="getting-started.html">Getting started</a><a href="index.html">ExpanseMUD Wiki</a><a href="living-world.html">People and the living world</a><a href="magic-and-combat.html">Magic and combat</a><a href="multiplayer.html">Multiplayer development status</a><a href="release-history.html">Release history</a><a href="terminal-clients.html">Play Expanse in a PC terminal</a></aside><article><h1>Play Expanse in a PC terminal</h1>
+<p>The Windows 11 and Linux terminal editions play Founding Cities with keyboard commands. They include the runtime, worlds and player guides for offline play. Choose your platform on the <a href="https://expansemmo.com/downloads/index.html">downloads page</a>.</p>
+<h2>Windows 11</h2>
+<p>Download <code>Expanse-Windows-11-Console-1.10.0.zip</code> on a 64-bit Intel or AMD PC. Extract the whole ZIP into a folder, then open <code>Install-Expanse-Console.cmd</code>.</p>
+<p>To play, paste this path into File Explorer’s address bar and press Enter: <code>%LOCALAPPDATA%\Expanse-Console-Client\Run-Expanse-Console.cmd</code>.</p>
+<p>You can also open the installed folder and run the launcher in Command Prompt or PowerShell. Windows Terminal is optional. In PowerShell, use <code>.\Run-Expanse-Console.cmd</code> from that folder.</p>
+<h2>Linux and Bazzite</h2>
+<p>Download <code>Expanse-Linux-Console-1.10.0.run</code> on a 64-bit Intel or AMD PC. Use a distribution with glibc 2.28 or later and Bash, tar, gzip and sha256sum. Open a terminal in your downloads folder and run:</p>
+<p><code>bash Expanse-Linux-Console-1.10.0.run</code></p>
+<p>To play, run:</p>
+<p><code>&quot;${XDG_DATA_HOME:-$HOME/.local/share}/Expanse-Console-Client/Run-Expanse-Console.sh&quot;</code></p>
+<h2>Play and save offline</h2>
+<p>At the launcher menu, press Enter or choose 1 for offline single player. Founding Cities 1.10.0 is the default world. If you have an existing RC4 character, choose <strong>Continue RC4</strong> when offered or add <code>--world rc4</code> to the launcher command. Add <code>--world legacy</code> to the launcher command to use Wild Lands 1.9.16. During play, type <code>/menu</code> for terminal actions or <code>/wiki</code> for the player guide. Color appears in supported interactive terminals. The same commands work in plain text. Set the <code>NO_COLOR</code> environment variable to disable color.</p>
+<p>Type <code>save</code> to keep your progress or <code>save and quit</code> to save and leave. A plain <code>quit</code> discards changes since your last save. The terminal and graphical editions keep separate saves.</p>
+<p>Back up <code>%LOCALAPPDATA%\Expanse-Console</code> on Windows. On Linux, back up <code>~/.local/share/Expanse-Console</code>, or <code>Expanse-Console</code> inside your configured <code>XDG_DATA_HOME</code> directory. Run the launcher with <code>--data-dir PATH</code> to use another data folder.</p>
+<h2>Sign in or join a host</h2>
+<p>Choose 2 or add <code>--online</code> to the launcher command to sign in to your personal online world. To use a compatible server of your choice, add <code>--online HTTPS_ORIGIN</code>, replacing <code>HTTPS_ORIGIN</code> with its secure web address. The official hosted game keeps each account’s world separate.</p>
+<p>Choose 3 to join a private host and paste the host’s secure invite when prompted. The command-line form is <code>--connect INVITE</code>. Treat the invite as private. For either online mode you need a reachable host. Run the launcher with <code>--help</code> for its full list of options.</p>
+<p><a href="founding-cities.html">Founding Cities play guide</a> · <a href="index.html">Back to the wiki</a></p></article></div>
+    <footer>Expanse is independently created and transparently AI-assisted. Details may change between game versions.</footer></body></html>

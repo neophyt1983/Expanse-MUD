@@ -12,6 +12,19 @@ KEY = 'earned_lodging_v1'
 UNITS = ('ward_dawn_4_5:1','ward_dawn_5_1:1')
 CHOICES = dict(zip(('boarding-house','orchard-cottage'),UNITS))
 ROOMS = {'ward_dawn_4_5:1':'ward_dawn_4_5', 'ward_dawn_5_1:1':'ward_dawn_5_1'}
+# Registered parcels used by the Founding Cities opening. The actual unit,
+# owner, rent, occupancy, entrance and walking route are checked for every hire.
+CITY_UNITS = {
+    'Dawnwatch': UNITS,
+    'Hollowcrown': ('ward_hollow_6_1:1', 'land_bad_guys_8_0:1'),
+    'Hearthmere': ('ward_hearth_0_2:1', 'land_roadkeepers_8_0:1'),
+    'Reedwater': ('land_river_assembly_8_0:1', 'land_river_assembly_8_0:2'),
+    'Cinderhold': ('land_cinder_throne_8_0:1', 'land_cinder_throne_8_0:2'),
+    'Glassreach': ('land_glass_court_8_0:1', 'land_glass_court_8_0:2'),
+    'Pinewatch': ('land_pineward_clans_8_0:1', 'land_pineward_clans_8_0:2'),
+    'Starfall': ('land_star_compact_8_0:1', 'land_star_compact_8_0:2'),
+}
+ROOMS.update({uid:uid.rsplit(':',1)[0] for pair in CITY_UNITS.values() for uid in pair})
 WEEK = worldtime.DAYS_PER_WEEK * worldtime.MINUTES_PER_DAY
 HOLDING = ('held','ready')
 KITCHEN = 'emberhollow_inn_kitchen'
@@ -29,13 +42,13 @@ def enabled(w):
 
 def _rows(w):
     rows=getattr(w,'living_state',{}).get(KEY,{})
-    if not isinstance(rows,dict) or len(rows)>len(UNITS):
+    if not isinstance(rows,dict) or len(rows)>len(ROOMS):
         raise ValueError(INVALID)
     seen=set()
     for ident,r in rows.items():
         if (not isinstance(ident,str) or not isinstance(r,dict)
                 or set(r)!={'unit','owner','rent','phase','remaining'}
-                or r['unit'] not in UNITS or r['unit'] in seen
+                or r['unit'] not in ROOMS or r['unit'] in seen
                 or not isinstance(r['owner'],str) or type(r['rent']) is not int or not 1<=r['rent']<=1000
                 or r['phase'] not in (*HOLDING,'active')
                 or type(r['remaining']) is not int or not 0<=r['remaining']<=WEEK
@@ -51,7 +64,7 @@ def _units(w):
 
 def reserved(w,u):
     """Public market/NPC property gate; malformed records cannot leak a unit."""
-    if u.get('id') not in UNITS:
+    if u.get('id') not in ROOMS:
         return False
     try:return any(r['unit']==u['id'] and r['phase'] in HOLDING for r in _rows(w).values())
     except (TypeError,ValueError):return True
@@ -59,7 +72,7 @@ def reserved(w,u):
 
 def prepaid(w,u):
     """Normal rent/arrears never run for paid protected tenure."""
-    if u.get('id') not in UNITS:
+    if u.get('id') not in ROOMS:
         return False
     try:
         return any(r['unit']==u['id'] and r['phase']=='active' for r in _rows(w).values())
@@ -69,7 +82,7 @@ def prepaid(w,u):
 def _eligible(w,p,u,*,own_hold=False):
     uid=u['id']
     rid=ROOMS[uid]
-    if (u.get('room')!=rid or rid not in w.rooms or u.get('group')!='good_guys'
+    if (u.get('room')!=rid or rid not in w.rooms or u.get('group')!=w.rooms[rid].group
             or u.get('kind') not in ('house','rental') or not u.get('listed')
             or u.get('tenant') or u.get('owner')==p.id or u.get('storage')
             or property_interiors.acquisition_problem(w,u,ignore_opening_hold=own_hold)
@@ -134,7 +147,7 @@ def cost(row):
 def describe(w,row):
     name=w.rooms.get(ROOMS[row['unit']])
     return ((name.name if name else 'The registered room (currently unavailable)') +
-            f" for one {worldtime.DAYS_PER_WEEK}-day game week; {cost(row)} existing sponsor gold, no charge to the worker.")
+            f" (unit {row['unit'].rsplit(':', 1)[-1]}) for one {worldtime.DAYS_PER_WEEK}-day game week; {cost(row)} existing sponsor gold, no charge to the worker.")
 
 
 def choices(w,p,pocket,wage):
@@ -225,6 +238,8 @@ def finish(w,p,u,reason):
 
 
 def tick(w,minutes):
+    from engine import opening_contracts
+    opening_contracts.tick(w, minutes)
     state=getattr(w,'living_state',{})
     if KEY not in state or type(minutes) is not int or minutes<=0:
         return

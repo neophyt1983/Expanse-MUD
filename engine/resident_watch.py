@@ -89,6 +89,13 @@ def start(world, player, ident):
     actor=world.entities.get(ident)
     contacts=player.progress.get('chronicle_contacts',{})
     own=player.progress.get('observed_residents',{})
+    if actor is None and (ident in contacts or ident in own):
+        from engine import civic_visits
+        court = civic_visits.home_address(world, ident)
+        if court:
+            resident = next((r for r in civic_visits.residents(world, court) if 'npc:'+r['id']==ident), None)
+            if resident:
+                actor = civic_visits.wake(world, resident)
     if actor and actor.is_player:raise ValueError('Choose a resident, not a player character.')
     if not actor or (actor.location!=player.location and ident not in contacts and ident not in own):
         raise ValueError('Choose someone you have met.')
@@ -133,8 +140,10 @@ def view(world, player, packet):
     selected=player.progress.get('resident_watch')
     known=dict(player.progress.get('observed_residents',{}))
     choices=dict(known)
+    from engine import civic_visits
     for key,person in player.progress.get('chronicle_contacts',{}).items():
-        if key in world.entities:choices[key]=person['name']
+        if key in world.entities or civic_visits.home_address(world, key):
+            choices[key]=person['name']
     for actor in world.entities_in_room(player.location):
         if not actor.is_player:choices[actor.id]=actor.name
     target=ident or selected

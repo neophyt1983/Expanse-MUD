@@ -256,6 +256,10 @@ COMMANDS={'barter':'Trade a wanted item with a nearby NPC','sell':'Sell one carr
 
 def register(reg):
     from engine.commands import Command
+    from engine import household_provisions
+    reg.register(Command("provisions", "Read a city co-operative's daily food account", "provisions [city]",
+                         household_provisions.report, available=lambda ctx: bool(household_provisions.config(ctx.world)),
+                         example="provisions Dawnwatch"))
     for name,desc in COMMANDS.items():
         reg.register(Command(name,desc,name+' <item name>',lambda ctx,args,n=name:command(ctx,args,n),available=lambda ctx:enabled(ctx.world),example=name))
 
@@ -305,4 +309,11 @@ def validate(data,meta):
 _previous_validate=validate
 def validate(data,meta):
     from engine import livelihoods
-    return _previous_validate(data,meta)+livelihoods.validate(data)
+    from engine import household_provisions
+    issues = _previous_validate(data,meta) + livelihoods.validate(data)
+    if 'household_provisions' in meta:
+        rooms = {room['id'] for room in data.get('room', [])}
+        items = {item['id'] for item in data.get('item', [])}
+        recipes = {recipe['id']: recipe for recipe in data.get('recipe', [])}
+        issues.extend(household_provisions.validate(meta['household_provisions'], rooms, items, recipes))
+    return issues

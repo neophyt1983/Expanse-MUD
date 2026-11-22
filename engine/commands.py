@@ -196,6 +196,8 @@ def _spawn_npc_instance(world: World, room: Room,
                         npc_id: str,
                         spawner_key: Optional[str] = None
                         ) -> Optional[Entity]:
+    from engine.wildlife_coin_provenance import initial_purse
+
     npc_def = world.npcs.get(npc_id)
     if not npc_def:
         return None
@@ -209,7 +211,7 @@ def _spawn_npc_instance(world: World, room: Room,
         name=npc_def['name'],
         hp=npc_def["hp"], max_hp=npc_def["hp"],
         attack=npc_def["attack"], defense=npc_def["defense"],
-        gold=npc_def.get("gold", 0),
+        gold=initial_purse(world, npc_def),
         is_player=False,
         source_def=npc_id,
         group_id=npc_def.get("group") or None,
@@ -464,8 +466,8 @@ def _greeting_for(world: World, npc: Entity, npc_def: dict,
                    player: Entity) -> str:
     """Return greeting for the player's faction, else dialogue."""
     from engine import earned_start
-    if earned_start.marked(player) and npc.source_def in earned_start.WELCOME:
-        return earned_start.INTRO
+    if earned_start.marked(player) and earned_start.opening_id(player,npc.source_def) in earned_start.WELCOME:
+        return earned_start.introduction(player)
     greetings = npc_def.get("greetings") or {}
     if player.group_id and player.group_id in greetings:
         return greetings[player.group_id] or ""
@@ -1040,12 +1042,6 @@ def _role_for(world: World, entity: Entity) -> Optional[str]:
     return world.npcs.get(entity.source_def, {}).get("role") or None
 
 
-def _guard_building_for(world: World, entity: Entity) -> Optional[str]:
-    if not entity.source_def:
-        return None
-    return world.npcs.get(entity.source_def, {}).get("guard_building") or None
-
-
 def _advance_guards(world: World):
     """Advance NPCs that occupy a building, per patrol_mode.
 
@@ -1053,17 +1049,19 @@ def _advance_guards(world: World):
     when set on a working NPC. Stationary NPCs (guard_room /
     workplace_room / spawn_room only) never move.
     """
+    from engine import npc_attention
+    attention = getattr(world, 'npc_attention_until', {})
+    trades = getattr(world, 'trade_attention', {})
     for entity in list(world.entities.values()):
-        from engine import npc_attention
-        if npc_attention.paused(world,entity):continue
-        if entity.is_player or not entity.alive:
+        # Visiting players can leave paused traders behind. Retire their
+        # timers even when they do not have a building patrol.
+        definition = world.npcs.get(entity.source_def, {})
+        building_id = definition.get('guard_building') or definition.get('workplace_building')
+        if not building_id:
+            if entity.id in attention or entity.id in trades:
+                npc_attention.paused(world, entity)
             continue
-        building_id = _guard_building_for(world, entity)
-        if not building_id:
-            defn = (world.npcs.get(entity.source_def, {})
-                    if entity.source_def else {})
-            building_id = defn.get("workplace_building")
-        if not building_id:
+        if entity.is_player or not entity.alive or npc_attention.paused(world, entity):
             continue
         building = world.buildings.get(building_id)
         if not building:
@@ -1155,9 +1153,11 @@ def _cmd_look(ctx: CommandContext, args: str) -> str:
         header = f"{room.name} ({building['name']})"
     lines = [header, resolve_description(room, ctx.world, ctx.player)]
     from engine.local_visibility import blind
+    from engine import locks
     dark=blind(ctx.world,ctx.player)
+    lock_index = locks.index(ctx.world, cache=False) if room.exits and not dark else None
     for di in (() if dark else room.exits):
-        why=frontiers.blocked(ctx.world,room.id,di,ctx.player)
+        why=frontiers.blocked(ctx.world,room.id,di,ctx.player,lock_index=lock_index)
         if why:lines.append("Locked "+di+": "+why)
     if room.group:
         grp = ctx.world.groups.get(room.group)
@@ -1201,7 +1201,10 @@ def _cmd_look(ctx: CommandContext, args: str) -> str:
         if posted:lines.append("Posted reading: " + ", ".join(dict.fromkeys(posted)))
     if not dark:
         from engine import earned_start
-        if earned_start.marked(ctx.player) and room.id in (earned_start.INN, earned_start.KITCHEN):
+        from engine import opening_contracts
+        if ctx.player.progress.get(opening_contracts.MARK) and opening_contracts.local(ctx.world,room.id):
+            lines.append('Paid work and sponsored lodging: use startwork status to see local hours and vacancies.')
+        elif earned_start.marked(ctx.player) and room.id in (earned_start.INN, earned_start.KITCHEN):
             lines.append("Kitchen work: use startwork status for real vacancies and pay.")
     return "\n".join(lines)
 
@@ -1511,11 +1514,11 @@ def _cmd_read(ctx, args):
             return publication_text(ctx.world,remembered)+remembered.get('read_text','')
     item=item_catalog.choose(copies,query,missing='That item is not here or in your inventory.')
     from engine import earned_start
-    if earned_start.marked(ctx.player) and item['id'] in earned_start.WELCOME_ITEMS:
+    if earned_start.marked(ctx.player) and earned_start.opening_id(ctx.player,item['id']) in earned_start.WELCOME_ITEMS:
         from engine.quest_discovery import disclose,offer_text
         topics=item.get('knowledge',{})
         offered=disclose(ctx.world,ctx.player,topics,'item',item['id'])
-        return earned_start.INTRO+offer_text(ctx.world,ctx.player,offered)
+        return earned_start.introduction(ctx.player)+offer_text(ctx.world,ctx.player,offered)
     if item.get('newspaper'):
         from engine.gazette import browse
         return browse(ctx.world,ctx.player,item.get('press_edition',''))
@@ -1677,8 +1680,8 @@ def build_registry() -> CommandRegistry:
     for word,fn,hint in [('expedition',wildlands.command,'Follow a trail or examine an expedition site'),('sanity',wildlands.command,'Check your resolve and memories'),('ward',ward_life.command,'Visit the ward register or help house')]:
         reg.register(Command(word,hint,word,fn,available=lambda ctx,word=word:bool(getattr(ctx.world,"rules",{}).get("ward")) if word=="ward" else wildlands.enabled(ctx.world)))
     from engine import earned_start, escorts
-    reg.register(Command('startwork','Review or complete a genuinely funded kitchen order',
-        'startwork [status | accept | decline | cook | deliver | cancel | lodging | check-in]',
+    reg.register(Command('startwork','Ask about available work, pay and lodging',
+        'startwork [status | accept | decline | cook | collect | deliver | cancel | lodging | check-in]',
         earned_start.command, example='startwork status', available=lambda ctx: earned_start.marked(ctx.player)))
     for mode in ('follow','lead'):
         reg.register(Command(mode,'Travel with a quest companion',mode+' <name|stop>',

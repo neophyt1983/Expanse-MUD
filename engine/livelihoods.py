@@ -107,7 +107,7 @@ def reasons(w,n):
     if not applies(w,n) or not awake(w,n):return {}
     from engine import social
     cfg=social.prefs(w,n,include_needs=False);out={}
-    for iid,item in w.items.items():
+    for iid,item in (w.items.items() if cfg['wanted_items'] or cfg['wanted_types'] else ()):
         if iid in cfg['disliked_items']:continue
         if (iid in cfg['wanted_items'] or item.get('type') in cfg['wanted_types']) and n.inventory.count(iid)<cfg['gift_limit']:out[iid]='personal interest'
     for iid in needs_market.wanted_items(w,n):
@@ -115,7 +115,7 @@ def reasons(w,n):
     job=job_needs(w,n)
     for iid,q in job.items():
         if iid not in cfg['disliked_items']:out[iid]=f'work supplies: {q} needed'
-    for iid,item in w.items.items():
+    for iid,item in (w.items.items() if job else ()):
         recover={i:q for i,q in item.get('salvage',{}).items() if i in job and q>0}
         if recover and iid not in cfg['disliked_items']:out.setdefault(iid,'recover '+', '.join(w.items[i]['name'] for i in recover))
     return dict(sorted(out.items(),key=lambda row:0 if row[1].startswith(('work','recover')) else 1))

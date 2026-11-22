@@ -64,6 +64,9 @@ def advance(world,minutes=1):
     if getattr(world,"_community_simulating",False):return
     if not enabled(world):return
     if getattr(world,'realtime',False) and not getattr(world,'tick_authorized',False):return
+    if hasattr(world, '_civic_active_courts'):
+        from engine import civic_visits
+        civic_visits.retire_distant(world)
     if not hasattr(world,'commute_budget'):
         # The existing FIFO route planner keeps a large city from calculating
         # hundreds of new routes before the server can send injury messages.
@@ -129,6 +132,8 @@ def advance(world,minutes=1):
             companions.follow(world,e)
             continue
         if family_life.care_shift(world,e) or population.routine(world,e):continue
+        from engine import meal_counters
+        if meal_counters.meal_break(world,e):continue
         if e.progress.get('retired'):
             from engine import livelihoods
             home=e.progress.get('home_room') or livelihoods.definition(world,e).get('home_room')
@@ -170,6 +175,8 @@ def advance(world,minutes=1):
 
     from engine import society
     society.produce(world)
+    from engine import household_provisions
+    household_provisions.advance(world, now-minutes, now)
     from engine import market_shifts
     market_shifts.advance(world)
     from engine import wildlife
@@ -190,6 +197,9 @@ def advance(world,minutes=1):
 
 def on_entry(world,p):
     if not enabled(world):return ''
+    if p.is_player:
+        from engine import civic_visits
+        civic_visits.enter_court(world, p.location)
     s=state(world);r=details(world,p.location);lines=[]
     for traffic in world.entities_in_room(p.location):
         hazard=world.npcs.get(traffic.source_def,{}).get('traffic',{})
@@ -714,8 +724,7 @@ def quest_blocked(world,player,quest,*,alternatives=True,readonly=False):
         alternative_block=quest_alternatives.blocked(world,player,quest)
         if alternative_block:return alternative_block
     prerequisites=q.get('prerequisites',[])
-    if q['id']==earned_start.CHAIN:
-        prerequisites=earned_start.omit_stage(p,q['id'],prerequisites)
+    prerequisites=earned_start.omit_stage(p,q['id'],prerequisites)
     if any(not completed(i) for i in prerequisites):return 'Complete the prerequisite quests first.'
     if any(completed(i) for i in q.get('exclusive_with',[])):return 'Another outcome has already been chosen.'
     if any(s.get('flags',{}).get(k)!=v for k,v in q.get('requires_world_flags',{}).items()):return 'World conditions do not permit this quest yet.'
