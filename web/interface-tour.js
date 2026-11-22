@@ -282,6 +282,7 @@
   const previous=state.current,current=data.current;
   if(current&&(!Number.isInteger(current.index)||!Number.isInteger(current.total)||current.index<0||current.index>current.total||current.total<1||current.total>24||typeof current.quest_id!=='string'||typeof current.revision!=='string'||(!current.completed&&!Object.hasOwn(targets,current.target))))return;
   state.player=data.player_id;state.data=data;
+  entry.hidden=data.earned_start===true&&!data.choices.length;
   state.current=current||null;
   const key=current?[data.player_id,current.quest_id,current.revision,current.index,current.completed,current.paused,current.alternative_quest,current.alternative_available].join('|'):data.player_id+'|choices';
   if(state.pending&&!alternativeAction(state.pending.action)&&(packet.request_id===state.pending.id||(current&&current.quest_id===state.pending.quest&&current.step_id!==state.pending.step)||(current?.paused&&!previous?.paused)))finishPending();
@@ -306,7 +307,7 @@
   if(packet?.type==='map'&&Object.hasOwn(packet,'interface_tour')){update(packet.interface_tour,packet);return false;}
   return false;
  }
- function disconnect(){if(state.alternative)window.ExpanseSourceQuests?.alternativePreview?.(state.alternative.quest,false);state.alternative=null;alternativeDetails.hidden=acceptAlternative.hidden=back.hidden=retry.hidden=viewQuests.hidden=true;finishPending();hide();state.player=state.data=state.current=state.key=state.latestRequest=null;state.localPause=state.forceOpen=false;state.returnFocus=null;state.acceptMaps=false;choices.replaceChildren();message.textContent='';}
+ function disconnect(){if(state.alternative)window.ExpanseSourceQuests?.alternativePreview?.(state.alternative.quest,false);state.alternative=null;alternativeDetails.hidden=acceptAlternative.hidden=back.hidden=retry.hidden=viewQuests.hidden=true;finishPending();hide();state.player=state.data=state.current=state.key=state.latestRequest=null;state.localPause=state.forceOpen=false;state.returnFocus=null;state.acceptMaps=false;entry.hidden=false;choices.replaceChildren();message.textContent='';}
  card.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();event.stopPropagation();if(state.alternative)closeAlternative();else pause();}else if(event.key!=='Tab')event.stopPropagation();});
  window.addEventListener('resize',schedulePosition);window.addEventListener('scroll',schedulePosition,{capture:true,passive:true});window.addEventListener('expanse:display',schedulePosition);
  window.visualViewport?.addEventListener('resize',schedulePosition);window.visualViewport?.addEventListener('scroll',schedulePosition);

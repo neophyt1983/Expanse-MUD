@@ -17,6 +17,8 @@ def occupancy(w,u):
     if u.get('tenant'):return 'tenanted'
     if u.get('owner'):return 'owned'
     if u.get('household_id'):return 'household'
+    from engine import earned_lodging
+    if earned_lodging.reserved(w,u):return 'reserved sponsored lodging'
     if u['room'] in getattr(w,'_property_household_parcels',set()) or any(h.get('home_room')==u['room'] for h in (getattr(w,'living_state',{}) or {}).get('population',{}).get('households',{}).values()):return 'household assignment unknown'
     return 'vacant'
 
@@ -39,7 +41,9 @@ def blocked(w,actor,origin,direction,target):
     if hid:
         household=(getattr(w,'living_state',{}) or {}).get('population',{}).get('households',{}).get(hid,{})
         return '' if actor is not None and actor.id in household.get('members',[]) else 'This is a private household.'
-    if occupancy(w,u)!='vacant':return 'This parcel is already used as a household home; no vacant unit has been confirmed.'
+    occupied=occupancy(w,u)
+    if occupied=='reserved sponsored lodging':return 'This lodging is reserved for its confirmed starter contract.'
+    if occupied!='vacant':return 'This parcel is already used as a household home; no vacant unit has been confirmed.'
     return ''
 
 def ensure(w,units=None):
@@ -153,7 +157,10 @@ def parcel_in_use(w,parcel):
                if rid in w.rooms)
 
 
-def acquisition_problem(w,u):
+def acquisition_problem(w,u, *, ignore_opening_hold=False):
+    from engine import earned_lodging
+    if not ignore_opening_hold and earned_lodging.reserved(w,u):
+        return 'This lodging is reserved and cannot be bought or rented.'
     # Tenure records do not authorize displacement of an independently housed family.
     household_here=u.get('household_id') or u['room'] in getattr(w,'_property_household_parcels',set()) or any(h.get('home_room')==u['room'] for h in (getattr(w,'living_state',{}) or {}).get('population',{}).get('households',{}).values())
     return 'This parcel already houses a household; no vacant unit is confirmed for acquisition.' if household_here else ''

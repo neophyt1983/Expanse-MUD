@@ -207,6 +207,9 @@ def preview(world, player, quest_id):
         raise ValueError('Enter your character before choosing a quest.')
     if not isinstance(quest_id, str):
         raise ValueError('Choose an interface guide with an alternative quest.')
+    from engine import earned_start
+    if earned_start.retired(player,quest_id):
+        raise ValueError('This former training choice is not part of your in-world start.')
     original = _index(world)[0].get(quest_id)
     if original is None:
         raise ValueError('This interface guide does not offer another quest.')

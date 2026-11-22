@@ -58,6 +58,9 @@ def attention(world,player):
         key=definition.get('quest_greeting_key',npc.source_def)
         if not npc.alive or not text or key in greeted or not livelihoods.awake(world,npc) or _is_hostile_npc(world,npc,player):continue
         if not isinstance(text,str):continue
+        from engine import earned_start
+        if earned_start.marked(player) and npc.source_def in earned_start.WELCOME:
+            text=earned_start.INTRO
         if definition.get('work_hours') and not livelihoods.on_shift(world,npc):continue
         ids=disclose(world,player,definition.get('knowledge',{}),'npc',npc.source_def)
         if not ids:continue

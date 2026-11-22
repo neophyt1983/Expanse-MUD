@@ -178,9 +178,14 @@ def blocked(world, player, quest, *, migrate_player=True):
     if final.get('scope') == 'world' and chain['id'] in getattr(world, 'living_state', {}).get('completed_world', []):
         return 'This shared-world outcome has already been completed.'
     run = _run(player, chain)
+    from engine import earned_start
     qid = quest['id']
+    stages = earned_start.omit_stage(player, chain['id'], chain['stages'])
+    if qid not in stages:
+        return 'This former training request is not part of your in-world start.'
+    index = stages.index(qid)
     if run is None:
-        return '' if chain['index'] == 0 else 'Begin with the first quest in this chain.'
+        return '' if index == 0 else 'Begin with the first quest in this chain.'
     if run.get('finished'):
         if not final.get('repeatable'):
             return ''  # Normal completed-quest handling applies; no new rewards.
@@ -193,7 +198,7 @@ def blocked(world, player, quest, *, migrate_player=True):
     completed = set(run.get('completed', []))
     if qid in completed:
         return 'This stage is already finished for the current chain.'
-    if any(sid not in completed for sid in chain['stages'][:chain['index']]):
+    if any(sid not in completed for sid in stages[:index]):
         return 'Complete the earlier quests in this chain first.'
     if run.get('active') and run['active'] != qid:
         return 'Finish the active quest in this chain first.'
@@ -253,7 +258,9 @@ def completed(world, player, quest):
         messages.append('Previously finished steps credited: ' + str(len(pending)) +
                         ('; ' + str(gold) + ' gold' if gold else '') + '.')
         messages.extend(awards)
-    next_id = next((sid for sid in chain['stages'] if sid not in run['completed']), None)
+    from engine import earned_start
+    stages = earned_start.omit_stage(player, chain['id'], chain['stages'])
+    next_id = next((sid for sid in stages if sid not in run['completed']), None)
     if next_id is None:
         run['finished'] = True
         run.pop('baseline', None)

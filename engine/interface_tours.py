@@ -143,10 +143,11 @@ def summary(player, quest):
 def _learned(world, player):
     if not player or not player.is_player:
         return []
+    from engine import earned_start
     statuses = player.progress.get('quests', {})
     return [world.quests[qid] for qid, status in statuses.items()
             if status in ('active', 'complete', 'replaced') and qid in world.quests
-            and definition(world.quests[qid])]
+            and not earned_start.retired(player,qid) and definition(world.quests[qid])]
 
 
 def projection(world, player):
@@ -184,7 +185,9 @@ def projection(world, player):
                    'text': step['text'] if step else tour.get('completion_text', quest.get('description', '')),
                    'paused': bool(row.get('paused')), 'completed': completed,
                    'required': blocked(player, quest), **alternative}
-    return {'player_id': player.id, 'choices': choices, 'current': current}
+    from engine import earned_start
+    return {'player_id': player.id, 'choices': choices, 'current': current,
+            **({'earned_start': True} if earned_start.marked(player) else {})}
 
 
 def handle(world, player, packet):

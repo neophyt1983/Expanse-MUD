@@ -14,7 +14,7 @@ function form(host,opts,state,actor){
   window.ExpanseActorRenderer?.playerActor(c,{paperdoll:doll},48,48,96,false);
  }
  for(const [key,values] of Object.entries({...opts.traits,accent:['Plain',...opts.accents.map(a=>a.name)]})){
-  const label=el('label',key==='accent'?'Class detail':title(key)),sel=el('select');sel.dataset.trait=key;
+  const label=el('label',key==='accent'?'Appearance detail':title(key)),sel=el('select');sel.dataset.trait=key;
   values.forEach(v=>sel.add(new Option(title(v),v)));if(values.includes(state[key]))sel.value=state[key];else state[key]=sel.value;
   sel.onchange=()=>{state[key]=sel.value;draw();};label.append(sel);grid.append(label);
  }
@@ -23,8 +23,8 @@ function form(host,opts,state,actor){
 function creation(data){
  gameData=data;const change=()=>{
   const race=gameData.races.find(r=>r.id===by('cc-race').value),cls=gameData.classes.find(c=>c.id===by('cc-class').value);
-  const box=by('cc-style-fields');if(!race||!cls){box.replaceChildren();createState={};return;}
-  form(box,{family:race.family,traits:race.traits||{},accents:cls.accents||[]},createState);
+  const box=by('cc-style-fields');if(!race||(!cls&&gameData.classless_start!==true)){box.replaceChildren();createState={};return;}
+  form(box,{family:race.family,traits:race.traits||{},accents:cls?.accents||[]},createState);
  };
  createState={};by('cc-race').onchange=change;by('cc-class').onchange=change;change();
 }

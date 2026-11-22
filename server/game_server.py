@@ -12,7 +12,7 @@ import websockets.exceptions
 from engine.loader import build_world, spawn_npcs, start_room_for
 from engine import loader as engine_loader
 from engine.core import Entity
-from engine import living, frontiers, society
+from engine import living, frontiers, society, classless, starting_cities
 from server.society_server import SocietyServer
 import sqlite3
 from engine.persistence import init_db, save_player, load_player
@@ -45,6 +45,7 @@ class GameServer(SocietyServer):
         chronicles.attach(self.world)
         self.world.realtime = (self.mode == 'host')
         self.world.deferred_rest = True
+        self.world._earned_lodging_presence = self.earned_lodging_presence
         spawn_npcs(self.world)
         self._init_shop_state()
         self.registry = build_registry()
@@ -461,7 +462,7 @@ class GameServer(SocietyServer):
             raise
         return result
 
-    async def create_character(self, data: dict) -> dict:
+    async def create_character(self, data: dict, *, supports_city_choice=False) -> dict:
         if self.closing:raise ValueError("Expanse is shutting down.")
         first = (data.get("first_name") or "").strip()
         last = (data.get("last_name") or "").strip()
@@ -469,15 +470,16 @@ class GameServer(SocietyServer):
             raise ValueError("first name is required")
 
         race_id = (data.get("race") or "").strip() or None
-        class_id = (data.get("class") or "").strip() or None
+        class_id, skill_start = classless.characterize(self.world,data)
         sex_id = (data.get("sex") or "").strip() or None
         faction_id = (data.get("faction") or "").strip() or None
 
         if frontiers.active(self.world):
-            if race_id not in self.world.races or class_id not in self.world.classes:
-                raise ValueError("Choose a race and class for your character.")
+            if race_id not in self.world.races or (not skill_start and class_id not in self.world.classes):
+                raise ValueError("Choose a race for your character." if skill_start else "Choose a race and class for your character.")
             if faction_id not in self.world.groups or self.world.groups[faction_id].get('visibility')!='playable':
                 raise ValueError("Choose a playable faction and its starting city.")
+        city = starting_cities.choice(self.world,data,supported=supports_city_choice)
         notation = (getattr(self.world, "metadata", {}) or {}).get(
             "stat_roll", "3d6")
         stats = _roll_stats(notation)
@@ -518,7 +520,7 @@ class GameServer(SocietyServer):
         if 'appearance' in data:
             player.progress['character_style']=validate(data['appearance'],choices(race or {},cls or {}))
         abilities = []
-        for source in (race, cls):
+        for source in (() if skill_start else (race, cls)):
             if source:
                 for ab in (source.get("starting_abilities") or []):
                     if ab not in abilities:
@@ -534,8 +536,12 @@ class GameServer(SocietyServer):
         player.progress["delete_token_hash"]=hashlib.sha256(delete_token.encode()).hexdigest()
         player.progress["world_slug"] = Path(self.world.game_dir).name
         player.inventory = inventory
+        if skill_start:
+            player.progress[classless.MARKER] = classless.VERSION
         if living.enabled(self.world):
-            player.gold = self.world.classes.get(player.char_class, {}).get("starting_gold", 25)
+            from engine import earned_start
+            if not earned_start.enroll_creation(self.world, player):
+                player.gold = 0 if skill_start else self.world.classes.get(player.char_class, {}).get("starting_gold", 25)
             living.progress(player)
 
         best_weapon_bonus = -1
@@ -564,9 +570,12 @@ class GameServer(SocietyServer):
                     best_offhand_bonus = bonus
 
         from engine import combat
-        combat.starter_ammunition(self.world,player)
-        start_room = None
-        if faction_id:
+        if not skill_start:
+            combat.starter_ammunition(self.world,player)
+        start_room = city[1] if city else None
+        if city:
+            player.progress[starting_cities.MARKER] = city[0]
+        if not start_room and faction_id:
             fdef = self.world.groups.get(faction_id) or {}
             sr = fdef.get("start_room")
             if sr and sr in self.world.rooms:
@@ -588,6 +597,7 @@ class GameServer(SocietyServer):
             "player_id": pid, "delete_token": delete_token, "name": name, "start_room": start_room,
             "race": race_id, "class": class_id, "sex": sex_id,
             "faction": faction_id, "stats": stats,
+            **({"starting_city":city[0]} if city else {}),
             "attack": attack, "defense": defense, "max_hp": max_hp,
             "abilities": abilities, "inventory": inventory,
         }
@@ -1735,6 +1745,20 @@ class GameServer(SocietyServer):
                     self.world.entities.pop(player_id,None)
 
     # ─── reload ─────────────────────────────────────────────────────
+    def earned_lodging_presence(self, ident):
+        if getattr(self,'background_residents',False):
+            existing=getattr(self,'official_lease_presence',None)
+            if callable(existing):return existing(ident) is True
+            return ident in self.clients.values()
+        if self.mode=='host':
+            return ident in self.clients.values()
+        # Ordinary solo advances through play only. Any explicitly attached
+        # socket still must be that character (not the title screen).
+        if self.clients:
+            return ident in self.clients.values()
+        # In-process solo engines can bind an actor without a WebSocket.
+        return ident==self.local_save_player
+
     async def reload_world(self):
         from server.adventures import storage_dir
         target_storage=storage_dir(engine_loader.DATA_DIR,SAVE_DIR,engine_loader.GAMES_DIR)
@@ -1766,6 +1790,7 @@ class GameServer(SocietyServer):
             streets.install(self.world)
             self.world.realtime = (self.mode == 'host')
             self.world.deferred_rest = True
+            self.world._earned_lodging_presence = self.earned_lodging_presence
             spawn_npcs(self.world)
             self._init_shop_state()
             self._load_world_state()
@@ -1796,6 +1821,7 @@ class GameServer(SocietyServer):
         streets.install(new_world)
         new_world.realtime = (self.mode == 'host')
         new_world.deferred_rest = True
+        new_world._earned_lodging_presence = self.earned_lodging_presence
         new_world.killed_npcs = killed
         new_world.spawner_counter = counter
 

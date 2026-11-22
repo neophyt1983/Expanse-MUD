@@ -4,6 +4,7 @@ Authoritative checks apply to learning and use, including scroll lessons. Recove
 uses saved world minutes, never wall-clock timers or a permanent one-use flag.
 """
 from engine.item_catalog import counted
+from engine import classless
 FAMILIES = ('mage', 'class', 'race')
 EFFECTS = ('damage', 'ward', 'heal', 'ally_heal', 'cleanse', 'guarded_strike', 'focus', 'sunder', 'repair', 'mana_conversion', 'raise_dead', 'summon', 'resurrection', 'teleport', 'light', 'ally_ward', 'relief', 'weather_guard')
 PREPARED_UNSUPPORTED = ('raise_dead','summon','resurrection','teleport','light','ally_ward','relief','weather_guard')
@@ -28,7 +29,7 @@ def eligibility(w,p,a,ignore_level=False):
         if discipline:
             actual_class,actual_race,level=discipline['char_class'],discipline['race'],discipline['level']
     for field,actual,defs in [('classes',actual_class,w.classes),('races',actual_race,w.races)]:
-        if c[field] and actual not in c[field]:
+        if c[field] and actual not in c[field] and not (field == "classes" and classless.converted(p,a)):
             return 'Requires '+', '.join(defs.get(i,{}).get('name',i) for i in c[field])+'.'
     from engine import progression
     if not ignore_level and progression.config(w)['enabled'] and level<c['minimum_level']:
@@ -51,11 +52,13 @@ def ready(w,p,a):
 
 def learning_eligibility(w,p,a,ignore_level=False):
     classes=a.get('training_classes',[])
-    if classes and p.char_class not in classes:return 'Training is for '+', '.join(w.classes.get(i,{}).get('name',i) for i in classes)+'. Already-learned legacy abilities are retained.'
+    if classes and p.char_class not in classes and not classless.converted(p,a):return 'Training is for '+', '.join(w.classes.get(i,{}).get('name',i) for i in classes)+'. Already-learned legacy abilities are retained.'
     return eligibility(w,p,a,ignore_level=ignore_level)
 
 
-def lesson_check(w,p,a):
+def lesson_check(w,p,a,*,via_school=False):
+    reason=classless.study_reason(w,p,a,via_school=via_school)
+    if reason:raise ValueError(reason)
     c=config(a)
     if c and c.get('requires_discovery') and a['id'] not in p.progress.get('ability_lessons_v1',[]):
         raise ValueError('Read the relevant training handbook or speak to its instructor first.')
@@ -247,7 +250,7 @@ def rows(w,p,query=''):
     for a in sorted(w.abilities.values(),key=lambda a:(a.get('name',''),a['id'])):
         known=a['id'] in p.abilities;c=config(a)
         # Do not expose remote catalogs; schools teach configured eligible classes.
-        if not known and (not school or learning_eligibility(w,p,a,ignore_level=True) or (c and c.get('requires_discovery') and a['id'] not in p.progress.get('ability_lessons_v1',[]))):continue
+        if not known and (not school or classless.study_reason(w,p,a,via_school=True,preview=True) or learning_eligibility(w,p,a,ignore_level=True) or (c and c.get('requires_discovery') and a['id'] not in p.progress.get('ability_lessons_v1',[]))):continue
         if query.casefold() not in (a.get('name','')+' '+a.get('description','')).casefold():continue
         family=c['family'] if c else 'legacy'
         detail=a.get('description','')
@@ -258,7 +261,7 @@ def rows(w,p,query=''):
             if c['components']:detail+=' Consumes '+', '.join(str(n)+' '+w.items.get(i,{}).get('name',i) for i,n in c['components'].items())+'.'
         row=dict(id=a['id'],label=a['name'],detail=detail,group=('Known spells' if family=='mage' else 'Known '+family+' abilities') if known else 'School lessons',actions=[],children=[])
         if not known:
-            fee=a.get('training_cost',20);reason=learning_eligibility(w,p,a) or ('' if opened else 'This school is closed.')
+            fee=a.get('training_cost',20);reason=learning_eligibility(w,p,a) or ('' if opened else 'This school is closed.') or classless.study_reason(w,p,a,via_school=True)
             if not reason and p.gold<fee:reason=f'Training costs {fee} gold.'
             row['actions']=[dict(label=f'Learn ({fee} gold)',command='study '+a['id'],disabled=bool(reason),reason=reason)]
         else:
